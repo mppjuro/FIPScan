@@ -1,5 +1,6 @@
 pluginManagement {
     repositories {
+        maven { url = uri("https://jitpack.io") }
         google {
             content {
                 includeGroupByRegex("com\\.android.*")
@@ -19,5 +20,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "FIPScan"
+rootProject.name = "FIPscan"
 include(":app")
+ 
