@@ -1,2 +1,0 @@
-# FIPScan
-FIP diagnostic app
