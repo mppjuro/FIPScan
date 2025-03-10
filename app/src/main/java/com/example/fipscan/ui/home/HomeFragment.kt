@@ -4,33 +4,34 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import com.example.fipscan.databinding.FragmentHomeBinding
 import com.itextpdf.text.pdf.PdfReader
 import com.itextpdf.text.pdf.parser.PdfTextExtractor
-import java.lang.StringBuilder
+import org.apache.commons.net.ftp.FTP
+import org.apache.commons.net.ftp.FTPClient
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
 
 class HomeFragment : Fragment() {
 
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private var pdfUri: Uri? = null
-    private lateinit var extractedData: Map<String, String>
+    private val extractedData = mutableMapOf<String, Any>()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
-
-        val btnLoadPdf: Button = binding.buttonLoadPdf
-        btnLoadPdf.setOnClickListener { openFilePicker() }
-
+        binding.buttonLoadPdf.setOnClickListener { openFilePicker() }
         return binding.root
     }
 
@@ -53,23 +54,24 @@ class HomeFragment : Fragment() {
     private fun extractTextFromPDF() {
         pdfUri?.let { uri ->
             try {
-                // Otwieramy strumień z pliku PDF
-                val inputStream = requireContext().contentResolver.openInputStream(uri)
-                inputStream?.let { stream ->
+                requireContext().contentResolver.openInputStream(uri)?.use { stream ->
                     val pdfReader = PdfReader(stream)
-                    val numPages = pdfReader.numberOfPages
                     val extractedText = StringBuilder()
 
-                    // iTextPDF numeruje strony od 1
-                    for (i in 1..numPages) {
-                        val pageText = PdfTextExtractor.getTextFromPage(pdfReader, i)
-                        extractedText.append(pageText).append("\n")
+                    for (i in 1..pdfReader.numberOfPages) {
+                        extractedText.append(PdfTextExtractor.getTextFromPage(pdfReader, i)).append("\n")
                     }
                     pdfReader.close()
-                    stream.close()
 
-                    // Parsowanie tekstu i aktualizacja UI
-                    extractedData = parseLabResults(extractedText.toString())
+                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                    val filename = "pdf_${timestamp}.txt"
+                    val savedFile = saveExtractedTextToFile(extractedText.toString(), filename)
+
+                    Thread {
+                        uploadFileToFTP(savedFile)
+                    }.start()
+
+                    parseLabResults(extractedText.toString())
                     updateUI()
                 } ?: run {
                     binding.textHome.text = "Nie udało się otworzyć pliku PDF!"
@@ -81,91 +83,109 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun parseLabResults(text: String): Map<String, String> {
-        val data = mutableMapOf<String, String>()
-        Log.d("PDF_DEBUG", "Pełna treść PDF:\n$text")
+    private fun extractRegex(regex: Regex, text: String): String? =
+        regex.find(text)?.groupValues?.get(1)?.trim()
 
-        // Parsowanie danych pacjenta (przetwarzamy cały tekst, bo te dane są na początku)
-        val regexPacjent = Regex(
-            "Pacjent:\\s+([\\p{L}]+)\\s+" +
-                    "Gatunek:\\s+([\\p{L}]+)\\s+" +
-                    "Rasa:\\s+([\\p{L}]+)\\s+" +
-                    "Płeć:\\s+([\\p{L}]+)\\s+" +
-                    "Wiek:\\s+([\\d]+\\s+[\\p{L}]+)"
-        )
-        regexPacjent.find(text)?.let {
-            data["Pacjent"] = it.groupValues[1].trim()
-            data["Gatunek"] = it.groupValues[2].trim()
-            data["Rasa"] = it.groupValues[3].trim()
-            data["Płeć"] = it.groupValues[4].trim()
-            data["Wiek"] = it.groupValues[5].trim()
-        }
+    private fun parseLabResults(text: String) {
+        extractedData.clear()
 
-// Parsowanie mikrochipa i umaszczenia – umaszczenie to jedno lub dwa słowa, bez dodatkowych fragmentów (np. "Lecznica")
+        extractedData["Pacjent"] =
+            extractRegex(Regex("Pacjent:\\s+(\\S+)"), text) ?: "-"
+        extractedData["Gatunek"] =
+            extractRegex(Regex("Gatunek:\\s+(\\S+)"), text) ?: "-"
+        extractedData["Rasa"] =
+            extractRegex(Regex("Rasa:\\s+(.+?)\\s+Płeć:"), text) ?: "-"
+        extractedData["Płeć"] =
+            extractRegex(Regex("Płeć:\\s+(\\S+)\\s+Wiek:"), text) ?: "-"
+        extractedData["Wiek1"] =
+            extractRegex(Regex("Wiek:\\s+(.*?)(?=\\s*Umaszczenie)"), text) ?: "-"
+        extractedData["Wiek2"] =
+            extractRegex(Regex("(?m)Wiek:\\s+(.*?)\\s*$"), text) ?: "-"
+        extractedData["Wiek"] = when {
+            extractedData["Wiek1"] != "-" -> extractedData["Wiek1"]
+            extractedData["Wiek2"] != "-" -> extractedData["Wiek2"]
+            else -> "-"
+        } as Any
+        extractedData["Umaszczenie"] =
+            extractRegex(Regex("Umaszczenie:\\s+(\\S.+)"), text) ?: "-"
+        extractedData["Mikrochip"] =
+            extractRegex(Regex("Mikrochip:\\s+(\\d+)"), text) ?: "-"
+
+        /*
         val regexMikrochip = Regex(
             "Mikrochip:\\s+(\\d+)\\s+" +
                     "Umaszczenie:\\s+([\\p{L}]+(?:\\s+[\\p{L}]+)?)(?=\\s|$)"
         )
         regexMikrochip.find(text)?.let {
-            data["Mikrochip"] = it.groupValues[1].trim()
-            data["Umaszczenie"] = it.groupValues[2].trim()
+            extractedData["Mikrochip"] = it.groupValues[1].trim()
+            extractedData["Umaszczenie"] = it.groupValues[2].trim()
         }
+        */
 
-        // Odczytujemy sekcję badań dopiero od wystąpienia słowa "Morfologia"
-        val labSection = if (text.contains("Morfologia")) {
-            text.substringAfter("Morfologia").trim()
-        } else {
-            ""
+        val testRegex = Regex("([\\w% /\\-α-γ]+)\\s+([\\d.,]+)\\s+(\\S+)\\s+([\\d.,]+)-([\\d.,]+)")
+        testRegex.findAll(text).forEach { match ->
+            val key = match.groupValues[1].replace("[ %/\\-()]".toRegex(), "_").replace("__+", "_").trim().lowercase(Locale.getDefault())
+            extractedData["${key}_Value"] = match.groupValues[2].replace(",", ".").toDouble()
+            extractedData["${key}_Unit"] = match.groupValues[3]
+            extractedData["${key}_Min"] = match.groupValues[4].replace(",", ".").toDouble()
+            extractedData["${key}_Max"] = match.groupValues[5].replace(",", ".").toDouble()
         }
-        Log.d("PDF_DEBUG", "Lab Section:\n$labSection")
-
-        // Regex dla WBC: wyszukujemy wartość i zakres normy
-        val regexWBC = Regex("WBC\\s+([\\d.,]+)\\s+G/l\\s+([\\d.,]+-[\\d.,]+)")
-        regexWBC.find(labSection)?.let {
-            val value = it.groupValues[1].trim()
-            val norm = it.groupValues[2].trim()
-            data["WBC"] = "$value (norma: $norm)"
-        } ?: Log.d("PDF_DEBUG", "WBC nie został znaleziony!")
-
-        // Regexy dla wyników badań – pobierają wynik (grupa 1) oraz normę (grupa 2)
-        val regexBadania = mapOf(
-            "WBC" to Regex("WBC\\s+([\\d.,]+)\\s+G/l\\s+([\\d.,]+-[\\d.,]+)"),
-            "NEU" to Regex("NEU\\s+([\\d.,]+)\\s+G/l\\s+([\\d.,]+-[\\d.,]+)"),
-            "NEU_pct" to Regex("NEU\\s+%\\s+([\\d.,]+)\\s+%\\s+([\\d.,]+-[\\d.,]+)"),
-            "LYM" to Regex("LYM\\s+([\\d.,]+)\\s+G/l\\s+([\\d.,]+-[\\d.,]+)"),
-            "LYM_pct" to Regex("LYM\\s+%\\s+([\\d.,]+)\\s+%\\s+([\\d.,]+-[\\d.,]+)"),
-            "MONO" to Regex("MONO\\s+([\\d.,]+)\\s+G/l\\s+([\\d.,]+-[\\d.,]+)"),
-            "MONO_pct" to Regex("MONO\\s+%\\s+([\\d.,]+)\\s+%\\s+([\\d.,]+-[\\d.,]+)"),
-            "EOS" to Regex("EOS\\s+([\\d.,]+)\\s+G/l\\s+([\\d.,]+-[\\d.,]+)"),
-            "EOS_pct" to Regex("EOS\\s+%\\s+([\\d.,]+)\\s+%\\s+([\\d.,]+-[\\d.,]+)"),
-            "BASO" to Regex("BASO\\s+([\\d.,]+)\\s+G/l\\s+([\\d.,]+-[\\d.,]+)"),
-            "BASO_pct" to Regex("BASO\\s+%\\s+([\\d.,]+)\\s+%\\s+([\\d.,]+-[\\d.,]+)"),
-            "RBC" to Regex("RBC\\s+([\\d.,]+)\\s+T/l\\s+([\\d.,]+-[\\d.,]+)"),
-            "HGB" to Regex("HGB\\s+([\\d.,]+)\\s+g/l\\s+([\\d.,]+-[\\d.,]+)"),
-            "HCT" to Regex("HCT\\s+([\\d.,]+)\\s+l/l\\s+([\\d.,]+-[\\d.,]+)"),
-            "MCV" to Regex("MCV\\s+([\\d.,]+)\\s+fl\\s+([\\d.,]+-[\\d.,]+)"),
-            "MCH" to Regex("MCH\\s+([\\d.,]+)\\s+pg\\s+([\\d.,]+-[\\d.,]+)"),
-            "MCHC" to Regex("MCHC\\s+([\\d.,]+)\\s+g/l\\s+([\\d.,]+-[\\d.,]+)"),
-            "PLT" to Regex("PLT\\s+([\\d.,]+)\\s+G/l\\s+([\\d.,]+-[\\d.,]+)")
-        )
-
-        // Dla każdego testu, jeśli dopasowanie zostanie znalezione w labSection, zapisujemy wynik
-        for ((key, regex) in regexBadania) {
-            regex.find(labSection)?.let {
-                val result = it.groupValues[1].trim()
-                val norm = it.groupValues[2].trim()
-                data[key] = "$result (norma: $norm)"
-            }
-        }
-
-        return data
     }
 
-
     private fun updateUI() {
-        // Łączenie sparsowanych danych w jeden string do wyświetlenia
-        val displayText = extractedData.entries.joinToString("\n") { "${it.key}: ${it.value}" }
-        binding.textHome.text = displayText
+        val info = buildString {
+            append("Pacjent: ${extractedData["Pacjent"] ?: "-"}\n")
+            append("Gatunek: ${extractedData["Gatunek"] ?: "-"}\n")
+            append("Rasa: ${extractedData["Rasa"] ?: "-"}\n")
+            append("Wiek: ${extractedData["Wiek"] ?: "-"}\n")
+            append("Mikrochip: ${extractedData["Mikrochip"] ?: "-"}\n")
+            append("Umaszczenie: ${extractedData["Umaszczenie"] ?: "-"}\n\n")
+
+            /*
+            val exampleTests = listOf(
+                "wbc", "neu", "neu_pct", "lym", "lym_pct", "mono", "mono_pct",
+                "eos", "eos_pct", "baso", "baso_pct", "rbc", "hgb", "hct",
+                "mcv", "mch", "mchc", "plt", "albuminy", "globuliny", "albuminy_globuliny"
+            )
+
+            exampleTests.forEach { test ->
+                val value = extractedData["${test}_Value"] ?: "-"
+                val unit = extractedData["${test}_Unit"] ?: ""
+                val min = extractedData["${test}_Min"] ?: "-"
+                val max = extractedData["${test}_Max"] ?: "-"
+                append("${test.uppercase()}: $value $unit (norma: $min - $max)\n")
+            }
+            */
+        }
+        binding.textHome.text = info
+    }
+
+    private fun saveExtractedTextToFile(content: String, filename: String): File {
+        val storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+        val file = File(storageDir, filename)
+        file.writeText(content)
+        return file
+    }
+
+    private fun uploadFileToFTP(file: File) {
+        FTPClient().apply {
+            try {
+                connect("fippolska.pl", 21)
+                enterLocalPassiveMode()
+                login("admin@fippolska.pl", "1540033Mp!")
+                setFileType(FTP.BINARY_FILE_TYPE)
+                changeWorkingDirectory("/public_html/")
+                changeWorkingDirectory("/pl/")
+                file.inputStream().use { inputStream ->
+                    storeFile(file.name, inputStream)
+                }
+                logout()
+                disconnect()
+                Log.d("FTP_UPLOAD", "Plik wysłany poprawnie.")
+            } catch (ex: Exception) {
+                Log.e("FTP_UPLOAD", "Błąd wysyłania pliku FTP", ex)
+            }
+        }
     }
 
     override fun onDestroyView() {
