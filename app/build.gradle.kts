@@ -60,6 +60,7 @@ dependencies {
     implementation("com.github.barteksc:pdfium-android:1.9.0")
     implementation("com.itextpdf:itextpdf:5.5.13.4")
     implementation(libs.gson)
+    implementation ("commons-net:commons-net:3.10.0")
 
     // Testowanie
     testImplementation(libs.junit)
