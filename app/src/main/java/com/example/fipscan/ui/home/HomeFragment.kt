@@ -83,53 +83,9 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun extractRegex(regex: Regex, text: String): String? =
-        regex.find(text)?.groupValues?.get(1)?.trim()
-
     private fun parseLabResults(text: String) {
         extractedData.clear()
-
-        extractedData["Pacjent"] =
-            extractRegex(Regex("Pacjent:\\s+(\\S+)"), text) ?: "-"
-        extractedData["Gatunek"] =
-            extractRegex(Regex("Gatunek:\\s+(\\S+)"), text) ?: "-"
-        extractedData["Rasa"] =
-            extractRegex(Regex("Rasa:\\s+(.+?)\\s+Płeć:"), text) ?: "-"
-        extractedData["Płeć"] =
-            extractRegex(Regex("Płeć:\\s+(\\S+)\\s+Wiek:"), text) ?: "-"
-        extractedData["Wiek1"] =
-            extractRegex(Regex("Wiek:\\s+(.*?)(?=\\s*Umaszczenie)"), text) ?: "-"
-        extractedData["Wiek2"] =
-            extractRegex(Regex("(?m)Wiek:\\s+(.*?)\\s*$"), text) ?: "-"
-        extractedData["Wiek"] = when {
-            extractedData["Wiek1"] != "-" -> extractedData["Wiek1"]
-            extractedData["Wiek2"] != "-" -> extractedData["Wiek2"]
-            else -> "-"
-        } as Any
-        extractedData["Umaszczenie"] =
-            extractRegex(Regex("Umaszczenie:\\s+(\\S.+)"), text) ?: "-"
-        extractedData["Mikrochip"] =
-            extractRegex(Regex("Mikrochip:\\s+(\\d+)"), text) ?: "-"
-
-        /*
-        val regexMikrochip = Regex(
-            "Mikrochip:\\s+(\\d+)\\s+" +
-                    "Umaszczenie:\\s+([\\p{L}]+(?:\\s+[\\p{L}]+)?)(?=\\s|$)"
-        )
-        regexMikrochip.find(text)?.let {
-            extractedData["Mikrochip"] = it.groupValues[1].trim()
-            extractedData["Umaszczenie"] = it.groupValues[2].trim()
-        }
-        */
-
-        val testRegex = Regex("([\\w% /\\-α-γ]+)\\s+([\\d.,]+)\\s+(\\S+)\\s+([\\d.,]+)-([\\d.,]+)")
-        testRegex.findAll(text).forEach { match ->
-            val key = match.groupValues[1].replace("[ %/\\-()]".toRegex(), "_").replace("__+", "_").trim().lowercase(Locale.getDefault())
-            extractedData["${key}_Value"] = match.groupValues[2].replace(",", ".").toDouble()
-            extractedData["${key}_Unit"] = match.groupValues[3]
-            extractedData["${key}_Min"] = match.groupValues[4].replace(",", ".").toDouble()
-            extractedData["${key}_Max"] = match.groupValues[5].replace(",", ".").toDouble()
-        }
+        extractedData.putAll(com.example.fipscan.ExtractData.parseLabResults(text))
     }
 
     private fun updateUI() {
