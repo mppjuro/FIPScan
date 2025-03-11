@@ -97,21 +97,24 @@ class HomeFragment : Fragment() {
             append("Mikrochip: ${extractedData["Mikrochip"] ?: "-"}\n")
             append("Umaszczenie: ${extractedData["Umaszczenie"] ?: "-"}\n\n")
 
-            /*
-            val exampleTests = listOf(
-                "wbc", "neu", "neu_pct", "lym", "lym_pct", "mono", "mono_pct",
-                "eos", "eos_pct", "baso", "baso_pct", "rbc", "hgb", "hct",
-                "mcv", "mch", "mchc", "plt", "albuminy", "globuliny", "albuminy_globuliny"
-            )
+            append("Parametry\n") // poza normą:\n")
 
-            exampleTests.forEach { test ->
-                val value = extractedData["${test}_Value"] ?: "-"
-                val unit = extractedData["${test}_Unit"] ?: ""
-                val min = extractedData["${test}_Min"] ?: "-"
-                val max = extractedData["${test}_Max"] ?: "-"
-                append("${test.uppercase()}: $value $unit (norma: $min - $max)\n")
+            val parametry = extractedData.keys
+                .filter { it != "Pacjent" && it != "Gatunek" && it != "Rasa" && it != "Płeć" && it != "Wiek"
+                        && it != "Wiek1" && it != "Wiek2" && it != "Mikrochip" && it != "Umaszczenie" }
+                .filter { !it.contains("Unit") && !it.contains("RangeMin") && !it.contains("RangeMax") }
+
+
+            for (param in parametry) {
+                val wartosc = extractedData[param]?.toString()?.replace(",", ".")?.toDoubleOrNull()
+                val min = extractedData["${param}RangeMin"]?.toString()?.replace(",", ".")?.toDoubleOrNull()
+                val max = extractedData["${param}RangeMax"]?.toString()?.replace(",", ".")?.toDoubleOrNull()
+                val unit = extractedData["${param}Unit"]?.toString() ?: "-" // Pobranie jednostki
+
+                // if (wartosc != null && (min != null && wartosc < min || max != null && wartosc > max)) {
+                append("$param: $wartosc (${min ?: "-" } - ${max ?: "-"}) $unit\n")
+                // }
             }
-            */
         }
         binding.textHome.text = info
     }

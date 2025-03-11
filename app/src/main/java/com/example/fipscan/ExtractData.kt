@@ -1,9 +1,13 @@
 package com.example.fipscan
 
+import android.util.Log
+
 object ExtractData {
 
     fun parseLabResults(text: String): Map<String, Any> {
         val extractedData = mutableMapOf<String, Any>()
+
+        //Log.d("WBC: ", extractedData["Wbc"].toString())
 
         extractedData["Pacjent"] =
             extractRegex(Regex("Pacjent:\\s+(\\S+)"), text) ?: "-"
@@ -29,17 +33,21 @@ object ExtractData {
 
         // WBC
         extractedData["Wbc"] =
-            extractRegex(Regex("WBC\\s+G/l\\s+[\\d,.]+-[\\d,.]+\\s+(\\d+,\\d+)"), text) ?: "-"
+            (extractRegex(Regex("WBC\\s+G/l\\s+[\\d,.]+-[\\d,.]+\\s+(\\d+,\\d+)"), text)
+                ?: extractRegex(Regex("Morfologia\\s+G/l\\s+[\\d,.]+-[\\d,.]+\\s+WBC\\s+(\\d+,\\d+)"), text)) as Any
         extractedData["WbcUnit"] =
-            extractRegex(Regex("WBC\\s+(G/l)"), text) ?: "-"
+            extractRegex(Regex("Morfologia\\s+(G/l)"), text) ?: "G/l"
         extractedData["WbcRangeMin"] =
-            extractRegex(Regex("WBC\\s+G/l\\s+([\\d,.]+)-"), text) ?: "-"
+            extractRegex(Regex("WBC\\s+G/l\\s+([\\d,.]+)-"), text)
+                ?: extractRegex(Regex("Morfologia\\s+G/l\\s+([\\d,.]+)-"), text) ?: "-"
         extractedData["WbcRangeMax"] =
-            extractRegex(Regex("WBC\\s+G/l\\s+[\\d,.]+-([\\d,.]+)"), text) ?: "-"
+            extractRegex(Regex("WBC\\s+G/l\\s+[\\d,.]+-([\\d,.]+)"), text)
+                ?: extractRegex(Regex("Morfologia\\s+G/l\\s+[\\d,.]+-([\\d,.]+)"), text) ?: "-"
 
         // NEU
         extractedData["Neu"] =
-            extractRegex(Regex("NEU\\s+G/l\\s+[\\d,.]+-[\\d,.]+\\s+(\\d+,\\d+)"), text) ?: "-"
+            (extractRegex(Regex("NEU\\s+G/l\\s+[\\d,.]+-[\\d,.]+\\s+(\\d+,\\d+)"), text)
+                ?: extractRegex(Regex("NEU\\s+(\\d+,\\d+)\\s+G/l\\s+[\\d,.]+-[\\d,.]+"), text)) as Any
         extractedData["NeuUnit"] =
             extractRegex(Regex("NEU\\s+(G/l)"), text) ?: "-"
         extractedData["NeuRangeMin"] =
@@ -50,10 +58,11 @@ object ExtractData {
         // NEU %
         extractedData["Neu%"] =
             extractRegex(Regex("NEU %\\s+%\\s+[\\d,.]+-[\\d,.]+\\s+(\\d+,\\d+)"), text) ?: "-"
+        extractedData["NeuUnit"] = "%"
         extractedData["Neu%RangeMin"] =
-            extractRegex(Regex("NEU %\\s+%\\s+([\\d,.]+)-"), text) ?: "-"
-        extractedData["NeuRangeMax%"] =
-            extractRegex(Regex("NEU %\\s+%\\s+[\\d,.]+-([\\d,.]+)"), text) ?: "-"
+            extractRegex(Regex("NEU %\\s+%\\s+([\\d,.]+)\\s+-"), text) ?: "-"
+        extractedData["Neu%RangeMax"] =
+            extractRegex(Regex("NEU %\\s+%\\s+[\\d,.]+\\s+-\\s+([\\d,.]+)"), text) ?: "-"
 
         // LYM
         extractedData["Lym"] =
