@@ -9,7 +9,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.fipscan"
-        minSdk = 24
+        minSdk = 26
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -43,10 +43,26 @@ android {
     // Aby wykluczyć zduplikowane pliki w dependencies
     packaging {
         resources.excludes.add("META-INF/DEPENDENCIES")
+        resources.excludes.add("META-INF/LICENSE")
+        resources.excludes.add("META-INF/LICENSE.txt")
+        resources.excludes.add("META-INF/license.txt")
+        resources.excludes.add("META-INF/NOTICE")
+        resources.excludes.add("META-INF/NOTICE.txt")
+        resources.excludes.add("META-INF/notice.txt")
+        resources.excludes.add("META-INF/ASL2.0")
+        resources.excludes.add("META-INF/versions/9/OSGI-INF/MANIFEST.MF")
+    }
+}
+
+configurations.all {
+    resolutionStrategy {
+        force("org.bouncycastle:bcpkix-jdk18on:1.80")
+        force("org.bouncycastle:bcprov-jdk18on:1.80")
     }
 }
 
 dependencies {
+
     // AndroidX
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
@@ -57,12 +73,18 @@ dependencies {
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
 
-    implementation("com.github.barteksc:pdfium-android:1.9.0")
-    implementation("com.itextpdf:itextpdf:5.5.13.4")
     implementation(libs.gson)
-    implementation ("commons-net:commons-net:3.10.0")
+    implementation("com.github.mppjuro:tabula-java-android:e2e09c301f")
+    //implementation ("org.apache.pdfbox:pdfbox:2.0.24")
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0") {
+        exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
+        exclude(group = "org.bouncycastle", module = "bcutil-jdk15to18")
+        exclude(group = "org.bouncycastle", module = "bcpkix-jdk15to18")
+    }
+    implementation ("commons-net:commons-net:3.6")
+    implementation ("org.apache.commons:commons-csv:1.9.0")
+    implementation ("commons-io:commons-io:2.11.0")
 
-    // Testowanie
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

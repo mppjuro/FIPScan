@@ -1,0 +1,7 @@
+services:
+  tabula:
+    image: gavinkflam/tabula-api:edge
+    container_name: tabula-api
+    restart: always
+    ports:
+      - "9876:9876"
