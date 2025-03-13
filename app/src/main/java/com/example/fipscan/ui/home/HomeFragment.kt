@@ -12,11 +12,13 @@ import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
 import com.example.fipscan.databinding.FragmentHomeBinding
-import com.itextpdf.text.pdf.PdfReader
-import com.itextpdf.text.pdf.parser.PdfTextExtractor
 import org.apache.commons.net.ftp.FTP
 import org.apache.commons.net.ftp.FTPClient
-import java.io.File
+import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
+import com.tom_roush.pdfbox.pdmodel.PDDocument
+import technology.tabula.*
+import technology.tabula.extractors.SpreadsheetExtractionAlgorithm
+import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -25,11 +27,11 @@ class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private var pdfUri: Uri? = null
-    private val extractedData = mutableMapOf<String, Any>()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
+        PDFBoxResourceLoader.init(requireContext())
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         binding.buttonLoadPdf.setOnClickListener { openFilePicker() }
         return binding.root
@@ -43,106 +45,106 @@ class HomeFragment : Fragment() {
         filePicker.launch(intent)
     }
 
-    private val filePicker =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK && result.data != null) {
-                pdfUri = result.data?.data
-                extractTextFromPDF()
-            }
-        }
-
-    private fun extractTextFromPDF() {
+    private fun extractTablesWithTabula() {
         pdfUri?.let { uri ->
             try {
-                requireContext().contentResolver.openInputStream(uri)?.use { stream ->
-                    val pdfReader = PdfReader(stream)
-                    val extractedText = StringBuilder()
+                requireContext().contentResolver.openInputStream(uri)?.use { inputStream ->
+                    val pdfDocument = PDDocument.load(inputStream)
 
-                    for (i in 1..pdfReader.numberOfPages) {
-                        extractedText.append(PdfTextExtractor.getTextFromPage(pdfReader, i)).append("\n")
-                    }
-                    pdfReader.close()
+                    val tablesData = extractTablesFromPDF(pdfDocument)
 
                     val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                    val filename = "pdf_${timestamp}.txt"
-                    val savedFile = saveExtractedTextToFile(extractedText.toString(), filename)
+                    val csvFilename = "data_$timestamp.csv"
+                    val csvFile = saveAsCSV(tablesData, csvFilename)
 
                     Thread {
-                        uploadFileToFTP(savedFile)
+                        if (uploadFileToFTP(csvFile)) {
+                            analyzeCSVFile(csvFile)
+                        }
                     }.start()
 
-                    parseLabResults(extractedText.toString())
-                    updateUI()
-                } ?: run {
-                    binding.textHome.text = "Nie udało się otworzyć pliku PDF!"
+                    pdfDocument.close() // Zamykamy dokument PDF
                 }
             } catch (e: Exception) {
-                binding.textHome.text = "Błąd przetwarzania PDF!"
-                Log.e("PDF_ERROR", "Błąd", e)
+                binding.textHome.text = "Błąd przetwarzania tabel!"
+                Log.e("TABULA_ERROR", "Błąd", e)
             }
         }
     }
 
-    private fun parseLabResults(text: String) {
-        extractedData.clear()
-        extractedData.putAll(com.example.fipscan.ExtractData.parseLabResults(text))
-    }
+    private fun extractTablesFromPDF(pdfDocument: PDDocument): List<String> {
+        val outputData = mutableListOf<String>()
 
-    private fun updateUI() {
-        val info = buildString {
-            append("Pacjent: ${extractedData["Pacjent"] ?: "-"}\n")
-            append("Gatunek: ${extractedData["Gatunek"] ?: "-"}\n")
-            append("Rasa: ${extractedData["Rasa"] ?: "-"}\n")
-            append("Wiek: ${extractedData["Wiek"] ?: "-"}\n")
-            append("Mikrochip: ${extractedData["Mikrochip"] ?: "-"}\n")
-            append("Umaszczenie: ${extractedData["Umaszczenie"] ?: "-"}\n\n")
+        try {
+            val extractor = ObjectExtractor(pdfDocument) // Poprawiona inicjalizacja
 
-            append("Parametry\n") // poza normą:\n")
+            for (pageIndex in 0 until pdfDocument.numberOfPages) { // pdfbox-android indeksuje od 0
+                val page: Page = extractor.extract(pageIndex + 1) // Tabula używa indeksowania 1-based
+                val algorithm = SpreadsheetExtractionAlgorithm()
+                val tables: List<Table> = algorithm.extract(page)
 
-            val parametry = extractedData.keys
-                .filter { it != "Pacjent" && it != "Gatunek" && it != "Rasa" && it != "Płeć" && it != "Wiek"
-                        && it != "Wiek1" && it != "Wiek2" && it != "Mikrochip" && it != "Umaszczenie" }
-                .filter { !it.contains("Unit") && !it.contains("RangeMin") && !it.contains("RangeMax") }
-
-
-            for (param in parametry) {
-                val wartosc = extractedData[param]?.toString()?.replace(",", ".")?.toDoubleOrNull()
-                val min = extractedData["${param}RangeMin"]?.toString()?.replace(",", ".")?.toDoubleOrNull()
-                val max = extractedData["${param}RangeMax"]?.toString()?.replace(",", ".")?.toDoubleOrNull()
-                val unit = extractedData["${param}Unit"]?.toString() ?: "-" // Pobranie jednostki
-
-                // if (wartosc != null && (min != null && wartosc < min || max != null && wartosc > max)) {
-                append("$param: $wartosc (${min ?: "-" } - ${max ?: "-"}) $unit\n")
-                // }
+                for (table in tables) {
+                    for (row in table.rows) {
+                        val rowData = row.joinToString(",") { cell ->
+                            (cell as? RectangularTextContainer<*>)?.text ?: ""
+                        }
+                        outputData.add(rowData)
+                    }
+                }
             }
+        } catch (e: Exception) {
+            Log.e("TABULA_ERROR", "Błąd podczas ekstrakcji tabeli", e)
         }
-        binding.textHome.text = info
+
+        return outputData
     }
 
-    private fun saveExtractedTextToFile(content: String, filename: String): File {
+    private fun saveAsCSV(data: List<String>, filename: String): File {
         val storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
         val file = File(storageDir, filename)
-        file.writeText(content)
+        file.writeText(data.joinToString("\n"))
         return file
     }
 
-    private fun uploadFileToFTP(file: File) {
-        FTPClient().apply {
-            try {
-                connect("fippolska.pl", 21)
+    private fun uploadFileToFTP(file: File): Boolean {
+        val ftpClient = FTPClient()
+        return try {
+            val properties = Properties().apply {
+                requireContext().assets.open("ftp_config.properties").use { load(it) }
+            }
+
+            ftpClient.apply {
+                connect(properties.getProperty("ftp.host"), 21)
                 enterLocalPassiveMode()
-                login("admin@fippolska.pl", "1540033Mp!")
+                login(properties.getProperty("ftp.user"), properties.getProperty("ftp.pass"))
                 setFileType(FTP.BINARY_FILE_TYPE)
                 changeWorkingDirectory("/public_html/")
                 changeWorkingDirectory("/pl/")
-                file.inputStream().use { inputStream ->
-                    storeFile(file.name, inputStream)
-                }
+                storeFile(file.name, file.inputStream())
                 logout()
                 disconnect()
-                Log.d("FTP_UPLOAD", "Plik wysłany poprawnie.")
-            } catch (ex: Exception) {
-                Log.e("FTP_UPLOAD", "Błąd wysyłania pliku FTP", ex)
+            }
+            Log.d("FTP_UPLOAD", "Plik wysłany poprawnie.")
+            true
+        } catch (ex: Exception) {
+            Log.e("FTP_UPLOAD", "Błąd wysyłania pliku FTP", ex)
+            false
+        }
+    }
+
+    private fun analyzeCSVFile(csvFile: File) {
+        val tableData = mutableListOf<List<String>>()
+        csvFile.forEachLine { line ->
+            tableData.add(line.split(","))
+        }
+        Log.d("CSV_ANALYSIS", "Załadowano ${tableData.size} wierszy z CSV")
+    }
+
+    private val filePicker = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            result.data?.data?.let {
+                pdfUri = it
+                extractTablesWithTabula()
             }
         }
     }
