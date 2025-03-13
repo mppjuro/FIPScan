@@ -42,15 +42,21 @@ android {
 
     // Aby wykluczyć zduplikowane pliki w dependencies
     packaging {
-        resources.excludes.add("META-INF/DEPENDENCIES")
-        resources.excludes.add("META-INF/LICENSE")
-        resources.excludes.add("META-INF/LICENSE.txt")
-        resources.excludes.add("META-INF/license.txt")
-        resources.excludes.add("META-INF/NOTICE")
-        resources.excludes.add("META-INF/NOTICE.txt")
-        resources.excludes.add("META-INF/notice.txt")
-        resources.excludes.add("META-INF/ASL2.0")
-        resources.excludes.add("META-INF/versions/9/OSGI-INF/MANIFEST.MF")
+        resources {
+            excludes += setOf(
+                "META-INF/LICENSE",
+                "META-INF/LICENSE.txt",
+                "META-INF/license.txt",
+                "META-INF/NOTICE",
+                "META-INF/NOTICE.txt",
+                "META-INF/notice.txt",
+                "META-INF/DEPENDENCIES",
+                "META-INF/versions/9/OSGI-INF/MANIFEST.MF",
+                "licenses/extreme.indiana.edu.license.TXT",
+                "licenses/thoughtworks.TXT",
+                "licenses/javolution.license.TXT",
+            )
+        }
     }
 }
 
@@ -75,7 +81,7 @@ dependencies {
     implementation(libs.gson)
 
     // Tabula dla Androida (do ekstrakcji tabel)
-    implementation("com.github.mppjuro:tabula-java-android:e2e09c301f")
+    implementation("com.github.mppjuro:tabula-java-android:7db7d44809")
 
     // Poprawiona wersja PDFBox-Android
     implementation("com.tom-roush:pdfbox-android:2.0.27.0") {
