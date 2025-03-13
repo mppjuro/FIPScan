@@ -62,7 +62,6 @@ configurations.all {
 }
 
 dependencies {
-
     // AndroidX
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
@@ -74,16 +73,25 @@ dependencies {
     implementation(libs.androidx.navigation.ui.ktx)
 
     implementation(libs.gson)
+
+    // Tabula dla Androida (do ekstrakcji tabel)
     implementation("com.github.mppjuro:tabula-java-android:e2e09c301f")
-    //implementation ("org.apache.pdfbox:pdfbox:2.0.24")
+
+    // Poprawiona wersja PDFBox-Android
     implementation("com.tom-roush:pdfbox-android:2.0.27.0") {
         exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
         exclude(group = "org.bouncycastle", module = "bcutil-jdk15to18")
         exclude(group = "org.bouncycastle", module = "bcpkix-jdk15to18")
     }
-    implementation ("commons-net:commons-net:3.6")
-    implementation ("org.apache.commons:commons-csv:1.9.0")
-    implementation ("commons-io:commons-io:2.11.0")
+
+    // Commons IO dla operacji na plikach
+    implementation("commons-io:commons-io:2.11.0")
+
+    // Commons Net do obsługi FTP
+    implementation("commons-net:commons-net:3.6")
+
+    // Apache Commons CSV do operacji na plikach CSV
+    implementation("org.apache.commons:commons-csv:1.9.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
