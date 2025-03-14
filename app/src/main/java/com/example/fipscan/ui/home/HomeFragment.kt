@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.Fragment
+import com.example.fipscan.ExtractData
 import com.example.fipscan.databinding.FragmentHomeBinding
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
@@ -81,11 +82,12 @@ class HomeFragment : Fragment() {
                     val csvFilename = "data_$timestamp.csv"
                     val csvFile = saveAsCSV(tablesData, csvFilename)
 
-                    Thread {
-                        if (uploadFileToFTP(csvFile)) {
-                            analyzeCSVFile(csvFile)
-                        }
-                    }.start()
+                    analyzeCSVFile(csvFile)
+                    //Thread {
+                        //if (uploadFileToFTP(csvFile)) {
+                            //analyzeCSVFile(csvFile)
+                        //}
+                    //}.start()
                 }
             } catch (e: Exception) {
                 binding.textHome.text = "Błąd przetwarzania tabel!"
@@ -204,12 +206,29 @@ class HomeFragment : Fragment() {
         }
     }
 
+    /*
     private fun analyzeCSVFile(csvFile: File) {
         val tableData = mutableListOf<List<String>>()
         csvFile.forEachLine { line ->
             tableData.add(line.split(","))
         }
         Log.d("CSV_ANALYSIS", "Załadowano ${tableData.size} wierszy z CSV")
+    }
+    */
+
+    private fun analyzeCSVFile(csvFile: File) {
+        val csvLines = csvFile.readLines()
+        val extractedData = ExtractData.parseLabResults(csvLines)
+
+        val results = extractedData["results"] as? List<String> ?: emptyList()
+
+        activity?.runOnUiThread {
+            binding.textHome.text = if (results.isNotEmpty()) {
+                "Wyniki poza normą:\n${results.joinToString("\n")}"
+            } else {
+                "Wszystkie wyniki w normie"
+            }
+        }
     }
 
     private val filePicker =
