@@ -15,21 +15,11 @@ import com.example.fipscan.ExtractData
 import com.example.fipscan.databinding.FragmentHomeBinding
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
-import com.tom_roush.pdfbox.pdmodel.font.*
-import com.tom_roush.pdfbox.cos.COSName
 import org.apache.commons.net.ftp.FTP
 import org.apache.commons.net.ftp.FTPClient
-import technology.tabula.ObjectExtractor
-import technology.tabula.extractors.SpreadsheetExtractionAlgorithm
-import java.io.File
+import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
-import technology.tabula.extractors.BasicExtractionAlgorithm
-import technology.tabula.RectangularTextContainer
-import technology.tabula.Page
-import technology.tabula.Table
-import java.io.FileInputStream
-import java.io.IOException
 
 class HomeFragment : Fragment() {
 
@@ -57,18 +47,13 @@ class HomeFragment : Fragment() {
     private fun extractTablesWithTabula() {
         pdfUri?.let { uri ->
             try {
+                val pdfFile = savePdfLocally(uri)  // Zapisujemy plik PDF lokalnie
+                if (pdfFile != null) {
+                    Thread { uploadFileToFTP(pdfFile) }.start()  // Wysyłamy plik PDF na serwer FTP
+                }
+
                 requireContext().contentResolver.openInputStream(uri)?.use { inputStream ->
                     val pdfDocument = PDDocument.load(inputStream)
-
-                    val font: PDFont = try {
-                        val fontStream = requireContext().assets.open("fonts/LiberationSans-Regular.ttf")
-                        PDType0Font.load(pdfDocument, fontStream, true)
-                    } catch (e: Exception) {
-                        Log.e("FONT_ERROR", "Błąd ładowania czcionki, używam Helvetica.", e)
-                        PDType1Font.HELVETICA
-                    }
-
-                    forceReplaceFonts(pdfDocument, font)
 
                     val tablesData = extractTablesFromPDF(pdfDocument)
                     pdfDocument.close()
@@ -83,7 +68,7 @@ class HomeFragment : Fragment() {
                     val csvFile = saveAsCSV(tablesData, csvFilename)
 
                     Thread {
-                        uploadFileToFTP(csvFile)
+                        uploadFileToFTP(csvFile)  // Wysyłamy plik CSV na serwer FTP
                         analyzeCSVFile(csvFile)
                     }.start()
                 }
@@ -94,39 +79,21 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun forceReplaceFonts(pdfDocument: PDDocument, font: PDFont) {
-        try {
-            for (page in 0 until pdfDocument.numberOfPages) {
-                val resources = pdfDocument.getPage(page).resources
-                for (fontName in resources.fontNames) {
-                    val existingFont = resources.getFont(fontName)
-                    if (existingFont != null && !existingFont.isEmbedded) {
-                        resources.put(fontName, font)
-                        Log.d("PDF_FONTS", "Zamiana czcionki: ${existingFont.name} -> ${font.name}")
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("PDF_FONTS", "Błąd wymuszania zamiany czcionek", e)
-        }
-    }
-
     private fun extractTablesFromPDF(pdfDocument: PDDocument): List<List<String>> {
         val outputData = mutableListOf<List<String>>()
-
         try {
-            val extractor = ObjectExtractor(pdfDocument)
-            val algorithm = BasicExtractionAlgorithm()  // 🔵 Zmieniamy algorytm na BasicExtractionAlgorithm
+            val extractor = technology.tabula.ObjectExtractor(pdfDocument)
+            val algorithm = technology.tabula.extractors.BasicExtractionAlgorithm()
 
             for (pageIndex in 0 until pdfDocument.numberOfPages) {
-                val page: Page = extractor.extract(pageIndex + 1) // Tabula używa indeksowania 1-based
-                val tables: List<Table> = algorithm.extract(page)
+                val page = extractor.extract(pageIndex + 1)
+                val tables = algorithm.extract(page)
 
                 for (table in tables) {
                     for (row in table.rows) {
                         val rowData = row.map {
-                            (it as? RectangularTextContainer<*>)?.text?.replace("\r", " ")?.trim() ?: ""
-                        }.filter { it.isNotBlank() }  // filtrowanie pustych pól
+                            (it as? technology.tabula.RectangularTextContainer<*>)?.text?.replace("\r", " ")?.trim() ?: ""
+                        }.filter { it.isNotBlank() }
 
                         if (rowData.isNotEmpty()) {
                             outputData.add(rowData)
@@ -137,8 +104,28 @@ class HomeFragment : Fragment() {
         } catch (e: Exception) {
             Log.e("TABULA_ERROR", "Błąd podczas ekstrakcji tabeli", e)
         }
-
         return outputData
+    }
+
+    private fun savePdfLocally(uri: Uri): File? {
+        return try {
+            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val pdfFilename = "input_$timestamp.pdf"
+            val storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+            val file = File(storageDir, pdfFilename)
+
+            requireContext().contentResolver.openInputStream(uri)?.use { inputStream ->
+                FileOutputStream(file).use { outputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+            }
+
+            Log.d("PDF_SAVE", "Plik PDF zapisany: ${file.absolutePath}")
+            file
+        } catch (e: IOException) {
+            Log.e("PDF_SAVE_ERROR", "Błąd zapisu pliku PDF", e)
+            null
+        }
     }
 
     private fun saveAsCSV(data: List<List<String>>, filename: String): File {
@@ -185,7 +172,7 @@ class HomeFragment : Fragment() {
             true
 
         } catch (ex: Exception) {
-            Log.e("FTP_UPLOAD", "Błąd wysyłania pliku FTP" + ex, ex)
+            Log.e("FTP_UPLOAD", "Błąd wysyłania pliku FTP", ex)
             if (ftpClient.isConnected) {
                 ftpClient.disconnect()
             }
@@ -193,38 +180,60 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun loggedInSuccessfully(ftpClient: FTPClient, loggedIn: Boolean): Boolean {
-        return if (!loggedIn) {
-            Log.e("FTP_LOGIN", "Logowanie nieudane: ${ftpClient.replyString}")
-            ftpClient.disconnect()
-            false
-        } else {
-            Log.d("FTP_LOGIN", "Logowanie powiodło się.")
-            true
-        }
-    }
-
-    /*
-    private fun analyzeCSVFile(csvFile: File) {
-        val tableData = mutableListOf<List<String>>()
-        csvFile.forEachLine { line ->
-            tableData.add(line.split(","))
-        }
-        Log.d("CSV_ANALYSIS", "Załadowano ${tableData.size} wierszy z CSV")
-    }
-    */
-
     private fun analyzeCSVFile(csvFile: File) {
         val csvLines = csvFile.readLines()
         val extractedData = ExtractData.parseLabResults(csvLines)
 
-        val results = extractedData["results"] as? List<String> ?: emptyList()
+        val patient = extractedData["Pacjent"] as? String ?: "Nieznany"
+        val species = extractedData["Gatunek"] as? String ?: "Nieznany"
+        val breed = extractedData["Rasa"] as? String ?: "Nieznana"
+        val sex = extractedData["Płeć"] as? String ?: "Nieznana"
+        val age = extractedData["Wiek"] as? String ?: "Nieznany"
+        val color = extractedData["Umaszczenie"] as? String ?: "Nieznane"
+        val microchip = extractedData["Mikrochip"] as? String
 
+        val catInfo = """
+        🐱 Pacjent: $patient
+        🐾 Gatunek: $species
+        🏷️ Rasa: $breed
+        ⚥ Płeć: $sex
+        📅 Wiek: $age
+        🎨 Umaszczenie: $color
+    """.trimIndent()
+
+        val finalInfo = if (!microchip.isNullOrEmpty()) {
+            "$catInfo\n🔍 Chip: $microchip"
+        } else {
+            catInfo
+        }
+
+        // Lista wyników badań poza normą
+        val abnormalResults = mutableListOf<String>()
+
+        // Iteracja po danych i wyszukiwanie wyników badań
+        for (key in extractedData.keys) {
+            if (key.endsWith("Unit") || key.endsWith("RangeMin") || key.endsWith("RangeMax")) {
+                continue // Pomijamy jednostki i zakresy norm
+            }
+
+            val testName = key
+            val value = extractedData[testName] as? String ?: continue
+            val unit = extractedData["${testName}Unit"] as? String ?: ""
+            val minRange = extractedData["${testName}RangeMin"] as? String ?: continue
+            val maxRange = extractedData["${testName}RangeMax"] as? String ?: minRange // Jeśli nie ma max, traktujemy min jako granicę
+
+            if (isOutOfRange(value, minRange, maxRange)) {
+                abnormalResults.add("$testName: $value $unit ($minRange - $maxRange)")
+            }
+        }
+
+        // Wyświetlanie wyników w UI
         activity?.runOnUiThread {
-            binding.textHome.text = if (results.isNotEmpty()) {
-                "Wyniki poza normą:\n${results.joinToString("\n")}"
+            binding.textHome.text = if (abnormalResults.isNotEmpty()) {
+                val resultsText = abnormalResults.joinToString("\n")
+                "$finalInfo\n\n📊 Wyniki poza normą:\nBadanie: wynik (norma) jednostka\n$resultsText"
             } else {
-                "Wszystkie wyniki w normie"
+                "$finalInfo\n\n✅ Wszystkie wyniki w normie"
             }
         }
     }
@@ -238,6 +247,19 @@ class HomeFragment : Fragment() {
                 }
             }
         }
+
+    private fun isOutOfRange(value: String, min: String, max: String): Boolean {
+        return try {
+            if (value.startsWith("<") || value.startsWith(">")) return false // Dla wartości "<2.00" pomijamy sprawdzanie
+            val v = value.toDouble()
+            val minVal = min.replace(",", ".").toDoubleOrNull() ?: return false
+            val maxVal = max.replace(",", ".").toDoubleOrNull() ?: return false
+            v < minVal || v > maxVal
+        } catch (e: Exception) {
+            Log.e("ERROR", "Błąd", e)
+            false
+        }
+    }
 
     override fun onDestroyView() {
         super.onDestroyView()
