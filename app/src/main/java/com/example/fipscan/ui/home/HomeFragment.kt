@@ -82,12 +82,10 @@ class HomeFragment : Fragment() {
                     val csvFilename = "data_$timestamp.csv"
                     val csvFile = saveAsCSV(tablesData, csvFilename)
 
-                    analyzeCSVFile(csvFile)
-                    //Thread {
-                        //if (uploadFileToFTP(csvFile)) {
-                            //analyzeCSVFile(csvFile)
-                        //}
-                    //}.start()
+                    Thread {
+                        uploadFileToFTP(csvFile)
+                        analyzeCSVFile(csvFile)
+                    }.start()
                 }
             } catch (e: Exception) {
                 binding.textHome.text = "Błąd przetwarzania tabel!"
