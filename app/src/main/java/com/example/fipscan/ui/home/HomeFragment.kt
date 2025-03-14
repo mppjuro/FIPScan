@@ -185,7 +185,7 @@ class HomeFragment : Fragment() {
             true
 
         } catch (ex: Exception) {
-            Log.e("FTP_UPLOAD", "Błąd wysyłania pliku FTP", ex)
+            Log.e("FTP_UPLOAD", "Błąd wysyłania pliku FTP" + ex, ex)
             if (ftpClient.isConnected) {
                 ftpClient.disconnect()
             }

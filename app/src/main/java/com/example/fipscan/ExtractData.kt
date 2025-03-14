@@ -8,6 +8,7 @@ object ExtractData {
         val extractedData = mutableMapOf<String, Any>()
         val results = mutableListOf<String>()
         var wbcFound = false
+        var dateCollectedSet = false  // Flaga do zapisania pierwszej wartości "Data pobrania materiału"
         var lastTestName: String? = null  // Przechowuje nazwę badania dla "Wynik"
 
         // Szukaj danych pacjenta
@@ -19,27 +20,40 @@ object ExtractData {
 
         // Przetwarzaj wyniki badań
         for (line in csvLines) {
-            val parts = line.split(";").map { it.trim() }
+            val cleanedLine = removeParentheses(line)  // Usunięcie nawiasów i ich zawartości
 
+            if (cleanedLine.startsWith("Data pobrania materiału") && !dateCollectedSet) {
+                extractDateOfCollection(cleanedLine, extractedData)
+                dateCollectedSet = true
+                Log.d("DATA", "Data pobrania materiału: " + extractedData["Data pobrania materiału"])
+                continue
+            }
+
+            if (cleanedLine.startsWith("Data ")) {
+                continue  // Pominięcie innych wpisów rozpoczynających się od "Data"
+            }
+
+            val parts = cleanedLine.split(";").map { it.trim() }
+
+            // Jeśli linia zawiera tylko nazwę badania (np. "Kwas foliowy"), zapamiętaj ją
             if (parts.size == 1 && parts[0].isNotEmpty() && !containsNumericValue(parts[0])) {
-                // Jeśli linia zawiera tylko nazwę badania (np. "Kwas foliowy"), zapamiętaj ją
                 lastTestName = parts[0]
                 continue
             }
 
-            if (parts.size >= 3 && containsNumericValue(parts[0])) {
-                var (name, value) = extractParameterAndValue(parts[0])
+            if (parts.size >= 3 && parts[0].matches(Regex(".*[<>]?[0-9]+[,.][0-9]+.*"))) {
+                var (name, value) = parseParameterName(parts[0])
 
                 // Jeśli nazwa to "Wynik", użyj poprzedniej zapamiętanej nazwy badania
                 val resolvedName = if (name == "Wynik" && lastTestName != null) lastTestName else name
 
-                val unit = cleanValue(parts[1])
-                val range = cleanValue(parts[2]).split("-")
+                val unit = parts[1]
+                val range = parts[2].split("-")
 
                 extractedData[resolvedName] = value
                 extractedData["${resolvedName}Unit"] = unit
-                extractedData["${resolvedName}RangeMin"] = range[0]
-                extractedData["${resolvedName}RangeMax"] = range.getOrElse(1) { "-" }
+                extractedData["${resolvedName}RangeMin"] = range[0].replace(",", ".")
+                extractedData["${resolvedName}RangeMax"] = range.getOrElse(1) { "-" }.replace(",", ".")
 
                 if (isOutOfRange(value, range[0], range.getOrElse(1) { value })) {
                     results.add("$resolvedName $value (norma ${range[0]} - ${range.getOrElse(1) { value }}) $unit")
@@ -87,28 +101,27 @@ object ExtractData {
         }
     }
 
-    private fun extractParameterAndValue(str: String): Pair<String, String> {
-        val regex = Regex("""^([\p{L} %/.-]+?)\s+(\d+[,.]\d+)""")  // Umożliwia nazwę z %, /, -, .
+    private fun extractDateOfCollection(line: String, data: MutableMap<String, Any>) {
+        val regex = Regex("""Data pobrania materiału:\s*(\d{2}\.\d{2}\.\d{4})""")
+        val match = regex.find(line)
+        if (match != null) {
+            data["Data pobrania materiału"] = match.groupValues[1]
+        }
+    }
+
+    private fun parseParameterName(str: String): Pair<String, String> {
+        val regex = Regex("""([^\d<>]+?)\s*([<>]?\d+[,.]\d+)""")
         val match = regex.find(str) ?: return Pair(str, "-")
 
         val name = match.groupValues[1].trim()
-        val value = match.groupValues[2].replace(",", ".")  // Zastępuje przecinki na kropki
+        val value = match.groupValues[2].replace(",", ".")
 
         return Pair(name, value)
     }
 
-    private fun cleanValue(value: String): String {
-        return value.replace(Regex("""\s*\(.*?\)\s*"""), "")  // Usuwa nawiasy i ich zawartość
-            .replace(",", ".")
-            .trim()
-    }
-
-    private fun containsNumericValue(str: String): Boolean {
-        return str.contains(Regex("""\d+[,.]\d+"""))
-    }
-
     private fun isOutOfRange(value: String, min: String, max: String): Boolean {
         return try {
+            if (value.startsWith("<") || value.startsWith(">")) return false // Dla wartości "<2.00" pomijamy sprawdzanie
             val v = value.toDouble()
             val minVal = min.replace(",", ".").toDoubleOrNull() ?: return false
             val maxVal = max.replace(",", ".").toDoubleOrNull() ?: return false
@@ -116,5 +129,13 @@ object ExtractData {
         } catch (e: Exception) {
             false
         }
+    }
+
+    private fun removeParentheses(str: String): String {
+        return str.replace(Regex("""\([^)]*\)"""), "").trim()
+    }
+
+    private fun containsNumericValue(str: String): Boolean {
+        return str.contains(Regex("""\d+[,.]\d+"""))
     }
 }
