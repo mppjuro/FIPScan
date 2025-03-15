@@ -20,6 +20,8 @@ import org.apache.commons.net.ftp.FTPClient
 import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
+import android.widget.ScrollView
+import com.example.fipscan.R
 
 class HomeFragment : Fragment() {
 
@@ -32,7 +34,9 @@ class HomeFragment : Fragment() {
     ): View {
         PDFBoxResourceLoader.init(requireContext())
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
+
         binding.buttonLoadPdf.setOnClickListener { openFilePicker() }
+
         return binding.root
     }
 
@@ -59,7 +63,7 @@ class HomeFragment : Fragment() {
                     pdfDocument.close()
 
                     if (tablesData.isEmpty()) {
-                        binding.textHome.text = "Nie znaleziono tabel!"
+                        binding.resultsTextView.text = "Nie znaleziono tabel!"
                         return
                     }
 
@@ -73,7 +77,7 @@ class HomeFragment : Fragment() {
                     }.start()
                 }
             } catch (e: Exception) {
-                binding.textHome.text = "Błąd przetwarzania tabel!"
+                binding.resultsTextView.text = "Błąd przetwarzania tabel!"
                 Log.e("TABULA_ERROR", "Błąd", e)
             }
         }
@@ -229,13 +233,21 @@ class HomeFragment : Fragment() {
 
         // Wyświetlanie wyników w UI
         activity?.runOnUiThread {
-            binding.textHome.text = if (abnormalResults.isNotEmpty()) {
+            binding.resultsTextView.text = if (abnormalResults.isNotEmpty()) {
                 val resultsText = abnormalResults.joinToString("\n")
-                "$finalInfo\n\n📊 Wyniki poza normą:\nBadanie: wynik (norma) jednostka\n$resultsText"
+                "$finalInfo\n\n📊 Wyniki poza normą:\nBadanie: wynik (norma) jednostka\n$resultsText\n\n\n"
             } else {
                 "$finalInfo\n\n✅ Wszystkie wyniki w normie"
             }
         }
+
+        // **🔹 Przewinięcie na górę tylko raz, gdy dane zostaną załadowane**
+        binding.scrollView.postDelayed({
+            if (binding.resultsTextView.text.isNotEmpty()) {
+                //binding.scrollView.fullScroll(View.FOCUS_UP)
+                binding.scrollView.smoothScrollTo(0, 0)
+            }
+        }, 200) // Krótkie opóźnienie, aby UI się odświeżył
     }
 
     private val filePicker =
