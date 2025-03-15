@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
+    kotlin("kapt")
 }
 
 android {
@@ -55,8 +56,13 @@ android {
                 "licenses/extreme.indiana.edu.license.TXT",
                 "licenses/thoughtworks.TXT",
                 "licenses/javolution.license.TXT",
+                "META-INF/org/jetbrains/annotations/annotations.version",
+                "META-INF/com/intellij/annotations/annotations.version"
             )
         }
+    }
+    viewBinding {
+        enable = true
     }
 }
 
@@ -64,7 +70,10 @@ configurations.all {
     resolutionStrategy {
         force("org.bouncycastle:bcpkix-jdk18on:1.80")
         force("org.bouncycastle:bcprov-jdk18on:1.80")
+        force("org.jetbrains:annotations:23.0.0")
+        force("com.intellij:annotations:12.0")
     }
+    exclude(group = "com.intellij", module = "annotations")
 }
 
 dependencies {
@@ -88,6 +97,7 @@ dependencies {
         exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
         exclude(group = "org.bouncycastle", module = "bcutil-jdk15to18")
         exclude(group = "org.bouncycastle", module = "bcpkix-jdk15to18")
+        exclude(group = "com.intellij", module = "annotations")
     }
 
     // Commons IO dla operacji na plikach
@@ -98,6 +108,12 @@ dependencies {
 
     // Apache Commons CSV do operacji na plikach CSV
     implementation("org.apache.commons:commons-csv:1.9.0")
+
+    implementation("androidx.room:room-runtime:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+
+    implementation("org.jetbrains:annotations:23.0.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

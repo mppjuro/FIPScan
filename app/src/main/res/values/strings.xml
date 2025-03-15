@@ -1,6 +1,15 @@
 <resources>
     <string name="app_name">FIPscan</string>
     <string name="title_home">Skanuj</string>
-    <string name="title_dashboard">Dashboard</string>
-    <string name="title_notifications">Notifications</string>
+    <string name="title_history">Historia</string>
+    <string name="title_settings">Ustawienia</string>
+    <string name="pacjent">Pacjent</string>
+    <string name="wiek">Wiek</string>
+    <string name="tryb_ciemny">Tryb ciemny</string>
+    <string name="wgraj_pdf">Wgraj PDF</string>
+    <string name="todo">TODO</string>
+    <string name="wykres">wykres</string>
+    <string name="przycisk">przycisk</string>
+    <string name="skanuj">Skanuj</string>
+    <string name="historia_badan">Historia badań</string>
 </resources>

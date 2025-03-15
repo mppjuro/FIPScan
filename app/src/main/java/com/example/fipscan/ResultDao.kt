@@ -1,0 +1,18 @@
+package com.example.fipscan
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+
+@Dao
+interface ResultDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertResult(result: ResultEntity)
+
+    @Query("SELECT * FROM results")
+    suspend fun getAllResults(): List<ResultEntity>
+
+    @Query("SELECT * FROM results WHERE id = :id")
+    suspend fun getResultById(id: Int): ResultEntity?
+}

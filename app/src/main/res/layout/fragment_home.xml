@@ -1,15 +1,17 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:padding="16dp"
+    android:paddingTop="8dp"
     android:gravity="center">
 
     <TextView
         android:id="@+id/textHome"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Skanuj"
+        android:text="@string/skanuj"
         android:textSize="24sp"
         android:textStyle="bold"
         android:gravity="center"
@@ -19,13 +21,16 @@
         android:id="@+id/buttonLoadPdf"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Wgraj PDF"
-        android:layout_marginBottom="16dp"/>
+        android:contentDescription="@string/przycisk"
+        android:text="@string/wgraj_pdf"
+        android:layout_marginBottom="16dp"
+        tools:ignore="VisualLintButtonSize" />
 
     <ImageView
         android:id="@+id/pdfImageView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:contentDescription="@string/wykres"
         android:adjustViewBounds="true"
         android:scaleType="fitCenter"
         android:layout_marginBottom="16dp"/>
