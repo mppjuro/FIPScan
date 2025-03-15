@@ -22,6 +22,11 @@ import java.text.SimpleDateFormat
 import java.util.*
 import android.widget.ScrollView
 import com.example.fipscan.R
+import com.example.fipscan.AppDatabase
+import com.example.fipscan.ResultEntity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 
 class HomeFragment : Fragment() {
 
@@ -248,6 +253,8 @@ class HomeFragment : Fragment() {
                 binding.scrollView.smoothScrollTo(0, 0)
             }
         }, 200) // Krótkie opóźnienie, aby UI się odświeżył
+
+        saveResultToDatabase(patient, age, abnormalResults.joinToString("\n"), pdfUri?.path)
     }
 
     private val filePicker =
@@ -270,6 +277,15 @@ class HomeFragment : Fragment() {
         } catch (e: Exception) {
             Log.e("ERROR", "Błąd", e)
             false
+        }
+    }
+
+    private fun saveResultToDatabase(patient: String, age: String, results: String, pdfPath: String?) {
+        val db = AppDatabase.getDatabase(requireContext())
+        val result = ResultEntity(patientName = patient, age = age, testResults = results, pdfFilePath = pdfPath, imagePath = null)
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            db.resultDao().insertResult(result)
         }
     }
 
