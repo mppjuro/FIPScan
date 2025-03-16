@@ -261,6 +261,8 @@ class HomeFragment : Fragment() {
             }
         }, 200) // Krótkie opóźnienie, aby UI się odświeżył
 
+        binding.textHome.text = "Wyniki: ${patient}"
+
         saveResultToDatabase(patient, age, abnormalResults.joinToString("\n"), pdfUri?.path)
     }
 
@@ -276,8 +278,7 @@ class HomeFragment : Fragment() {
 
     private fun isOutOfRange(value: String, min: String, max: String): Boolean {
         return try {
-            if (value.startsWith("<") || value.startsWith(">")) return false // Dla wartości "<2.00" pomijamy sprawdzanie
-            val v = value.toDouble()
+            val v = value.replace(Regex("[<>]"), "").replace(",", ".").toDouble()
             val minVal = min.replace(",", ".").toDoubleOrNull() ?: return false
             val maxVal = max.replace(",", ".").toDoubleOrNull() ?: return false
             v < minVal || v > maxVal
@@ -298,7 +299,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun displayExistingResult(result: ResultEntity) {
-        binding.textHome.text = "Wyniki dla: ${result.patientName}"
+        binding.textHome.text = "Wyniki: ${result.patientName}"
         binding.resultsTextView.text = result.testResults
         // Tutaj możesz dodać ładowanie PDF/obrazka jeśli potrzebne
     }
