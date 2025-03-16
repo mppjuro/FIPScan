@@ -15,4 +15,7 @@ interface ResultDao {
 
     @Query("SELECT * FROM results WHERE id = :id")
     suspend fun getResultById(id: Int): ResultEntity?
+
+    @Query("DELETE FROM results WHERE patientName = :name AND age = :age")
+    suspend fun deleteDuplicates(name: String, age: String)
 }

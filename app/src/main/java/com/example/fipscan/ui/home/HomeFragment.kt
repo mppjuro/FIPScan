@@ -42,6 +42,13 @@ class HomeFragment : Fragment() {
 
         binding.buttonLoadPdf.setOnClickListener { openFilePicker() }
 
+        arguments?.let {
+            val args = HomeFragmentArgs.fromBundle(it)
+            args.result?.let { result ->
+                displayExistingResult(result)
+            }
+        }
+
         return binding.root
     }
 
@@ -285,8 +292,15 @@ class HomeFragment : Fragment() {
         val result = ResultEntity(patientName = patient, age = age, testResults = results, pdfFilePath = pdfPath, imagePath = null)
 
         lifecycleScope.launch(Dispatchers.IO) {
+            db.resultDao().deleteDuplicates(patient, age)
             db.resultDao().insertResult(result)
         }
+    }
+
+    private fun displayExistingResult(result: ResultEntity) {
+        binding.textHome.text = "Wyniki dla: ${result.patientName}"
+        binding.resultsTextView.text = result.testResults
+        // Tutaj możesz dodać ładowanie PDF/obrazka jeśli potrzebne
     }
 
     override fun onDestroyView() {

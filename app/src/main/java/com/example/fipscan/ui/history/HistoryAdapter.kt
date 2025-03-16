@@ -1,14 +1,15 @@
 package com.example.fipscan.ui.history
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.fipscan.databinding.ItemHistoryBinding
 import com.example.fipscan.ResultEntity
 
-class HistoryAdapter(private val results: List<ResultEntity>) :
-    RecyclerView.Adapter<HistoryAdapter.ViewHolder>() {
+class HistoryAdapter(
+    private val results: List<ResultEntity>,
+    private val onItemClick: (ResultEntity) -> Unit
+) : RecyclerView.Adapter<HistoryAdapter.ViewHolder>() {
 
     class ViewHolder(val binding: ItemHistoryBinding) : RecyclerView.ViewHolder(binding.root)
 
@@ -21,6 +22,11 @@ class HistoryAdapter(private val results: List<ResultEntity>) :
         val result = results[position]
         holder.binding.textPatientName.text = result.patientName
         holder.binding.textAge.text = result.age
+
+        // Dodaj kliknięcie
+        holder.itemView.setOnClickListener {
+            onItemClick(result)
+        }
     }
 
     override fun getItemCount(): Int = results.size

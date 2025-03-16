@@ -9,7 +9,26 @@
         android:id="@+id/navigation_home"
         android:name="com.example.fipscan.ui.home.HomeFragment"
         android:label="@string/title_home"
-        tools:layout="@layout/fragment_home" />
+        tools:layout="@layout/fragment_home">
+        <argument
+            android:name="result"
+            app:argType="com.example.fipscan.ResultEntity"
+            android:defaultValue="@null"
+            app:nullable="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/navigation_history"
+        android:name="com.example.fipscan.ui.history.HistoryFragment">
+
+        <action
+            android:id="@+id/action_navigation_history_to_navigation_home"
+            app:destination="@id/navigation_home">
+            <argument
+                android:name="result"
+                app:argType="com.example.fipscan.ResultEntity" />
+        </action>
+    </fragment>
 
     <fragment
         android:id="@+id/navigation_dashboard"
@@ -22,4 +41,13 @@
         android:name="com.example.fipscan.ui.settings.SettingsFragment"
         android:label="@string/title_settings"
         tools:layout="@layout/fragment_settings" />
+
+    <action
+        android:id="@+id/action_navigation_history_to_navigation_home"
+        app:destination="@id/navigation_home">
+        <argument
+            android:name="result"
+            app:argType="com.example.fipscan.ResultEntity" />
+    </action>
+
 </navigation>
