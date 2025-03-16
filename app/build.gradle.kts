@@ -114,10 +114,12 @@ dependencies {
     implementation("androidx.room:room-runtime:2.6.1")
     kapt("androidx.room:room-compiler:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
-    implementation ("androidx.navigation:navigation-fragment-ktx:2.8.9")
-    implementation ("androidx.navigation:navigation-ui-ktx:2.8.9")
+    implementation("androidx.navigation:navigation-fragment-ktx:2.8.9")
+    implementation("androidx.navigation:navigation-ui-ktx:2.8.9")
 
     implementation("org.jetbrains:annotations:23.0.0")
+
+    implementation("androidx.exifinterface:exifinterface:1.3.3")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -12,4 +12,5 @@
     <string name="przycisk">przycisk</string>
     <string name="skanuj">Skanuj</string>
     <string name="historia_badan">Historia badań</string>
+    <string name="wykres_diagnostyczny">Wykres diagnostyczny</string>
 </resources>
