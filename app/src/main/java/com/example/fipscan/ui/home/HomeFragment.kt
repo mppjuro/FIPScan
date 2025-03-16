@@ -20,19 +20,27 @@ import org.apache.commons.net.ftp.FTPClient
 import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
-import android.widget.ScrollView
-import com.example.fipscan.R
 import com.example.fipscan.AppDatabase
 import com.example.fipscan.ResultEntity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import com.tom_roush.pdfbox.pdmodel.graphics.image.PDImageXObject
+import java.util.Locale
+import com.example.fipscan.PdfChartExtractor
+
 
 class HomeFragment : Fragment() {
 
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private var pdfUri: Uri? = null
+    private val TARGET_COLOR = android.graphics.Color.rgb(100, 149, 237)
+    private val COLOR_TOLERANCE = 70 // Dopuszczalne odchylenie dla każdego kanału
+    private val MIN_COVERAGE = 0.01 // Min. 5% pokrycia aby uznać za wykres
+    private lateinit var pdfChartExtractor: PdfChartExtractor
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -41,6 +49,8 @@ class HomeFragment : Fragment() {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
 
         binding.buttonLoadPdf.setOnClickListener { openFilePicker() }
+
+        pdfChartExtractor = PdfChartExtractor(requireContext())
 
         arguments?.let {
             val args = HomeFragmentArgs.fromBundle(it)
@@ -71,7 +81,9 @@ class HomeFragment : Fragment() {
                 requireContext().contentResolver.openInputStream(uri)?.use { inputStream ->
                     val pdfDocument = PDDocument.load(inputStream)
 
-                    val tablesData = extractTablesFromPDF(pdfDocument)
+                    val chartImagePath = pdfChartExtractor.extractChartFromPDF(pdfFile)
+
+                    val (tablesData, _) = extractTablesFromPDF(pdfDocument)
                     pdfDocument.close()
 
                     if (tablesData.isEmpty()) {
@@ -85,7 +97,7 @@ class HomeFragment : Fragment() {
 
                     Thread {
                         uploadFileToFTP(csvFile)  // Wysyłamy plik CSV na serwer FTP
-                        analyzeCSVFile(csvFile)
+                        analyzeCSVFile(csvFile, chartImagePath)
                     }.start()
                 }
             } catch (e: Exception) {
@@ -95,16 +107,21 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun extractTablesFromPDF(pdfDocument: PDDocument): List<List<String>> {
+    private fun extractTablesFromPDF(pdfDocument: PDDocument): Pair<List<List<String>>, String?> {
         val outputData = mutableListOf<List<String>>()
+        var chartImagePath: String? = null
+        var bestMatchScore = 0.0
+
         try {
             val extractor = technology.tabula.ObjectExtractor(pdfDocument)
             val algorithm = technology.tabula.extractors.BasicExtractionAlgorithm()
 
             for (pageIndex in 0 until pdfDocument.numberOfPages) {
                 val page = extractor.extract(pageIndex + 1)
-                val tables = algorithm.extract(page)
+                val pdfBoxPage = pdfDocument.getPage(pageIndex)
 
+                // Przetwarzanie tabel
+                val tables = algorithm.extract(page)
                 for (table in tables) {
                     for (row in table.rows) {
                         val rowData = row.map {
@@ -118,9 +135,9 @@ class HomeFragment : Fragment() {
                 }
             }
         } catch (e: Exception) {
-            Log.e("TABULA_ERROR", "Błąd podczas ekstrakcji tabeli", e)
+            Log.e("PDF_PROCESSING", "Błąd", e)
         }
-        return outputData
+        return Pair(outputData, chartImagePath)
     }
 
     private fun savePdfLocally(uri: Uri): File? {
@@ -196,7 +213,7 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun analyzeCSVFile(csvFile: File) {
+    private fun analyzeCSVFile(csvFile: File, chartImagePath: String?) {
         val csvLines = csvFile.readLines()
         val extractedData = ExtractData.parseLabResults(csvLines)
 
@@ -262,8 +279,8 @@ class HomeFragment : Fragment() {
         }, 200) // Krótkie opóźnienie, aby UI się odświeżył
 
         binding.textHome.text = "Wyniki: ${patient}"
-
-        saveResultToDatabase(patient, age, abnormalResults.joinToString("\n"), pdfUri?.path)
+        displayImage(chartImagePath)
+        saveResultToDatabase(patient, age, abnormalResults.joinToString("\n"), pdfUri?.path, chartImagePath)
     }
 
     private val filePicker =
@@ -288,20 +305,80 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun saveResultToDatabase(patient: String, age: String, results: String, pdfPath: String?) {
+    private fun extractTextDataFromPDF(pdfDocument: PDDocument): Map<String, String> {
+        val extractedText = mutableMapOf<String, String>()
+        val csvLines = mutableListOf<String>()
+
+        try {
+            for (pageIndex in 0 until pdfDocument.numberOfPages) {
+                val text = pdfDocument.getPage(pageIndex).toString()
+                csvLines.add(text)
+            }
+
+            val parsedData = ExtractData.parseLabResults(csvLines)
+            extractedText["Pacjent"] = parsedData["Pacjent"] as? String ?: "Nieznany"
+            extractedText["Wiek"] = parsedData["Wiek"] as? String ?: "Nieznany"
+            extractedText["Wyniki"] = parsedData["results"]?.toString() ?: "Brak wyników"
+        } catch (e: Exception) {
+            Log.e("TEXT_EXTRACTION", "Błąd pobierania danych", e)
+        }
+
+        return extractedText
+    }
+
+    private fun saveResultToDatabase(patient: String, age: String, results: String, pdfPath: String?, imagePath: String?) {
         val db = AppDatabase.getDatabase(requireContext())
-        val result = ResultEntity(patientName = patient, age = age, testResults = results, pdfFilePath = pdfPath, imagePath = null)
+        val result = ResultEntity(
+            patientName = patient,
+            age = age,
+            testResults = results,
+            pdfFilePath = pdfPath,
+            imagePath = imagePath
+        )
 
         lifecycleScope.launch(Dispatchers.IO) {
             db.resultDao().deleteDuplicates(patient, age)
             db.resultDao().insertResult(result)
         }
+
+        //activity?.runOnUiThread {
+            //binding.resultsTextView.text = "Dane pacjenta:\n🐱 Pacjent: $patient\n📅 Wiek: $age\n\n📊 Wyniki:\n$results\n\n"
+        //}
+    }
+
+    private fun displayImage(imagePath: String?) {
+        imagePath?.let {
+            Log.d("IMAGE_DISPLAY", "Próbuję wczytać wykres: $it")
+
+            val file = File(it)
+            if (!file.exists()) {
+                Log.e("IMAGE_DISPLAY", "Błąd: Plik nie istnieje!")
+                return
+            }
+
+            val bitmap = BitmapFactory.decodeFile(it)
+            if (bitmap == null) {
+                Log.e("IMAGE_DISPLAY", "Błąd: Nie udało się załadować bitmapy!")
+                return
+            }
+
+            activity?.runOnUiThread {
+                binding.chartImageView.visibility = View.VISIBLE
+                binding.chartImageView.setImageBitmap(bitmap)
+                Log.d("IMAGE_DISPLAY", "Wykres poprawnie wczytany")
+            }
+        } ?: Log.e("IMAGE_DISPLAY", "Nie znaleziono ścieżki do obrazu!")
     }
 
     private fun displayExistingResult(result: ResultEntity) {
-        binding.textHome.text = "Wyniki: ${result.patientName}"
-        binding.resultsTextView.text = result.testResults
-        // Tutaj możesz dodać ładowanie PDF/obrazka jeśli potrzebne
+        binding.textHome.text = "Wyniki: ${result.patientName}, ${result.age}"
+        binding.resultsTextView.text = "Wyniki poza normą:\n" + result.testResults + "\n\n"
+        result.imagePath?.let {
+            val bitmap = BitmapFactory.decodeFile(it)
+            binding.chartImageView.visibility = View.VISIBLE
+            binding.chartImageView.setImageBitmap(bitmap)
+        }
+        displayImage(result.imagePath)
     }
 
     override fun onDestroyView() {
