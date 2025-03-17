@@ -111,17 +111,17 @@ dependencies {
     // Apache Commons CSV do operacji na plikach CSV
     implementation("org.apache.commons:commons-csv:1.9.0")
 
-    implementation("androidx.room:room-runtime:2.6.1")
-    kapt("androidx.room:room-compiler:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
+    implementation(libs.androidx.room.runtime)
+    kapt(libs.androidx.room.compiler)
+    implementation(libs.androidx.room.ktx)
     implementation("androidx.navigation:navigation-fragment-ktx:2.8.9")
     implementation("androidx.navigation:navigation-ui-ktx:2.8.9")
 
-    implementation("org.jetbrains:annotations:23.0.0")
+    implementation(libs.annotations)
 
-    implementation("androidx.exifinterface:exifinterface:1.3.3")
+    implementation(libs.androidx.exifinterface)
 
-    implementation ("androidx.core:core-ktx:1.15.0")
+    implementation (libs.androidx.core.ktx.v1150)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
