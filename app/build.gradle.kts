@@ -125,3 +125,5 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }
+
+private fun DependencyHandlerScope.kapt(string: String) {}

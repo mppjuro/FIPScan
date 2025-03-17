@@ -31,15 +31,11 @@ import com.tom_roush.pdfbox.pdmodel.graphics.image.PDImageXObject
 import java.util.Locale
 import com.example.fipscan.PdfChartExtractor
 
-
 class HomeFragment : Fragment() {
 
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private var pdfUri: Uri? = null
-    private val TARGET_COLOR = android.graphics.Color.rgb(100, 149, 237)
-    private val COLOR_TOLERANCE = 70 // Dopuszczalne odchylenie dla każdego kanału
-    private val MIN_COVERAGE = 0.01 // Min. 5% pokrycia aby uznać za wykres
     private lateinit var pdfChartExtractor: PdfChartExtractor
 
     override fun onCreateView(
@@ -73,15 +69,40 @@ class HomeFragment : Fragment() {
     private fun extractTablesWithTabula() {
         pdfUri?.let { uri ->
             try {
-                val pdfFile = savePdfLocally(uri)  // Zapisujemy plik PDF lokalnie
+                // Generuj wspólny timestamp dla wszystkich plików
+                val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                val pdfFilename = "input_$timestamp.pdf"
+                val csvFilename = "data_$timestamp.csv"
+                val chartFilename = "chart_$timestamp.png"
+
+                // Zapisz PDF z nową nazwą
+                val pdfFile = savePdfLocally(uri, pdfFilename)
                 if (pdfFile != null) {
-                    Thread { uploadFileToFTP(pdfFile) }.start()  // Wysyłamy plik PDF na serwer FTP
+                    Thread { uploadFileToFTP(pdfFile) }.start()
                 }
 
                 requireContext().contentResolver.openInputStream(uri)?.use { inputStream ->
                     val pdfDocument = PDDocument.load(inputStream)
 
-                    val chartImagePath = pdfChartExtractor.extractChartFromPDF(pdfFile)
+                    // Ekstrakcja i zapis wykresu
+                    var chartImagePath: String? = null
+                    var newChartFile: File? = null
+                    try {
+                        chartImagePath = pdfChartExtractor.extractChartFromPDF(pdfFile)
+                        if (chartImagePath != null) {
+                            val storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+                            newChartFile = File(storageDir, chartFilename)
+
+                            // Kopiuj do nowej lokalizacji z timestampem
+                            File(chartImagePath).copyTo(newChartFile!!, overwrite = true)
+                            File(chartImagePath).delete() // Usuń stary plik
+
+                            // Wyślij wykres na FTP
+                            Thread { uploadFileToFTP(newChartFile) }.start()
+                        }
+                    } catch (e: Exception) {
+                        Log.e("CHART_EXTRACT", "Błąd przetwarzania wykresu", e)
+                    }
 
                     val (tablesData, _) = extractTablesFromPDF(pdfDocument)
                     pdfDocument.close()
@@ -91,13 +112,11 @@ class HomeFragment : Fragment() {
                         return
                     }
 
-                    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                    val csvFilename = "data_$timestamp.csv"
+                    // Zapisz i wyślij CSV
                     val csvFile = saveAsCSV(tablesData, csvFilename)
-
                     Thread {
-                        uploadFileToFTP(csvFile)  // Wysyłamy plik CSV na serwer FTP
-                        analyzeCSVFile(csvFile, chartImagePath)
+                        uploadFileToFTP(csvFile)
+                        analyzeCSVFile(csvFile, newChartFile?.absolutePath)
                     }.start()
                 }
             } catch (e: Exception) {
@@ -140,12 +159,10 @@ class HomeFragment : Fragment() {
         return Pair(outputData, chartImagePath)
     }
 
-    private fun savePdfLocally(uri: Uri): File? {
+    private fun savePdfLocally(uri: Uri, filename: String): File? {
         return try {
-            val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-            val pdfFilename = "input_$timestamp.pdf"
             val storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-            val file = File(storageDir, pdfFilename)
+            val file = File(storageDir, filename)
 
             requireContext().contentResolver.openInputStream(uri)?.use { inputStream ->
                 FileOutputStream(file).use { outputStream ->
@@ -260,7 +277,6 @@ class HomeFragment : Fragment() {
             }
         }
 
-        // Wyświetlanie wyników w UI
         activity?.runOnUiThread {
             binding.resultsTextView.text = if (abnormalResults.isNotEmpty()) {
                 val resultsText = abnormalResults.joinToString("\n")
@@ -270,10 +286,8 @@ class HomeFragment : Fragment() {
             }
         }
 
-        // **🔹 Przewinięcie na górę tylko raz, gdy dane zostaną załadowane**
         binding.scrollView.postDelayed({
             if (binding.resultsTextView.text.isNotEmpty()) {
-                //binding.scrollView.fullScroll(View.FOCUS_UP)
                 binding.scrollView.smoothScrollTo(0, 0)
             }
         }, 200) // Krótkie opóźnienie, aby UI się odświeżył
@@ -305,27 +319,6 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun extractTextDataFromPDF(pdfDocument: PDDocument): Map<String, String> {
-        val extractedText = mutableMapOf<String, String>()
-        val csvLines = mutableListOf<String>()
-
-        try {
-            for (pageIndex in 0 until pdfDocument.numberOfPages) {
-                val text = pdfDocument.getPage(pageIndex).toString()
-                csvLines.add(text)
-            }
-
-            val parsedData = ExtractData.parseLabResults(csvLines)
-            extractedText["Pacjent"] = parsedData["Pacjent"] as? String ?: "Nieznany"
-            extractedText["Wiek"] = parsedData["Wiek"] as? String ?: "Nieznany"
-            extractedText["Wyniki"] = parsedData["results"]?.toString() ?: "Brak wyników"
-        } catch (e: Exception) {
-            Log.e("TEXT_EXTRACTION", "Błąd pobierania danych", e)
-        }
-
-        return extractedText
-    }
-
     private fun saveResultToDatabase(patient: String, age: String, results: String, pdfPath: String?, imagePath: String?) {
         val db = AppDatabase.getDatabase(requireContext())
         val result = ResultEntity(
@@ -341,9 +334,6 @@ class HomeFragment : Fragment() {
             db.resultDao().insertResult(result)
         }
 
-        //activity?.runOnUiThread {
-            //binding.resultsTextView.text = "Dane pacjenta:\n🐱 Pacjent: $patient\n📅 Wiek: $age\n\n📊 Wyniki:\n$results\n\n"
-        //}
     }
 
     private fun displayImage(imagePath: String?) {

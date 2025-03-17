@@ -23,7 +23,6 @@ class HistoryAdapter(
         holder.binding.textPatientName.text = result.patientName
         holder.binding.textAge.text = result.age
 
-        // Dodaj kliknięcie
         holder.itemView.setOnClickListener {
             onItemClick(result)
         }

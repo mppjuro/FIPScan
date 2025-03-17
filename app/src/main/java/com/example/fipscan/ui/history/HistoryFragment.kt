@@ -28,7 +28,6 @@ class HistoryFragment : Fragment() {
         lifecycleScope.launch(Dispatchers.IO) {
             val results = AppDatabase.getDatabase(requireContext()).resultDao().getAllResults()
             withContext(Dispatchers.Main) {
-                // Przenieś inicjalizację adaptera tutaj i dodaj lambda
                 binding.recyclerView.adapter = HistoryAdapter(results) { result ->
                     val action = HistoryFragmentDirections.actionNavigationHistoryToNavigationHome(result)
                     findNavController().navigate(action)
