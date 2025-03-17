@@ -10,9 +10,13 @@
         <!-- Secondary brand color. -->
         <item name="colorSecondary">@color/teal_700</item>
         <item name="colorSecondaryVariant">@color/teal_700</item>
-        <item name="colorOnSecondary">@color/darkred</item>
+        <item name="colorOnSecondary">@color/teal_700</item>
         <!-- Status bar color. -->
         <item name="android:statusBarColor">?attr/colorPrimaryVariant</item>
-        <!-- Customize your theme here. -->
+        <item name="switchTextColor">@color/light_gray</item>
+    </style>
+
+    <style name="Theme.FIPscan.Dark" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="switchTextColor">@color/dark_gray</item>
     </style>
 </resources>

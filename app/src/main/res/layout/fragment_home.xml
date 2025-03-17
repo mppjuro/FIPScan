@@ -56,6 +56,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/zapisz_oryg"
+        android:textColor="@color/white"
         android:visibility="gone"
         app:layout_constraintTop_toBottomOf="@+id/chartImageView"
         app:layout_constraintStart_toStartOf="parent"
