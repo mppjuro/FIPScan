@@ -170,9 +170,12 @@ class HomeFragment : Fragment() {
             val storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
             val file = File(storageDir, filename)
 
-            requireContext().contentResolver.openInputStream(uri)?.use { inputStream ->
-                FileOutputStream(file).use { outputStream ->
-                    inputStream.copyTo(outputStream)
+            // Tworzenie katalogu jeśli nie istnieje
+            storageDir?.takeIf { !it.exists() }?.mkdirs()
+
+            requireContext().contentResolver.openInputStream(uri)?.use { input ->
+                FileOutputStream(file).use { output ->
+                    input.copyTo(output)
                 }
             }
             file
@@ -325,64 +328,60 @@ class HomeFragment : Fragment() {
         patient: String,
         age: String,
         results: String,
-        pdfFile: File?,  // Zmień typ parametru
+        pdfFile: File?,
         imagePath: String?
     ) {
-        val pdfUri = pdfFile?.let { file ->
-            FileProvider.getUriForFile(
-                requireContext(),
-                "${requireContext().packageName}.provider",
-                file
-            ).toString()
-        }
+        val pdfFilePath = pdfFile?.absolutePath // Zapisujemy pełną ścieżkę systemową
 
         val result = ResultEntity(
             patientName = patient,
             age = age,
             testResults = results,
-            pdfFilePath = pdfUri,
+            pdfFilePath = pdfFilePath, // Bezpośrednia ścieżka do pliku
             imagePath = imagePath
         )
-        val db = AppDatabase.getDatabase(requireContext())
 
+        val db = AppDatabase.getDatabase(requireContext())
         lifecycleScope.launch(Dispatchers.IO) {
             db.resultDao().deleteDuplicates(patient, age)
             db.resultDao().insertResult(result)
         }
     }
 
-    private fun savePdfToDownloadsUsingMediaStore(uriString: String, fileName: String) {
+    private fun savePdfToDownloadsUsingMediaStore(filePath: String, fileName: String) {
         try {
-            val sourceUri = Uri.parse(uriString)
-            val resolver = requireContext().contentResolver
+            val sourceFile = File(filePath)
+            if (!sourceFile.exists()) {
+                Toast.makeText(requireContext(), "Plik źródłowy nie istnieje", Toast.LENGTH_SHORT).show()
+                return
+            }
 
+            val resolver = requireContext().contentResolver
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, "$fileName.pdf")
                 put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                }
             }
 
-            val destinationUri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
                 ?: throw Exception("Nie można utworzyć pliku")
 
-            resolver.openInputStream(sourceUri)?.use { input ->
-                resolver.openOutputStream(destinationUri)?.use { output ->
+            resolver.openOutputStream(uri)?.use { output ->
+                FileInputStream(sourceFile).use { input ->
                     input.copyTo(output)
                 }
             }
 
             Toast.makeText(
                 requireContext(),
-                "Zapisano w folderze Downloads",
+                "Zapisano w: ${Environment.DIRECTORY_DOWNLOADS}/$fileName.pdf",
                 Toast.LENGTH_LONG
             ).show()
         } catch (e: Exception) {
-            Toast.makeText(
-                requireContext(),
-                "Błąd zapisu: ${e.localizedMessage}",
-                Toast.LENGTH_SHORT
-            ).show()
-            Log.e("PDF_SAVE", "Błąd", e)
+            Toast.makeText(requireContext(), "Błąd zapisu: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e("PDF_EXPORT", e.toString())
         }
     }
 
@@ -420,15 +419,14 @@ class HomeFragment : Fragment() {
             binding.chartImageView.setImageBitmap(bitmap)
         }
 
-        // Nowa funkcjonalność
-        binding.buttonSaveOriginal.visibility = if (!result.pdfFilePath.isNullOrEmpty()) View.VISIBLE else View.GONE
+        binding.buttonSaveOriginal.visibility = View.VISIBLE
         binding.buttonSaveOriginal.setOnClickListener {
-            result.pdfFilePath?.let { uriString ->
-                savePdfToDownloadsUsingMediaStore(uriString, result.patientName)
+            result.pdfFilePath?.let { filePath ->
+                val fileName = "${result.patientName}_${SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())}"
+                savePdfToDownloadsUsingMediaStore(filePath, fileName)
             }
         }
     }
-
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun savePdfToDownloadsUsingMediaStore(sourceUri: Uri, fileName: String) {
         try {
