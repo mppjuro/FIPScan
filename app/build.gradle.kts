@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.fipscan"
-        minSdk = 26
+        minSdk = 29
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -120,6 +120,8 @@ dependencies {
     implementation("org.jetbrains:annotations:23.0.0")
 
     implementation("androidx.exifinterface:exifinterface:1.3.3")
+
+    implementation ("androidx.core:core-ktx:1.15.0")
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

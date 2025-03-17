@@ -1,6 +1,7 @@
 package com.example.fipscan.ui.home
 
 import android.app.Activity
+import android.content.ContentValues
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -27,6 +28,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.os.Build
+import android.provider.MediaStore
+import android.widget.Toast
+import androidx.annotation.RequiresApi
+import androidx.core.content.FileProvider
 import com.tom_roush.pdfbox.pdmodel.graphics.image.PDImageXObject
 import java.util.Locale
 import com.example.fipscan.PdfChartExtractor
@@ -116,7 +122,7 @@ class HomeFragment : Fragment() {
                     val csvFile = saveAsCSV(tablesData, csvFilename)
                     Thread {
                         uploadFileToFTP(csvFile)
-                        analyzeCSVFile(csvFile, newChartFile?.absolutePath)
+                        analyzeCSVFile(csvFile, newChartFile?.absolutePath, pdfFile)
                     }.start()
                 }
             } catch (e: Exception) {
@@ -169,11 +175,8 @@ class HomeFragment : Fragment() {
                     inputStream.copyTo(outputStream)
                 }
             }
-
-            Log.d("PDF_SAVE", "Plik PDF zapisany: ${file.absolutePath}")
             file
         } catch (e: IOException) {
-            Log.e("PDF_SAVE_ERROR", "Błąd zapisu pliku PDF", e)
             null
         }
     }
@@ -230,8 +233,7 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun analyzeCSVFile(csvFile: File, chartImagePath: String?) {
-        val csvLines = csvFile.readLines()
+    private fun analyzeCSVFile(csvFile: File, chartImagePath: String?, pdfFile: File?) {        val csvLines = csvFile.readLines()
         val extractedData = ExtractData.parseLabResults(csvLines)
 
         val patient = extractedData["Pacjent"] as? String ?: "Nieznany"
@@ -294,7 +296,7 @@ class HomeFragment : Fragment() {
 
         binding.textHome.text = "Wyniki: ${patient}"
         displayImage(chartImagePath)
-        saveResultToDatabase(patient, age, abnormalResults.joinToString("\n"), pdfUri?.path, chartImagePath)
+        saveResultToDatabase(patient, age, abnormalResults.joinToString("\n"), pdfFile, chartImagePath)
     }
 
     private val filePicker =
@@ -319,21 +321,69 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun saveResultToDatabase(patient: String, age: String, results: String, pdfPath: String?, imagePath: String?) {
-        val db = AppDatabase.getDatabase(requireContext())
+    private fun saveResultToDatabase(
+        patient: String,
+        age: String,
+        results: String,
+        pdfFile: File?,  // Zmień typ parametru
+        imagePath: String?
+    ) {
+        val pdfUri = pdfFile?.let { file ->
+            FileProvider.getUriForFile(
+                requireContext(),
+                "${requireContext().packageName}.provider",
+                file
+            ).toString()
+        }
+
         val result = ResultEntity(
             patientName = patient,
             age = age,
             testResults = results,
-            pdfFilePath = pdfPath,
+            pdfFilePath = pdfUri,
             imagePath = imagePath
         )
+        val db = AppDatabase.getDatabase(requireContext())
 
         lifecycleScope.launch(Dispatchers.IO) {
             db.resultDao().deleteDuplicates(patient, age)
             db.resultDao().insertResult(result)
         }
+    }
 
+    private fun savePdfToDownloadsUsingMediaStore(uriString: String, fileName: String) {
+        try {
+            val sourceUri = Uri.parse(uriString)
+            val resolver = requireContext().contentResolver
+
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, "$fileName.pdf")
+                put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            }
+
+            val destinationUri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                ?: throw Exception("Nie można utworzyć pliku")
+
+            resolver.openInputStream(sourceUri)?.use { input ->
+                resolver.openOutputStream(destinationUri)?.use { output ->
+                    input.copyTo(output)
+                }
+            }
+
+            Toast.makeText(
+                requireContext(),
+                "Zapisano w folderze Downloads",
+                Toast.LENGTH_LONG
+            ).show()
+        } catch (e: Exception) {
+            Toast.makeText(
+                requireContext(),
+                "Błąd zapisu: ${e.localizedMessage}",
+                Toast.LENGTH_SHORT
+            ).show()
+            Log.e("PDF_SAVE", "Błąd", e)
+        }
     }
 
     private fun displayImage(imagePath: String?) {
@@ -360,6 +410,7 @@ class HomeFragment : Fragment() {
         } ?: Log.e("IMAGE_DISPLAY", "Nie znaleziono ścieżki do obrazu!")
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
     private fun displayExistingResult(result: ResultEntity) {
         binding.textHome.text = "Wyniki: ${result.patientName}, ${result.age}"
         binding.resultsTextView.text = "Wyniki poza normą:\n" + result.testResults + "\n\n"
@@ -368,7 +419,48 @@ class HomeFragment : Fragment() {
             binding.chartImageView.visibility = View.VISIBLE
             binding.chartImageView.setImageBitmap(bitmap)
         }
-        displayImage(result.imagePath)
+
+        // Nowa funkcjonalność
+        binding.buttonSaveOriginal.visibility = if (!result.pdfFilePath.isNullOrEmpty()) View.VISIBLE else View.GONE
+        binding.buttonSaveOriginal.setOnClickListener {
+            result.pdfFilePath?.let { uriString ->
+                savePdfToDownloadsUsingMediaStore(uriString, result.patientName)
+            }
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun savePdfToDownloadsUsingMediaStore(sourceUri: Uri, fileName: String) {
+        try {
+            val resolver = requireContext().contentResolver
+            val contentValues = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, "$fileName.pdf")
+                put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+            }
+
+            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+                ?: throw Exception("Nie można utworzyć pliku")
+
+            resolver.openOutputStream(uri)?.use { outputStream ->
+                resolver.openInputStream(sourceUri)?.use { inputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+            }
+
+            Toast.makeText(
+                requireContext(),
+                "Zapisano w folderze Downloads",
+                Toast.LENGTH_LONG
+            ).show()
+        } catch (e: Exception) {
+            Toast.makeText(
+                requireContext(),
+                "Błąd zapisu: ${e.localizedMessage}",
+                Toast.LENGTH_SHORT
+            ).show()
+            Log.e("PDF_SAVE", "Błąd zapisu", e)
+        }
     }
 
     override fun onDestroyView() {
