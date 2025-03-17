@@ -13,10 +13,6 @@ import kotlin.math.max
 import kotlin.math.min
 
 class PdfChartExtractor(private val context: Context) {
-    private val TARGET_COLOR = Color.rgb(100, 149, 237)
-    private val COLOR_TOLERANCE = 70
-    private val BLACK_THRESHOLD = 40
-    private val TARGET_PIXELS_COUNT = 2
     private val TOP_MARGIN_PERCENT = 0.2
     private val PADDING_PERCENT = 0.01
 
