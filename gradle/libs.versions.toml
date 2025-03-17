@@ -1,6 +1,9 @@
 [versions]
 agp = "8.9.0"
 androidPdfViewer = "2.8.2"
+annotations = "23.0.0"
+coreKtxVersion = "1.15.0"
+exifinterface = "1.4.0"
 gson = "2.10.1"
 kotlin = "1.9.24"
 coreKtx = "1.10.1"
@@ -15,10 +18,17 @@ lifecycleViewmodelKtx = "2.8.7"
 navigationFragmentKtx = "2.8.7"
 navigationUiKtx = "2.8.7"
 pdfbox = "2.0.27"
+roomCompiler = "2.6.1"
 
 [libraries]
 android-pdf-viewer-v282 = { module = "com.github.barteksc:android-pdf-viewer", version.ref = "androidPdfViewer" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+androidx-core-ktx-v1150 = { module = "androidx.core:core-ktx", version.ref = "coreKtxVersion" }
+androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", version.ref = "exifinterface" }
+androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref = "roomCompiler" }
+androidx-room-ktx = { module = "androidx.room:room-ktx", version.ref = "roomCompiler" }
+androidx-room-runtime = { module = "androidx.room:room-runtime", version.ref = "roomCompiler" }
+annotations = { module = "org.jetbrains:annotations", version.ref = "annotations" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
