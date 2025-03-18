@@ -1,5 +1,6 @@
 package com.example.fipscan.ui.home
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.ContentValues
 import android.content.Intent
@@ -26,17 +27,13 @@ import com.example.fipscan.ResultEntity
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.os.Build
 import android.provider.MediaStore
 import android.widget.Toast
-import androidx.annotation.RequiresApi
-import androidx.core.content.FileProvider
-import com.tom_roush.pdfbox.pdmodel.graphics.image.PDImageXObject
 import java.util.Locale
 import com.example.fipscan.PdfChartExtractor
 
+@Suppress("USELESS_CAST")
 class HomeFragment : Fragment() {
 
     private var _binding: FragmentHomeBinding? = null
@@ -72,16 +69,15 @@ class HomeFragment : Fragment() {
         filePicker.launch(intent)
     }
 
+    @SuppressLint("SetTextI18n")
     private fun extractTablesWithTabula() {
         pdfUri?.let { uri ->
             try {
-                // Generuj wspólny timestamp dla wszystkich plików
                 val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                 val pdfFilename = "input_$timestamp.pdf"
                 val csvFilename = "data_$timestamp.csv"
                 val chartFilename = "chart_$timestamp.png"
 
-                // Zapisz PDF z nową nazwą
                 val pdfFile = savePdfLocally(uri, pdfFilename)
                 if (pdfFile != null) {
                     Thread { uploadFileToFTP(pdfFile) }.start()
@@ -90,7 +86,6 @@ class HomeFragment : Fragment() {
                 requireContext().contentResolver.openInputStream(uri)?.use { inputStream ->
                     val pdfDocument = PDDocument.load(inputStream)
 
-                    // Ekstrakcja i zapis wykresu
                     var chartImagePath: String? = null
                     var newChartFile: File? = null
                     try {
@@ -99,11 +94,9 @@ class HomeFragment : Fragment() {
                             val storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
                             newChartFile = File(storageDir, chartFilename)
 
-                            // Kopiuj do nowej lokalizacji z timestampem
-                            File(chartImagePath).copyTo(newChartFile!!, overwrite = true)
-                            File(chartImagePath).delete() // Usuń stary plik
+                            File(chartImagePath).copyTo(newChartFile, overwrite = true)
+                            File(chartImagePath).delete()
 
-                            // Wyślij wykres na FTP
                             Thread { uploadFileToFTP(newChartFile) }.start()
                         }
                     } catch (e: Exception) {
@@ -118,7 +111,6 @@ class HomeFragment : Fragment() {
                         return
                     }
 
-                    // Zapisz i wyślij CSV
                     val csvFile = saveAsCSV(tablesData, csvFilename)
                     Thread {
                         uploadFileToFTP(csvFile)
@@ -135,7 +127,6 @@ class HomeFragment : Fragment() {
     private fun extractTablesFromPDF(pdfDocument: PDDocument): Pair<List<List<String>>, String?> {
         val outputData = mutableListOf<List<String>>()
         var chartImagePath: String? = null
-        var bestMatchScore = 0.0
 
         try {
             val extractor = technology.tabula.ObjectExtractor(pdfDocument)
@@ -143,7 +134,6 @@ class HomeFragment : Fragment() {
 
             for (pageIndex in 0 until pdfDocument.numberOfPages) {
                 val page = extractor.extract(pageIndex + 1)
-                val pdfBoxPage = pdfDocument.getPage(pageIndex)
 
                 // Przetwarzanie tabel
                 val tables = algorithm.extract(page)
@@ -170,7 +160,6 @@ class HomeFragment : Fragment() {
             val storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
             val file = File(storageDir, filename)
 
-            // Tworzenie katalogu jeśli nie istnieje
             storageDir?.takeIf { !it.exists() }?.mkdirs()
 
             requireContext().contentResolver.openInputStream(uri)?.use { input ->
@@ -179,7 +168,7 @@ class HomeFragment : Fragment() {
                 }
             }
             file
-        } catch (e: IOException) {
+        } catch (_: IOException) {
             null
         }
     }
@@ -236,6 +225,7 @@ class HomeFragment : Fragment() {
         }
     }
 
+    @SuppressLint("SetTextI18n")
     private fun analyzeCSVFile(csvFile: File, chartImagePath: String?, pdfFile: File?) {        val csvLines = csvFile.readLines()
         val extractedData = ExtractData.parseLabResults(csvLines)
 
@@ -360,9 +350,7 @@ class HomeFragment : Fragment() {
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, "$fileName.pdf")
                 put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                }
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
             }
 
             val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
@@ -409,7 +397,7 @@ class HomeFragment : Fragment() {
         } ?: Log.e("IMAGE_DISPLAY", "Nie znaleziono ścieżki do obrazu!")
     }
 
-    @RequiresApi(Build.VERSION_CODES.Q)
+    @SuppressLint("SetTextI18n")
     private fun displayExistingResult(result: ResultEntity) {
         binding.textHome.text = "Wyniki: ${result.patientName}, ${result.age}"
         binding.resultsTextView.text = "Wyniki poza normą:\n" + result.testResults + "\n\n"
@@ -422,42 +410,14 @@ class HomeFragment : Fragment() {
         binding.buttonSaveOriginal.visibility = View.VISIBLE
         binding.buttonSaveOriginal.setOnClickListener {
             result.pdfFilePath?.let { filePath ->
-                val fileName = "${result.patientName}_${SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())}"
+                val fileName = "${result.patientName}_${
+                    SimpleDateFormat(
+                        "yyyyMMdd",
+                        Locale.getDefault()
+                    ).format(Date())
+                }"
                 savePdfToDownloadsUsingMediaStore(filePath, fileName)
             }
-        }
-    }
-    @RequiresApi(Build.VERSION_CODES.Q)
-    private fun savePdfToDownloadsUsingMediaStore(sourceUri: Uri, fileName: String) {
-        try {
-            val resolver = requireContext().contentResolver
-            val contentValues = ContentValues().apply {
-                put(MediaStore.MediaColumns.DISPLAY_NAME, "$fileName.pdf")
-                put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-            }
-
-            val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                ?: throw Exception("Nie można utworzyć pliku")
-
-            resolver.openOutputStream(uri)?.use { outputStream ->
-                resolver.openInputStream(sourceUri)?.use { inputStream ->
-                    inputStream.copyTo(outputStream)
-                }
-            }
-
-            Toast.makeText(
-                requireContext(),
-                "Zapisano w folderze Downloads",
-                Toast.LENGTH_LONG
-            ).show()
-        } catch (e: Exception) {
-            Toast.makeText(
-                requireContext(),
-                "Błąd zapisu: ${e.localizedMessage}",
-                Toast.LENGTH_SHORT
-            ).show()
-            Log.e("PDF_SAVE", "Błąd zapisu", e)
         }
     }
 

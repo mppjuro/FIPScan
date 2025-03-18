@@ -11,6 +11,8 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.max
 import kotlin.math.min
+import androidx.core.graphics.get
+import androidx.core.graphics.createBitmap
 
 class PdfChartExtractor(private val context: Context) {
     private val TOP_MARGIN_PERCENT = 0.2
@@ -87,7 +89,7 @@ class PdfChartExtractor(private val context: Context) {
 
         for (x in 0 until bitmap.width) {
             for (y in 0 until bitmap.height) {
-                if (isInBlueRange(bitmap.getPixel(x, y))) {
+                if (isInBlueRange(bitmap[x, y])) {
                     minX = min(minX, x)
                     minY = min(minY, y)
                     maxX = max(maxX, x)
@@ -116,7 +118,7 @@ class PdfChartExtractor(private val context: Context) {
 
     private fun renderPage(pdfRenderer: PdfRenderer, pageIndex: Int): Bitmap {
         val page = pdfRenderer.openPage(pageIndex)
-        val bitmap = Bitmap.createBitmap(page.width * 3, page.height * 3, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(page.width * 3, page.height * 3)
         val canvas = Canvas(bitmap)
         canvas.drawColor(Color.WHITE)
         page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
@@ -133,7 +135,7 @@ class PdfChartExtractor(private val context: Context) {
         var count = 0
         for (x in 0 until bitmap.width step 5) {
             for (y in 0 until bitmap.height step 5) {
-                if (isInBlueRange(bitmap.getPixel(x, y))) count++
+                if (isInBlueRange(bitmap[x, y])) count++
             }
         }
         return count

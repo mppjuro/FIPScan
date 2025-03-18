@@ -118,9 +118,7 @@ dependencies {
     implementation("androidx.navigation:navigation-ui-ktx:2.8.9")
 
     implementation(libs.annotations)
-
     implementation(libs.androidx.exifinterface)
-
     implementation (libs.androidx.core.ktx.v1150)
 
     testImplementation(libs.junit)
@@ -128,4 +126,4 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
 }
 
-private fun DependencyHandlerScope.kapt(string: String) {}
+private fun DependencyHandlerScope.kapt() {}
