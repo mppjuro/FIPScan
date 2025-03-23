@@ -18,4 +18,7 @@ interface ResultDao {
 
     @Query("DELETE FROM results WHERE patientName = :name AND age = :age")
     suspend fun deleteDuplicates(name: String, age: String)
+
+    @Query("DELETE FROM results WHERE patientName = 'Nieznany'")
+    suspend fun deleteUnknownPatients()
 }
