@@ -36,6 +36,8 @@ import androidx.core.content.FileProvider
 import com.tom_roush.pdfbox.pdmodel.graphics.image.PDImageXObject
 import java.util.Locale
 import com.example.fipscan.PdfChartExtractor
+import kotlin.collections.set
+import com.example.fipscan.R
 
 class HomeFragment : Fragment() {
 
@@ -236,7 +238,8 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun analyzeCSVFile(csvFile: File, chartImagePath: String?, pdfFile: File?) {        val csvLines = csvFile.readLines()
+    private fun analyzeCSVFile(csvFile: File, chartImagePath: String?, pdfFile: File?) {
+        val csvLines = csvFile.readLines()
         val extractedData = ExtractData.parseLabResults(csvLines)
 
         val patient = extractedData["Pacjent"] as? String ?: "Nieznany"
@@ -246,6 +249,9 @@ class HomeFragment : Fragment() {
         val age = extractedData["Wiek"] as? String ?: "Nieznany"
         val color = extractedData["Umaszczenie"] as? String ?: "Nieznane"
         val microchip = extractedData["Mikrochip"] as? String
+        val fcovElisa = extractedData["FCoV (ELISA)"] as? String
+        val fcovElisaUnit = extractedData["FCoV (ELISA)Unit"] as? String
+        val fcovElisaResult = extractedData["FCoV (ELISA)RangeMax"] as? String
 
         val catInfo = """
         🐱 Pacjent: $patient
@@ -256,10 +262,18 @@ class HomeFragment : Fragment() {
         🎨 Umaszczenie: $color
     """.trimIndent()
 
-        val finalInfo = if (!microchip.isNullOrEmpty()) {
+        val chippedCatInfo = if (!microchip.isNullOrEmpty()) {
             "$catInfo\n🔍 Chip: $microchip"
         } else {
             catInfo
+        }
+
+        val finalInfo = if (!fcovElisa.isNullOrEmpty()) {
+            "$chippedCatInfo\n" + context?.getString(R.string.emoji_virus) +
+                    " FCoV (FCoV (ELISA): $fcovElisa " +
+                    "$fcovElisaUnit ($fcovElisaResult)"
+        } else {
+            chippedCatInfo
         }
 
         // Lista wyników badań poza normą
@@ -268,7 +282,7 @@ class HomeFragment : Fragment() {
         // Iteracja po danych i wyszukiwanie wyników badań
         for (key in extractedData.keys) {
             if (key.endsWith("Unit") || key.endsWith("RangeMin") || key.endsWith("RangeMax")) {
-                continue // Pomijamy jednostki i zakresy norm
+                continue
             }
 
             val testName = key
@@ -277,7 +291,7 @@ class HomeFragment : Fragment() {
             val minRange = extractedData["${testName}RangeMin"] as? String ?: continue
             val maxRange = extractedData["${testName}RangeMax"] as? String ?: minRange // Jeśli nie ma max, traktujemy min jako granicę
 
-            if (isOutOfRange(value, minRange, maxRange)) {
+            if (isOutOfRange(value, minRange, maxRange) || 1==1) {
                 abnormalResults.add("$testName: $value $unit ($minRange - $maxRange)")
             }
         }

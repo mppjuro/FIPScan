@@ -20,52 +20,89 @@ object ExtractData {
         }
 
         // Przetwarzaj wyniki badań
-        for (line in csvLines) {
-            val cleanedLine = removeParentheses(line)  // Usunięcie nawiasów i ich zawartości
+        var i = 0
+        while (i < csvLines.size) {
+            //Log.d("LINE", "${csvLines[i]}")
+            val line = csvLines[i]
+            val cleanedLine = removeParentheses(line)
+
+            // Obsługa FCoV (ELISA)
+            if (line.contains("FCoV", ignoreCase = true) &&
+                line.contains("przeciwciała", ignoreCase = true) &&
+                line.contains("ELISA", ignoreCase = true)) {
+                if (i + 2 < csvLines.size) {
+                    val resultLine = csvLines[i + 1].replace("Wynik", "", ignoreCase = true).trim()
+                    val valueLine = csvLines[i + 2].replace("Wartość", "", ignoreCase = true).trim()
+                    val parts = valueLine.split(";").map { it.trim() }
+
+                    extractedData["FCoV (ELISA)RangeMax"] = resultLine
+                    extractedData["FCoV (ELISA)"] = parts.getOrNull(0) ?: "-"
+                    extractedData["FCoV (ELISA)Unit"] = parts.getOrNull(1) ?: ""
+
+                    Log.d("DATA", "FCoV (ELISA): ${extractedData["FCoV (ELISA)"]} (${extractedData["FCoV (ELISA)RangeMax"]}) ${extractedData["FCoV (ELISA)Unit"]}")
+
+                    i += 3
+                    continue
+                }
+            }
 
             if (cleanedLine.startsWith("Data pobrania materiału") && !dateCollectedSet) {
                 extractDateOfCollection(cleanedLine, extractedData)
                 dateCollectedSet = true
                 Log.d("DATA", "Data pobrania materiału: " + extractedData["Data pobrania materiału"])
+                i++
                 continue
             }
 
             if (cleanedLine.startsWith("Data ")) {
-                continue  // Pominięcie innych wpisów rozpoczynających się od "Data"
+                i++
+                continue
             }
 
             val parts = cleanedLine.split(";").map { it.trim() }
 
-            // Jeśli linia zawiera tylko nazwę badania (np. "Kwas foliowy"), zapamiętaj ją
             if (parts.size == 1 && parts[0].isNotEmpty() && !containsNumericValue(parts[0])) {
                 lastTestName = parts[0]
+                i++
                 continue
             }
 
-            if (parts.size >= 3 && parts[0].matches(Regex(".*[<>]?[0-9]+[,.][0-9]+.*"))) {
-                var (name, value) = parseParameterName(parts[0])
-
-                // Jeśli nazwa to "Wynik", użyj poprzedniej zapamiętanej nazwy badania
+            if (parts.size >= 2 && parts[0].matches(Regex(".*[<>]?[0-9]+[,.][0-9]+.*"))) {
+                val (name, value) = parseParameterName(parts[0])
                 val resolvedName = if (name == "Wynik" && lastTestName != null) lastTestName else name
 
-                val unit = parts[1]
-                val range = parts[2].split("-")
+                val secondField = parts.getOrNull(1)?.trim() ?: ""
+                val thirdField = parts.getOrNull(2)?.trim() ?: ""
+
+                val rangeRegex = Regex("""\d+,*\d*\s*-\s*\d+,*\d*""")
+
+                val (unit, rangeStr) = if (secondField.matches(rangeRegex)) {
+                    "" to secondField
+                } else {
+                    secondField to thirdField
+                }
+
+                val rangeParts = rangeStr.split("-").map { it.trim().replace(",", ".") }
+                val minRange = rangeParts.getOrNull(0) ?: "-"
+                val maxRange = rangeParts.getOrNull(1) ?: "-"
 
                 extractedData[resolvedName] = value
                 extractedData["${resolvedName}Unit"] = unit
-                extractedData["${resolvedName}RangeMin"] = range[0].replace(",", ".")
-                extractedData["${resolvedName}RangeMax"] = range.getOrElse(1) { "-" }.replace(",", ".")
+                extractedData["${resolvedName}RangeMin"] = minRange
+                extractedData["${resolvedName}RangeMax"] = maxRange
 
-                //if (isOutOfRange(value, range[0], range.getOrElse(1) { value })) {
-                results.add("$resolvedName $value (norma ${range[0]} - ${range.getOrElse(1) { value }}) $unit")
-                //}
+                results.add("$resolvedName $value (norma $minRange - $maxRange) $unit")
 
-                Log.d("DATA", "$resolvedName: ${extractedData[resolvedName]} (${extractedData["${resolvedName}RangeMin"]} - ${extractedData["${resolvedName}RangeMax"]}) ${extractedData["${resolvedName}Unit"]}")
+                Log.d("DATA", "$resolvedName: ${extractedData[resolvedName]} ($minRange - $maxRange) $unit")
             }
+
+            i++
         }
+
         extractedData["results"] = results
         return extractedData
     }
+
 
     private fun extractPatientData(text: String, data: MutableMap<String, Any>) {
         val regex = Regex("(Pacjent:|Gatunek:|Rasa:|Płeć:|Wiek:|Umaszczenie:|Mikrochip:)")
@@ -103,13 +140,9 @@ object ExtractData {
     }
 
     private fun parseParameterName(str: String): Pair<String, String> {
-        val regex = Regex("""([^\d<>]+?)\s*([<>]?\d+[,.]\d+)""")
-        val match = regex.find(str) ?: return Pair(str, "-")
-
-        val name = match.groupValues[1].trim()
-        val value = match.groupValues[2].replace(",", ".")
-
-        return Pair(name, value)
+        val regex = Regex("""([^\d<>]*[a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ:/\s-]+)\s*([<>]?\d+[,.]\d+)""")
+        val match = regex.find(str) ?: return Pair(str.trim(), "-")
+        return Pair(match.groupValues[1].trim(), match.groupValues[2])
     }
 
     private fun removeParentheses(str: String): String {
