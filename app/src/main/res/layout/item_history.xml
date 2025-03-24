@@ -20,4 +20,18 @@
         android:text="@string/wiek"
         android:textSize="16sp" />
 
+    <TextView
+        android:id="@+id/textDate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/data_nieznana"
+        android:textSize="14sp"
+        android:lineHeight="20sp"
+        android:textAppearance="?attr/textAppearanceBodySmall"
+        android:layout_marginTop="4dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="?attr/switchTextColor"
+        />
+
 </LinearLayout>

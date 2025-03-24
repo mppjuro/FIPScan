@@ -13,5 +13,6 @@ data class ResultEntity(
     val age: String,
     val testResults: String,
     val pdfFilePath: String?,
-    val imagePath: String?
+    val imagePath: String?,
+    val collectionDate: String? = null
 ) : Parcelable
