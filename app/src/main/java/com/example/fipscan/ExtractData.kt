@@ -49,7 +49,7 @@ object ExtractData {
             if (cleanedLine.startsWith("Data pobrania materiału") && !dateCollectedSet) {
                 extractDateOfCollection(cleanedLine, extractedData)
                 dateCollectedSet = true
-                Log.d("DATA", "Data pobrania materiału: " + extractedData["Data pobrania materiału"])
+                Log.d("DATA", "Data pobrania materiału: " + extractedData["Data"])
                 i++
                 continue
             }
@@ -135,7 +135,7 @@ object ExtractData {
         val regex = Regex("""Data pobrania materiału:\s*(\d{2}\.\d{2}\.\d{4})""")
         val match = regex.find(line)
         if (match != null) {
-            data["Data pobrania materiału"] = match.groupValues[1]
+            data["Data"] = match.groupValues[1]
         }
     }
 

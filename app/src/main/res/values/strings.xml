@@ -15,4 +15,5 @@
     <string name="wykres_diagnostyczny">Wykres diagnostyczny</string>
     <string name="zapisz_oryg">Zapisz oryginał</string>
     <string name="emoji_virus">🦠</string>
+    <string name="data_nieznana">📅 Data nieznana</string>
 </resources>

@@ -76,6 +76,8 @@ configurations.all {
         force("com.intellij:annotations:12.0")
     }
     exclude(group = "com.intellij", module = "annotations")
+    exclude(group = "com.kohlschutter.junixsocket", module = "junixsocket-native-common")
+    exclude(group = "com.kohlschutter.junixsocket", module = "junixsocket-native-aarch64-MacOSX-clang")
 }
 
 dependencies {
@@ -127,5 +129,3 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }
-
-private fun DependencyHandlerScope.kapt(string: String) {}

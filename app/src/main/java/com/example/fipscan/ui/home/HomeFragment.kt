@@ -242,6 +242,7 @@ class HomeFragment : Fragment() {
         val csvLines = csvFile.readLines()
         val extractedData = ExtractData.parseLabResults(csvLines)
 
+        val collectionDate = extractedData["Data"]
         val patient = extractedData["Pacjent"] as? String ?: "Nieznany"
         val species = extractedData["Gatunek"] as? String ?: "Nieznany"
         val breed = extractedData["Rasa"] as? String ?: "Nieznana"
@@ -254,6 +255,7 @@ class HomeFragment : Fragment() {
         val fcovElisaResult = extractedData["FCoV (ELISA)RangeMax"] as? String
 
         val catInfo = """
+        📆 Data: $collectionDate
         🐱 Pacjent: $patient
         🐾 Gatunek: $species
         🏷️ Rasa: $breed
@@ -270,7 +272,7 @@ class HomeFragment : Fragment() {
 
         val finalInfo = if (!fcovElisa.isNullOrEmpty()) {
             "$chippedCatInfo\n" + context?.getString(R.string.emoji_virus) +
-                    " FCoV (FCoV (ELISA): $fcovElisa " +
+                    " FCoV (ELISA): $fcovElisa " +
                     "$fcovElisaUnit ($fcovElisaResult)"
         } else {
             chippedCatInfo
@@ -313,7 +315,8 @@ class HomeFragment : Fragment() {
 
         binding.textHome.text = "Wyniki: ${patient}"
         displayImage(chartImagePath)
-        saveResultToDatabase(patient, age, abnormalResults.joinToString("\n"), pdfFile, chartImagePath)
+        saveResultToDatabase(patient, age, abnormalResults.joinToString("\n"),
+            pdfFile, chartImagePath, collectionDate as? String)
     }
 
     private val filePicker =
@@ -343,7 +346,8 @@ class HomeFragment : Fragment() {
         age: String,
         results: String,
         pdfFile: File?,
-        imagePath: String?
+        imagePath: String?,
+        collectionDate: String?
     ) {
         val pdfFilePath = pdfFile?.absolutePath // Zapisujemy pełną ścieżkę systemową
 
@@ -352,7 +356,8 @@ class HomeFragment : Fragment() {
             age = age,
             testResults = results,
             pdfFilePath = pdfFilePath, // Bezpośrednia ścieżka do pliku
-            imagePath = imagePath
+            imagePath = imagePath,
+            collectionDate = collectionDate
         )
 
         val db = AppDatabase.getDatabase(requireContext())
