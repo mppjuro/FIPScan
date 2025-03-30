@@ -27,6 +27,7 @@ class HistoryFragment : Fragment() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             val results = AppDatabase.getDatabase(requireContext()).resultDao().getAllResults()
+
             withContext(Dispatchers.Main) {
                 binding.recyclerView.adapter = HistoryAdapter(results) { result ->
                     val action = HistoryFragmentDirections.actionNavigationHistoryToNavigationHome(result)

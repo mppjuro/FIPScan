@@ -13,8 +13,8 @@ import kotlin.math.max
 import kotlin.math.min
 
 class PdfChartExtractor(private val context: Context) {
-    private val TOP_MARGIN_PERCENT = 0.2
-    private val PADDING_PERCENT = 0.01
+    private val topMarginPercent = 0.2
+    private val paddingPercent = 0.01
 
     fun extractChartFromPDF(pdfFile: File?): String? {
         if (pdfFile == null || !pdfFile.exists()) {
@@ -100,11 +100,11 @@ class PdfChartExtractor(private val context: Context) {
     }
 
     private fun addPadding(cropInfo: CropInfo, bitmap: Bitmap): CropInfo {
-        if (PADDING_PERCENT < 0.01) {
+        if (paddingPercent < 0.01) {
             return CropInfo(cropInfo.left, cropInfo.top, cropInfo.right, cropInfo.bottom)
         }
-        val paddingX = ((cropInfo.right - cropInfo.left) * PADDING_PERCENT).toInt()
-        val paddingY = ((cropInfo.bottom - cropInfo.top) * PADDING_PERCENT).toInt()
+        val paddingX = ((cropInfo.right - cropInfo.left) * paddingPercent).toInt()
+        val paddingY = ((cropInfo.bottom - cropInfo.top) * paddingPercent).toInt()
 
         val newLeft = max(0, cropInfo.left - paddingX)
         val newTop = max(0, cropInfo.top - paddingY)
@@ -125,7 +125,7 @@ class PdfChartExtractor(private val context: Context) {
     }
 
     private fun removeTopMargin(bitmap: Bitmap): Bitmap {
-        val cutHeight = (bitmap.height * TOP_MARGIN_PERCENT).toInt()
+        val cutHeight = (bitmap.height * topMarginPercent).toInt()
         return Bitmap.createBitmap(bitmap, 0, cutHeight, bitmap.width, bitmap.height - cutHeight)
     }
 
