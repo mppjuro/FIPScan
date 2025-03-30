@@ -34,6 +34,7 @@ import androidx.annotation.RequiresApi
 import java.util.Locale
 import com.example.fipscan.PdfChartExtractor
 import com.example.fipscan.R
+import com.google.gson.Gson
 
 class HomeFragment : Fragment() {
 
@@ -309,8 +310,9 @@ class HomeFragment : Fragment() {
 
         binding.textHome.text = "Wyniki: ${patient}"
         displayImage(chartImagePath)
+        val rawJson = Gson().toJson(extractedData)
         saveResultToDatabase(patient, age, abnormalResults.joinToString("\n"),
-            pdfFile, chartImagePath, collectionDate as? String)
+            pdfFile, chartImagePath, collectionDate as? String, rawJson)
     }
 
     private val filePicker =
@@ -341,7 +343,8 @@ class HomeFragment : Fragment() {
         results: String,
         pdfFile: File?,
         imagePath: String?,
-        collectionDate: String?
+        collectionDate: String?,
+        rawDataJson: String?
     ) {
         val pdfFilePath = pdfFile?.absolutePath
 
@@ -351,7 +354,8 @@ class HomeFragment : Fragment() {
             testResults = results,
             pdfFilePath = pdfFilePath,
             imagePath = imagePath,
-            collectionDate = collectionDate
+            collectionDate = collectionDate,
+            rawDataJson = rawDataJson
         )
 
         val db = AppDatabase.getDatabase(requireContext())

@@ -25,6 +25,16 @@
             android:paddingBottom="32dp">
 
             <TextView
+                android:id="@+id/textHeader"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textStyle="bold"
+                android:textSize="18sp"
+                android:padding="8dp"
+                android:text="📄 Diagnoza"
+                />
+
+            <TextView
                 android:id="@+id/textDiagnosticComment"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

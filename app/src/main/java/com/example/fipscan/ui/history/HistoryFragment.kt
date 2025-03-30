@@ -13,6 +13,8 @@ import com.example.fipscan.databinding.FragmentHistoryBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.example.fipscan.ExtractData
+import com.google.gson.Gson
 
 class HistoryFragment : Fragment() {
     private var _binding: FragmentHistoryBinding? = null
@@ -30,6 +32,14 @@ class HistoryFragment : Fragment() {
 
             withContext(Dispatchers.Main) {
                 binding.recyclerView.adapter = HistoryAdapter(results) { result ->
+
+                    result.rawDataJson?.let { json ->
+                        val map = Gson().fromJson(json, Map::class.java) as? Map<String, Any>
+                        if (map != null) {
+                            ExtractData.lastExtracted = map
+                        }
+                    }
+
                     val action = HistoryFragmentDirections.actionNavigationHistoryToNavigationHome(result)
                     findNavController().navigate(action)
                 }
