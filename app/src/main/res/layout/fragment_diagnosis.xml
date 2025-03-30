@@ -29,66 +29,83 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textStyle="bold"
-                android:textSize="18sp"
+                android:textSize="22sp"
                 android:padding="8dp"
-                android:text="📄 Diagnoza"
-                />
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:text="Diagnoza" />
 
             <TextView
                 android:id="@+id/textDiagnosticComment"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Komentarz diagnostyczny"
-                android:textAppearance="?attr/textAppearanceBody1"
-                android:paddingBottom="12dp" />
+                android:textStyle="bold"
+                android:textSize="18sp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:paddingBottom="16dp"
+                android:text="Komentarz diagnostyczny" />
 
             <TextView
                 android:id="@+id/textSupplements"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Suplementy"
-                android:textAppearance="?attr/textAppearanceBody2"
-                android:paddingBottom="12dp" />
+                android:textSize="18sp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:paddingBottom="12dp"
+                android:text="Suplementy" />
 
             <TextView
                 android:id="@+id/textVetConsult"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Konsultacja weterynaryjna"
-                android:textAppearance="?attr/textAppearanceBody2"
-                android:paddingBottom="24dp" />
+                android:textSize="18sp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:paddingBottom="24dp"
+                android:text="Konsultacja weterynaryjna" />
 
             <TextView
                 android:id="@+id/textRiskComment"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Ryzyko FIP"
-                android:textAppearance="?attr/textAppearanceBody1"
-                android:paddingBottom="12dp" />
+                android:textStyle="bold"
+                android:textSize="18sp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:paddingBottom="12dp"
+                android:text="Ryzyko FIP" />
 
             <TextView
                 android:id="@+id/textFurtherTests"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Dalsze badania"
-                android:textAppearance="?attr/textAppearanceBody2"
-                android:paddingBottom="12dp" />
+                android:textSize="18sp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:paddingBottom="12dp"
+                android:text="Dalsze badania" />
 
             <TextView
                 android:id="@+id/textRiskSupplements"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Suplementy na podstawie elektroforezy"
-                android:textAppearance="?attr/textAppearanceBody2"
-                android:paddingBottom="12dp" />
+                android:textSize="18sp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:paddingBottom="12dp"
+                android:text="Suplementy na podstawie elektroforezy" />
 
             <TextView
                 android:id="@+id/textRiskConsult"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Konsultacja specjalistyczna"
-                android:textAppearance="?attr/textAppearanceBody2"
-                android:paddingBottom="16dp" />
+                android:textSize="18sp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:paddingBottom="16dp"
+                android:text="Konsultacja specjalistyczna" />
 
         </LinearLayout>
     </ScrollView>

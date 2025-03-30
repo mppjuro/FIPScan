@@ -10,11 +10,6 @@ import com.example.fipscan.ExtractData
 import com.example.fipscan.LabResultAnalyzer
 import com.example.fipscan.databinding.FragmentDiagnosisBinding
 
-/**
- * Fragment ekranu "Diagnoza".
- * Wyświetla podsumowanie analizy wyników w kontekście FIP – komentarz diagnostyczny, proponowane suplementy i dalsze kroki.
- * Dodany jako osobna zakładka w dolnej nawigacji.
- */
 class DiagnosisFragment : Fragment() {
     private var _binding: FragmentDiagnosisBinding? = null
     private val binding get() = _binding!!
@@ -34,7 +29,7 @@ class DiagnosisFragment : Fragment() {
         // Nagłówek z nazwą kota i datą
         val patient = extractedMap["Pacjent"] as? String ?: "Nieznany"
         val date = extractedMap["Data"] as? String ?: ""
-        binding.textHeader.text = "📄 Diagnoza dla: $patient  ${if (date.isNotBlank()) "📅 $date" else ""}"
+        binding.textHeader.text = "📄 Diagnoza: $patient  ${if (date.isNotBlank()) "📅 $date" else ""}"
 
         val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
         val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap)
