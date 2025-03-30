@@ -24,15 +24,20 @@ class DiagnosisFragment : Fragment() {
     ): View {
         _binding = FragmentDiagnosisBinding.inflate(inflater, container, false)
 
-        val extractedData = ExtractData.lastExtracted
+        val extractedMap = ExtractData.lastExtracted
 
-        if (extractedData.isNullOrEmpty()) {
+        if (extractedMap.isNullOrEmpty()) {
             binding.textDiagnosticComment.text = "Brak dostępnych danych do analizy."
             return binding.root
         }
 
-        val labResult = LabResultAnalyzer.analyzeLabData(extractedData)
-        val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedData)
+        // Nagłówek z nazwą kota i datą
+        val patient = extractedMap["Pacjent"] as? String ?: "Nieznany"
+        val date = extractedMap["Data"] as? String ?: ""
+        binding.textHeader.text = "📄 Diagnoza dla: $patient  ${if (date.isNotBlank()) "📅 $date" else ""}"
+
+        val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
+        val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap)
 
         binding.textDiagnosticComment.text = labResult.diagnosticComment
         binding.textSupplements.text = "Suplementy: ${labResult.supplementAdvice}\n"
