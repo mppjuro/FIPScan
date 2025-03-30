@@ -17,4 +17,11 @@
     <string name="emoji_virus">🦠</string>
     <string name="data_nieznana">📅 Data nieznana</string>
     <string name="diagnoza">Diagnoza</string>
+    <string name="komentarz_diagnostyczny">Komentarz diagnostyczny...</string>
+    <string name="suplementy">Suplementy: ...</string>
+    <string name="konsultacja">Konsultacja: ...</string>
+    <string name="ryzyko_fip">Ryzyko FIP: ...</string>
+    <string name="dalsze_badania">Dalsze badania: ...</string>
+    <string name="suplementy2">Suplementy: ...</string>
+    <string name="konsultacja2">Konsultacja: ...</string>
 </resources>

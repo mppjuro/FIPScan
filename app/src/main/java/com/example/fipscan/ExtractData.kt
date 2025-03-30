@@ -3,7 +3,7 @@ package com.example.fipscan
 import android.util.Log
 
 object ExtractData {
-
+    var lastExtracted: Map<String, Any>? = null
     fun parseLabResults(csvLines: List<String>): Map<String, Any> {
         val extractedData = mutableMapOf<String, Any>()
         val results = mutableListOf<String>()
@@ -100,6 +100,7 @@ object ExtractData {
         }
 
         extractedData["results"] = results
+        lastExtracted = extractedData
         return extractedData
     }
 
