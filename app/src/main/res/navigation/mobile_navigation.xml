@@ -31,16 +31,16 @@
     </fragment>
 
     <fragment
-        android:id="@+id/navigation_dashboard"
-        android:name="com.example.fipscan.ui.history.HistoryFragment"
-        android:label="@string/title_history"
-        tools:layout="@layout/fragment_history" />
-
-    <fragment
         android:id="@+id/navigation_diagnosis"
         android:name="com.example.fipscan.ui.diagnosis.DiagnosisFragment"
         android:label="@string/diagnoza"
         tools:layout="@layout/fragment_diagnosis" />
+
+    <fragment
+        android:id="@+id/navigation_dashboard"
+        android:name="com.example.fipscan.ui.history.HistoryFragment"
+        android:label="@string/title_history"
+        tools:layout="@layout/fragment_history" />
 
     <fragment
         android:id="@+id/navigation_notifications"
