@@ -23,7 +23,6 @@ class HistoryAdapter(
         holder.binding.textPatientName.text = result.patientName
         holder.binding.textAge.text = result.age
 
-        // Dodajemy datę
         val dateText = if (!result.collectionDate.isNullOrBlank())
             "📅 Data pobrania: ${result.collectionDate}"
         else
