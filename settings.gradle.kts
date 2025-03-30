@@ -23,4 +23,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "FIPscan"
 include(":app")
- 
+include(":opencv")

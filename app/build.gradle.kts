@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    kotlin("kapt")
+    id("com.google.devtools.ksp") version "1.9.24-1.0.20"
     id("androidx.navigation.safeargs.kotlin")
     id("kotlin-parcelize")
 }
@@ -31,12 +31,12 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
 
     kotlinOptions {
-        jvmTarget = "17"
+        jvmTarget = "21"
     }
 
     buildFeatures {
@@ -114,7 +114,7 @@ dependencies {
     implementation("org.apache.commons:commons-csv:1.9.0")
 
     implementation(libs.androidx.room.runtime)
-    kapt(libs.androidx.room.compiler)
+    ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.ktx)
     implementation("androidx.navigation:navigation-fragment-ktx:2.8.9")
     implementation("androidx.navigation:navigation-ui-ktx:2.8.9")
@@ -124,6 +124,8 @@ dependencies {
     implementation(libs.androidx.exifinterface)
 
     implementation (libs.androidx.core.ktx.v1150)
+
+    implementation(project(":opencv"))
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
