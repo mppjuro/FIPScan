@@ -293,7 +293,7 @@ class HomeFragment : Fragment() {
             val minRange = extractedData["${testName}RangeMin"] as? String ?: continue
             val maxRange = extractedData["${testName}RangeMax"] as? String ?: minRange // Jeśli nie ma max, traktujemy min jako granicę
 
-            if (isOutOfRange(value, minRange, maxRange) || 1==1) {
+            if (isOutOfRange(value, minRange, maxRange)) {
                 abnormalResults.add("$testName: $value $unit ($minRange - $maxRange)")
             }
         }
@@ -311,7 +311,7 @@ class HomeFragment : Fragment() {
             if (binding.resultsTextView.text.isNotEmpty()) {
                 binding.scrollView.smoothScrollTo(0, 0)
             }
-        }, 200) // Krótkie opóźnienie, aby UI się odświeżył
+        }, 100)
 
         binding.textHome.text = "Wyniki: ${patient}"
         displayImage(chartImagePath)
@@ -349,7 +349,7 @@ class HomeFragment : Fragment() {
         imagePath: String?,
         collectionDate: String?
     ) {
-        val pdfFilePath = pdfFile?.absolutePath // Zapisujemy pełną ścieżkę systemową
+        val pdfFilePath = pdfFile?.absolutePath
 
         val result = ResultEntity(
             patientName = patient,
