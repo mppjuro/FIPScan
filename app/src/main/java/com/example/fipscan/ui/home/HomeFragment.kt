@@ -109,7 +109,20 @@ class HomeFragment : Fragment() {
                             // Wysyłka przyciętego bar_chart
                             if (barChartPath != null) {
                                 val barChartFile = File(barChartPath)
-                                Thread { uploadFileToFTP(barChartFile) }.start()
+                                Thread {
+                                    uploadFileToFTP(barChartFile)
+                                    try {
+                                        val bitmap = BitmapFactory.decodeFile(barChartPath)
+                                        val levels = com.example.fipscan.BarChartLevelAnalyzer.analyzeBarHeights(bitmap)
+
+                                        Log.d("BAR_LEVELS", "Poziomy słupków (% wysokości):")
+                                        levels.forEachIndexed { index, value ->
+                                            Log.d("BAR_LEVELS", "Słupek ${index + 1}: %.2f%%".format(value))
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e("BAR_LEVELS", "Błąd analizy słupków", e)
+                                    }
+                                }.start()
                             }
 
                             newChartFile = originalChartFile
