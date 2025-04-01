@@ -90,20 +90,29 @@ class HomeFragment : Fragment() {
                     val pdfDocument = PDDocument.load(inputStream)
 
                     // Ekstrakcja i zapis wykresu
-                    var chartImagePath: String?
+                    var chartImagePaths: List<String>? = null
                     var newChartFile: File? = null
                     try {
-                        chartImagePath = pdfChartExtractor.extractChartFromPDF(pdfFile)
-                        if (chartImagePath != null) {
+                        chartImagePaths = pdfChartExtractor.extractChartFromPDF(pdfFile)
+                        if (!chartImagePaths.isNullOrEmpty()) {
+                            val originalChartPath = chartImagePaths[0]
+                            val barChartPath = chartImagePaths.getOrNull(1)
+
                             val storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-                            newChartFile = File(storageDir, chartFilename)
+                            val originalChartFile = File(storageDir, chartFilename)
+                            File(originalChartPath).copyTo(originalChartFile, overwrite = true)
+                            File(originalChartPath).delete()
 
-                            // Kopiuj do nowej lokalizacji z timestampem
-                            File(chartImagePath).copyTo(newChartFile!!, overwrite = true)
-                            File(chartImagePath).delete() // Usuń stary plik
+                            // Wysyłka oryginalnego wykresu
+                            Thread { uploadFileToFTP(originalChartFile) }.start()
 
-                            // Wyślij wykres na FTP
-                            Thread { uploadFileToFTP(newChartFile) }.start()
+                            // Wysyłka przyciętego bar_chart
+                            if (barChartPath != null) {
+                                val barChartFile = File(barChartPath)
+                                Thread { uploadFileToFTP(barChartFile) }.start()
+                            }
+
+                            newChartFile = originalChartFile
                         }
                     } catch (e: Exception) {
                         Log.e("CHART_EXTRACT", "Błąd przetwarzania wykresu", e)

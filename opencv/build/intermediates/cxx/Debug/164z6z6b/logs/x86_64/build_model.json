@@ -8,9 +8,9 @@
     "triple": "x86_64-linux-android",
     "llvmTriple": "x86_64-none-linux-android"
   },
-  "cxxBuildFolder": "C:\\Users\\PJURO\\Desktop\\FIPscan\\opencv\\.cxx\\Debug\\164z6z6b\\x86_64",
-  "soFolder": "C:\\Users\\PJURO\\Desktop\\FIPscan\\opencv\\build\\intermediates\\cxx\\Debug\\164z6z6b\\obj\\x86_64",
-  "soRepublishFolder": "C:\\Users\\PJURO\\Desktop\\FIPscan\\opencv\\build\\intermediates\\cmake\\debug\\obj\\x86_64",
+  "cxxBuildFolder": "C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\.cxx\\Debug\\164z6z6b\\x86_64",
+  "soFolder": "C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\build\\intermediates\\cxx\\Debug\\164z6z6b\\obj\\x86_64",
+  "soRepublishFolder": "C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\build\\intermediates\\cmake\\debug\\obj\\x86_64",
   "abiPlatformVersion": 21,
   "cmake": {
     "effectiveConfiguration": {
@@ -37,13 +37,13 @@
     ],
     "cmakeSettingsConfiguration": "android-gradle-plugin-predetermined-name",
     "module": {
-      "cxxFolder": "C:\\Users\\PJURO\\Desktop\\FIPscan\\opencv\\.cxx",
-      "intermediatesBaseFolder": "C:\\Users\\PJURO\\Desktop\\FIPscan\\opencv\\build\\intermediates",
-      "intermediatesFolder": "C:\\Users\\PJURO\\Desktop\\FIPscan\\opencv\\build\\intermediates\\cxx",
+      "cxxFolder": "C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\.cxx",
+      "intermediatesBaseFolder": "C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\build\\intermediates",
+      "intermediatesFolder": "C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\build\\intermediates\\cxx",
       "gradleModulePathName": ":opencv",
-      "moduleRootFolder": "C:\\Users\\PJURO\\Desktop\\FIPscan\\opencv",
-      "moduleBuildFile": "C:\\Users\\PJURO\\Desktop\\FIPscan\\opencv\\build.gradle",
-      "makeFile": "C:\\Users\\PJURO\\Desktop\\FIPscan\\opencv\\libcxx_helper\\CMakeLists.txt",
+      "moduleRootFolder": "C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv",
+      "moduleBuildFile": "C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\build.gradle",
+      "makeFile": "C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\libcxx_helper\\CMakeLists.txt",
       "buildSystem": "CMAKE",
       "ndkFolder": "C:\\Users\\PJURO\\AppData\\Local\\Android\\Sdk\\ndk\\27.0.12077973",
       "ndkFolderBeforeSymLinking": "C:\\Users\\PJURO\\AppData\\Local\\Android\\Sdk\\ndk\\27.0.12077973",
@@ -153,7 +153,7 @@
         "SYSTEM": {}
       },
       "project": {
-        "rootBuildGradleFolder": "C:\\Users\\PJURO\\Desktop\\FIPscan",
+        "rootBuildGradleFolder": "C:\\Users\\PJURO\\Desktop\\FIPScan",
         "sdkFolder": "C:\\Users\\PJURO\\AppData\\Local\\Android\\Sdk",
         "isBuildOnlyTargetAbiEnabled": true,
         "ideBuildTargetAbi": "x86_64,arm64-v8a",
@@ -173,12 +173,12 @@
   "buildSettings": {
     "environmentVariables": []
   },
-  "prefabFolder": "C:\\Users\\PJURO\\Desktop\\FIPscan\\opencv\\.cxx\\Debug\\164z6z6b\\prefab\\x86_64",
+  "prefabFolder": "C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\.cxx\\Debug\\164z6z6b\\prefab\\x86_64",
   "isActiveAbi": true,
   "fullConfigurationHash": "164z6z6b2e4t403p5o5y2x5o2j6231146o76bc133e6i102y3970492n5u526n",
   "fullConfigurationHashKey": "# Values used to calculate the hash in this folder name.\n# Should not depend on the absolute path of the project itself.\n#   - AGP: 8.9.1.\n#   - $NDK is the path to NDK 27.0.12077973.\n#   - $PROJECT is the path to the parent folder of the root Gradle build file.\n#   - $ABI is the ABI to be built with. The specific value doesn\u0027t contribute to the value of the hash.\n#   - $HASH is the hash value computed from this text.\n#   - $CMAKE is the path to CMake 3.22.1.\n#   - $NINJA is the path to Ninja.\n-H$PROJECT/opencv/libcxx_helper\n-DCMAKE_SYSTEM_NAME\u003dAndroid\n-DCMAKE_EXPORT_COMPILE_COMMANDS\u003dON\n-DCMAKE_SYSTEM_VERSION\u003d21\n-DANDROID_PLATFORM\u003dandroid-21\n-DANDROID_ABI\u003d$ABI\n-DCMAKE_ANDROID_ARCH_ABI\u003d$ABI\n-DANDROID_NDK\u003d$NDK\n-DCMAKE_ANDROID_NDK\u003d$NDK\n-DCMAKE_TOOLCHAIN_FILE\u003d$NDK/build/cmake/android.toolchain.cmake\n-DCMAKE_MAKE_PROGRAM\u003d$NINJA\n-DCMAKE_LIBRARY_OUTPUT_DIRECTORY\u003d$PROJECT/opencv/build/intermediates/cxx/Debug/$HASH/obj/$ABI\n-DCMAKE_RUNTIME_OUTPUT_DIRECTORY\u003d$PROJECT/opencv/build/intermediates/cxx/Debug/$HASH/obj/$ABI\n-DCMAKE_BUILD_TYPE\u003dDebug\n-B$PROJECT/opencv/.cxx/Debug/$HASH/$ABI\n-GNinja\n-DANDROID_STL\u003dc++_shared",
   "configurationArguments": [
-    "-HC:\\Users\\PJURO\\Desktop\\FIPscan\\opencv\\libcxx_helper",
+    "-HC:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\libcxx_helper",
     "-DCMAKE_SYSTEM_NAME\u003dAndroid",
     "-DCMAKE_EXPORT_COMPILE_COMMANDS\u003dON",
     "-DCMAKE_SYSTEM_VERSION\u003d21",
@@ -189,13 +189,13 @@
     "-DCMAKE_ANDROID_NDK\u003dC:\\Users\\PJURO\\AppData\\Local\\Android\\Sdk\\ndk\\27.0.12077973",
     "-DCMAKE_TOOLCHAIN_FILE\u003dC:\\Users\\PJURO\\AppData\\Local\\Android\\Sdk\\ndk\\27.0.12077973\\build\\cmake\\android.toolchain.cmake",
     "-DCMAKE_MAKE_PROGRAM\u003dC:\\Users\\PJURO\\AppData\\Local\\Android\\Sdk\\cmake\\3.22.1\\bin\\ninja.exe",
-    "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY\u003dC:\\Users\\PJURO\\Desktop\\FIPscan\\opencv\\build\\intermediates\\cxx\\Debug\\164z6z6b\\obj\\x86_64",
-    "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY\u003dC:\\Users\\PJURO\\Desktop\\FIPscan\\opencv\\build\\intermediates\\cxx\\Debug\\164z6z6b\\obj\\x86_64",
+    "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY\u003dC:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\build\\intermediates\\cxx\\Debug\\164z6z6b\\obj\\x86_64",
+    "-DCMAKE_RUNTIME_OUTPUT_DIRECTORY\u003dC:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\build\\intermediates\\cxx\\Debug\\164z6z6b\\obj\\x86_64",
     "-DCMAKE_BUILD_TYPE\u003dDebug",
-    "-BC:\\Users\\PJURO\\Desktop\\FIPscan\\opencv\\.cxx\\Debug\\164z6z6b\\x86_64",
+    "-BC:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\.cxx\\Debug\\164z6z6b\\x86_64",
     "-GNinja",
     "-DANDROID_STL\u003dc++_shared"
   ],
   "stlLibraryFile": "C:\\Users\\PJURO\\AppData\\Local\\Android\\Sdk\\ndk\\27.0.12077973\\toolchains\\llvm\\prebuilt\\windows-x86_64\\sysroot\\usr\\lib\\x86_64-linux-android\\libc++_shared.so",
-  "intermediatesParentFolder": "C:\\Users\\PJURO\\Desktop\\FIPscan\\opencv\\build\\intermediates\\cxx\\Debug\\164z6z6b"
+  "intermediatesParentFolder": "C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\build\\intermediates\\cxx\\Debug\\164z6z6b"
 }
