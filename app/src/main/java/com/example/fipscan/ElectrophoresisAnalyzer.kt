@@ -10,13 +10,6 @@ package com.example.fipscan
  */
 object ElectrophoresisAnalyzer {
 
-    /**
-     * Wynik analizy elektroforezy.
-     * @param fipRiskComment Komentarz o prawdopodobieństwie FIP na podstawie profilu białek (np. "wysokie prawdopodobieństwo FIP" lub "mało prawdopodobne FIP").
-     * @param furtherTestsAdvice Zalecenia odnośnie dalszych badań diagnostycznych (np. test Rivalta, PCR, USG) potrzebnych do potwierdzenia lub wykluczenia FIP.
-     * @param supplementAdvice Ewentualne suplementy wspomagające sugerowane na podstawie profilu (zwykle ogólne wsparcie, bo leczenie FIP jest specyficzne).
-     * @param vetConsultationAdvice Sugestia konsultacji z weterynarzem (np. specjalistą chorób zakaźnych) jeśli wynik jest silnie podejrzany.
-     */
     data class FipRiskResult(
         val fipRiskComment: String,
         val furtherTestsAdvice: String,
