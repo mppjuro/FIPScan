@@ -86,6 +86,14 @@
                 android:singleLine="false"
                 android:textSize="24sp"
                 android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/textScanResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:padding="8dp"/>
         </LinearLayout>
     </ScrollView>
 

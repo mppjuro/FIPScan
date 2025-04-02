@@ -35,6 +35,8 @@ import java.util.Locale
 import com.example.fipscan.PdfChartExtractor
 import com.example.fipscan.R
 import com.google.gson.Gson
+import com.example.fipscan.BarChartLevelAnalyzer
+import com.example.fipscan.ui.diagnosis.DiagnosisFragment
 
 class HomeFragment : Fragment() {
 
@@ -42,6 +44,8 @@ class HomeFragment : Fragment() {
     private val binding get() = _binding!!
     private var pdfUri: Uri? = null
     private lateinit var pdfChartExtractor: PdfChartExtractor
+    private var diagnosis: String? = null
+    var uploaded = false;
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -88,20 +92,34 @@ class HomeFragment : Fragment() {
 
                 requireContext().contentResolver.openInputStream(uri)?.use { inputStream ->
                     val pdfDocument = PDDocument.load(inputStream)
+                    var newChartFile: File? = null // Zmienna na plik wykresu
 
                     // Ekstrakcja i zapis wykresu
-                    var chartImagePaths: List<String>? = null
-                    var newChartFile: File? = null
                     try {
-                        chartImagePaths = pdfChartExtractor.extractChartFromPDF(pdfFile)
-                        if (!chartImagePaths.isNullOrEmpty()) {
-                            val originalChartPath = chartImagePaths[0]
-                            val barChartPath = chartImagePaths.getOrNull(1)
+                        val extractionResult = pdfChartExtractor.extractChartFromPDF(pdfFile)
+                        if (extractionResult != null && extractionResult.imagePaths.isNotEmpty()) {
+                            val originalChartPath = extractionResult.imagePaths[0]
+                            val barChartPath = extractionResult.imagePaths.getOrNull(1)
+                            val barSections = extractionResult.barSections
+
+                            barSections?.let {
+                                Log.d("BAR_SECTIONS", "Sekcja 1: ${it.section1}")
+                                Log.d("BAR_SECTIONS", "Sekcja 2: ${it.section2}")
+                                Log.d("BAR_SECTIONS", "Sekcja 3: ${it.section3}")
+                                Log.d("BAR_SECTIONS", "Sekcja 4: ${it.section4}")
+                            }
+
+                            // Obliczanie diagnozy z wykresu i zapisanie w zmiennej członkowskiej
+                            // 'diagnosis' jest teraz 'calculatedChartDiagnosis' dla jasności
+                            this.diagnosis = extractionResult.barSections?.let { sections ->
+                                BarChartLevelAnalyzer.analyzeGammapathy(sections.section1, sections.section4)
+                            } ?: "Brak danych" // Zmieniono domyślną wartość na bardziej opisową
+                            Log.d("GAMMAPATHY", "Obliczona diagnoza z wykresu: ${this.diagnosis}") // Logowanie obliczonej wartości
 
                             val storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
                             val originalChartFile = File(storageDir, chartFilename)
                             File(originalChartPath).copyTo(originalChartFile, overwrite = true)
-                            File(originalChartPath).delete()
+                            //File(originalChartPath).delete() // Odkomentuj jeśli chcesz usuwać oryginalny plik z cache
 
                             // Wysyłka oryginalnego wykresu
                             Thread { uploadFileToFTP(originalChartFile) }.start()
@@ -113,43 +131,65 @@ class HomeFragment : Fragment() {
                                     uploadFileToFTP(barChartFile)
                                     try {
                                         val bitmap = BitmapFactory.decodeFile(barChartPath)
-                                        val levels = com.example.fipscan.BarChartLevelAnalyzer.analyzeBarHeights(bitmap)
+                                        val origBitmap = BitmapFactory.decodeFile(originalChartPath)
 
-                                        Log.d("BAR_LEVELS", "Poziomy słupków (% wysokości):")
-                                        levels.forEachIndexed { index, value ->
-                                            Log.d("BAR_LEVELS", "Słupek ${index + 1}: %.2f%%".format(value))
+                                        if (bitmap == null || origBitmap == null) {
+                                            Log.e("BAR_LEVELS", "Nie udało się załadować bitmapy! bitmap=$bitmap, origBitmap=$origBitmap")
+                                        } else {
+                                            val analysisResult = BarChartLevelAnalyzer.analyzeBarHeights(bitmap, origBitmap)
+
+                                            Log.d("BAR_LEVELS", "Poziomy słupków (% wysokości):")
+                                            analysisResult.barHeights.forEachIndexed { index, value ->
+                                                Log.d("BAR_LEVELS", "Słupek ${index + 1}: %.2f%%".format(value))
+                                            }
+
+                                            Log.d("BAR_LEVELS", "Wykryte kolumny z czerwonymi pikselami (oddalone o ≥5% szerokości):")
+                                            analysisResult.redColumnIndices.forEachIndexed { index, col ->
+                                                Log.d("BAR_LEVELS", "Kolumna ${index + 1}: $col")
+                                            }
+
+                                            Log.d("BAR_LEVELS", "Wymiary obrazu: szerokość=${analysisResult.imageWidth}, wysokość=${analysisResult.imageHeight}")
                                         }
                                     } catch (e: Exception) {
                                         Log.e("BAR_LEVELS", "Błąd analizy słupków", e)
                                     }
                                 }.start()
                             }
-
-                            newChartFile = originalChartFile
+                            newChartFile = originalChartFile // Przypisz plik wykresu
+                        } else {
+                            Log.w("CHART_EXTRACT", "Nie znaleziono wykresu lub wystąpił błąd ekstrakcji.")
+                            this.diagnosis = "Brak wykresu" // Ustaw stan, jeśli wykres nie został znaleziony
                         }
                     } catch (e: Exception) {
                         Log.e("CHART_EXTRACT", "Błąd przetwarzania wykresu", e)
+                        this.diagnosis = "Błąd analizy wykresu" // Ustaw stan błędu
                     }
 
+                    // Ekstrakcja tabel
                     val (tablesData, _) = extractTablesFromPDF(pdfDocument)
                     pdfDocument.close()
 
                     if (tablesData.isEmpty()) {
                         binding.resultsTextView.text = "Nie znaleziono tabel!"
-                        return
+                        return // Zakończ jeśli nie ma tabel
                     }
 
                     // Zapisz i wyślij CSV
                     val csvFile = saveAsCSV(tablesData, csvFilename)
                     Thread {
                         uploadFileToFTP(csvFile)
+                        // Przekazujemy odczytaną diagnozę z ZMIENNEJ CZŁONKOWSKIEJ 'diagnosis'
                         analyzeCSVFile(csvFile, newChartFile?.absolutePath, pdfFile)
                     }.start()
                 }
             } catch (e: Exception) {
-                binding.resultsTextView.text = "Błąd przetwarzania tabel!"
-                Log.e("TABULA_ERROR", "Błąd", e)
+                binding.resultsTextView.text = "Błąd przetwarzania pliku PDF!" // Bardziej ogólny komunikat
+                Log.e("PDF_PROCESSING_ERROR", "Błąd główny przetwarzania PDF", e)
+                // Można też ustawić stan diagnozy na błąd
+                this.diagnosis = "Błąd przetwarzania PDF"
             }
+        } ?: run {
+            Toast.makeText(requireContext(), "Nie wybrano pliku PDF", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -261,39 +301,10 @@ class HomeFragment : Fragment() {
 
         val collectionDate = extractedData["Data"]
         val patient = extractedData["Pacjent"] as? String ?: "Nieznany"
-        val species = extractedData["Gatunek"] as? String ?: "Nieznany"
-        val breed = extractedData["Rasa"] as? String ?: "Nieznana"
-        val sex = extractedData["Płeć"] as? String ?: "Nieznana"
+        // ... (reszta kodu do parsowania danych pacjenta) ...
         val age = extractedData["Wiek"] as? String ?: "Nieznany"
-        val color = extractedData["Umaszczenie"] as? String ?: "Nieznane"
-        val microchip = extractedData["Mikrochip"] as? String
-        val fcovElisa = extractedData["FCoV (ELISA)"] as? String
-        val fcovElisaUnit = extractedData["FCoV (ELISA)Unit"] as? String
-        val fcovElisaResult = extractedData["FCoV (ELISA)RangeMax"] as? String
-
-        val catInfo = """
-        📆 Data: $collectionDate
-        🐱 Pacjent: $patient
-        🐾 Gatunek: $species
-        🏷️ Rasa: $breed
-        ⚥ Płeć: $sex
-        📅 Wiek: $age
-        🎨 Umaszczenie: $color
-    """.trimIndent()
-
-        val chippedCatInfo = if (!microchip.isNullOrEmpty()) {
-            "$catInfo\n🔍 Chip: $microchip"
-        } else {
-            catInfo
-        }
-
-        val finalInfo = if (!fcovElisa.isNullOrEmpty()) {
-            "$chippedCatInfo\n" + context?.getString(R.string.emoji_virus) +
-                    " FCoV (ELISA): $fcovElisa " +
-                    "$fcovElisaUnit ($fcovElisaResult)"
-        } else {
-            chippedCatInfo
-        }
+        // ... (reszta kodu do formatowania info - finalInfo) ...
+        val rawJson = Gson().toJson(extractedData)
 
         // Lista wyników badań poza normą
         val abnormalResults = mutableListOf<String>()
@@ -318,9 +329,27 @@ class HomeFragment : Fragment() {
         activity?.runOnUiThread {
             binding.resultsTextView.text = if (abnormalResults.isNotEmpty()) {
                 val resultsText = abnormalResults.joinToString("\n")
-                "$finalInfo\n\n📊 Wyniki poza normą:\nBadanie: wynik (norma) jednostka\n$resultsText\n\n\n"
+                val catInfo = """
+                📆 Data: $collectionDate
+                🐱 Pacjent: $patient
+                🐾 Gatunek: ${extractedData["Gatunek"] ?: "Nieznany"}
+                🏷️ Rasa: ${extractedData["Rasa"] ?: "Nieznana"}
+                ⚥ Płeć: ${extractedData["Płeć"] ?: "Nieznana"}
+                📅 Wiek: $age
+                🎨 Umaszczenie: ${extractedData["Umaszczenie"] ?: "Nieznane"}
+            """.trimIndent() // Użyj wyekstrahowanych danych
+                "$catInfo\n\n📊 Wyniki poza normą:\nBadanie: wynik (norma) jednostka\n$resultsText\n"
             } else {
-                "$finalInfo\n\n✅ Wszystkie wyniki w normie"
+                val catInfo = """
+                📆 Data: $collectionDate
+                🐱 Pacjent: $patient
+                🐾 Gatunek: ${extractedData["Gatunek"] ?: "Nieznany"}
+                🏷️ Rasa: ${extractedData["Rasa"] ?: "Nieznana"}
+                ⚥ Płeć: ${extractedData["Płeć"] ?: "Nieznana"}
+                📅 Wiek: $age
+                🎨 Umaszczenie: ${extractedData["Umaszczenie"] ?: "Nieznane"}
+            """.trimIndent()
+                "$catInfo\n\n✅ Wszystkie wyniki w normie"
             }
         }
 
@@ -332,9 +361,18 @@ class HomeFragment : Fragment() {
 
         binding.textHome.text = "Wyniki: ${patient}"
         displayImage(chartImagePath)
-        val rawJson = Gson().toJson(extractedData)
-        saveResultToDatabase(patient, age, abnormalResults.joinToString("\n"),
-            pdfFile, chartImagePath, collectionDate as? String, rawJson)
+
+        // Logowanie wartości ZMIENNEJ CZŁONKOWSKIEJ PRZED wywołaniem zapisu do bazy
+        Log.d("AnalyzeCSV", "Przekazuję do saveResultToDatabase - wartość zmiennej członkowskiej 'diagnosis': ${this.diagnosis}")
+        activity?.runOnUiThread {
+            binding.textScanResult.text = "Diagnoza z wykresu: " + this.diagnosis + "\n\n\n"
+        }
+        // Wywołanie zapisu do bazy z przekazaniem diagnozy odczytanej ze ZMIENNEJ CZŁONKOWSKIEJ 'diagnosis'
+        saveResultToDatabase(
+            patient, age, abnormalResults.joinToString("\n"),
+            pdfFile, chartImagePath, collectionDate as? String, rawJson,
+            this.diagnosis
+        )
     }
 
     private val filePicker =
@@ -343,6 +381,7 @@ class HomeFragment : Fragment() {
                 result.data?.data?.let {
                     pdfUri = it
                     extractTablesWithTabula()
+                    uploaded = true;
                 }
             }
         }
@@ -362,31 +401,52 @@ class HomeFragment : Fragment() {
     private fun saveResultToDatabase(
         patient: String,
         age: String,
-        results: String,
+        results: String, // Wyniki poza normą z analizy laboratoryjnej
         pdfFile: File?,
         imagePath: String?,
         collectionDate: String?,
-        rawDataJson: String?
+        rawDataJson: String?,
+        diagnosisValueToSave: String? // Zmieniona nazwa dla jasności - to jest diagnoza z WYKRESU
     ) {
         val pdfFilePath = pdfFile?.absolutePath
 
+        // Tworzenie encji z przekazaną wartością diagnozy z wykresu
         val result = ResultEntity(
             patientName = patient,
             age = age,
-            testResults = results,
+            testResults = results, // Wyniki lab. poza normą trafiają do 'testResults'
             pdfFilePath = pdfFilePath,
             imagePath = imagePath,
             collectionDate = collectionDate,
-            rawDataJson = rawDataJson
+            rawDataJson = rawDataJson,
+            diagnosis = diagnosisValueToSave // Diagnoza z WYKRESU trafia do pola 'diagnosis'
         )
+
+        // Logowanie encji PRZED próbą zapisu
+        Log.d("SaveEntity", "Próba zapisu/zastąpienia ResultEntity: $result")
 
         val db = AppDatabase.getDatabase(requireContext())
         lifecycleScope.launch(Dispatchers.IO) {
-            db.resultDao().deleteDuplicates(patient, age)
-            db.resultDao().insertResult(result)
+            try {
+                // Usuwanie duplikatów (jeśli jest taka potrzeba w logice aplikacji)
+                Log.d("SaveEntity", "Próba usunięcia duplikatów dla: $patient, $age")
+                db.resultDao().deleteDuplicates(patient, age) // Upewnij się, że ta logika jest poprawna i potrzebna
+
+                // Zapis/Zastąpienie rekordu w bazie danych
+                Log.d("SaveEntity", "Wywołanie insertResult dla pacjenta: $patient (strategia: REPLACE)")
+                db.resultDao().insertResult(result) // Używa strategii REPLACE zdefiniowanej w DAO
+                Log.i("SaveEntity", "Rekord dla pacjenta '$patient' zapisany/zastąpiony pomyślnie.")
+
+            } catch (e: Exception) {
+                // Logowanie JAKIEGOKOLWIEK błędu podczas operacji na bazie
+                Log.e("SaveEntity", "!!! BŁĄD podczas operacji na bazie danych (delete/insert) !!!", e)
+                // Można by tu dodać informację dla użytkownika, np. przez Toast na głównym wątku
+                activity?.runOnUiThread {
+                    Toast.makeText(requireContext(), "Błąd zapisu do bazy danych!", Toast.LENGTH_LONG).show()
+                }
+            }
         }
     }
-
     private fun savePdfToDownloadsUsingMediaStore(filePath: String, fileName: String) {
         try {
             val sourceFile = File(filePath)
@@ -451,7 +511,8 @@ class HomeFragment : Fragment() {
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun displayExistingResult(result: ResultEntity) {
         binding.textHome.text = "Wyniki: ${result.patientName}, ${result.age}"
-        binding.resultsTextView.text = "Wyniki poza normą:\n" + result.testResults + "\n\n"
+        binding.resultsTextView.text = "Wyniki poza normą:\n" + result.testResults
+        binding.textScanResult.text = "Diagnoza z wykresu: " + result.diagnosis + "\n\n\n" ?: "Diagnoza z wykresu: brak danych"
         result.imagePath?.let {
             val bitmap = BitmapFactory.decodeFile(it)
             binding.chartImageView.visibility = View.VISIBLE
