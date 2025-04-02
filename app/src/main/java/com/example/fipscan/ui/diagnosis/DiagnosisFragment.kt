@@ -9,41 +9,57 @@ import com.example.fipscan.ElectrophoresisAnalyzer
 import com.example.fipscan.ExtractData
 import com.example.fipscan.LabResultAnalyzer
 import com.example.fipscan.databinding.FragmentDiagnosisBinding
+import com.google.gson.Gson
+import com.example.fipscan.ResultEntity
+import android.util.Log
 
 class DiagnosisFragment : Fragment() {
     private var _binding: FragmentDiagnosisBinding? = null
     private val binding get() = _binding!!
+    private var result: ResultEntity? = null
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
     ): View {
         _binding = FragmentDiagnosisBinding.inflate(inflater, container, false)
 
-        val extractedMap = ExtractData.lastExtracted
-
-        if (extractedMap.isNullOrEmpty()) {
-            binding.textDiagnosticComment.text = "Brak dostępnych danych do analizy."
-            return binding.root
+        arguments?.let {
+            result = DiagnosisFragmentArgs.fromBundle(it).result
+            result?.rawDataJson?.let { json ->
+                ExtractData.lastExtracted = Gson().fromJson(json, Map::class.java) as? Map<String, Any> ?: emptyMap()
+            }
         }
+        Log.d("NavigateToDiagnosis", "Przekazywana diagnoza z wykresu: ${result?.diagnosis}")
+        setupUI()
+        return binding.root
+    }
 
-        // Nagłówek z nazwą kota i datą
+    private fun setupUI() {
+        val extractedMap = ExtractData.lastExtracted ?: emptyMap()
+        val diagnosisText = result?.diagnosis ?: "brak danych"
+
+        // Nagłówek
         val patient = extractedMap["Pacjent"] as? String ?: "Nieznany"
         val date = extractedMap["Data"] as? String ?: ""
         binding.textHeader.text = "📄 Diagnoza: $patient  ${if (date.isNotBlank()) "📅 $date" else ""}"
 
+        // Analizy
         val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
         val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap)
 
-        binding.textDiagnosticComment.text = labResult.diagnosticComment
-        binding.textSupplements.text = "Suplementy: ${labResult.supplementAdvice}\n"
-        binding.textVetConsult.text = "Konsultacja: ${labResult.vetConsultationAdvice}\n"
+        // Wyświetlanie wyników
+        with(binding) {
+            textDiagnosticComment.text = labResult.diagnosticComment
+            textSupplements.text = "Suplementy: ${labResult.supplementAdvice}"
+            textVetConsult.text = "Konsultacja: ${labResult.vetConsultationAdvice}"
 
-        binding.textRiskComment.text = electroResult.fipRiskComment
-        binding.textFurtherTests.text = "Dalsze badania:\n${electroResult.furtherTestsAdvice}\n"
-        binding.textRiskSupplements.text = "Suplementy: ${electroResult.supplementAdvice}\n"
-        binding.textRiskConsult.text = "Konsultacja: ${electroResult.vetConsultationAdvice}\n"
-
-        return binding.root
+            textRiskComment.text = electroResult.fipRiskComment
+            textFurtherTests.text = "Dalsze badania:\n${electroResult.furtherTestsAdvice}"
+            textRiskSupplements.text = "Suplementy: ${electroResult.supplementAdvice}"
+            textRiskConsult.text = "Konsultacja: ${electroResult.vetConsultationAdvice}"
+        }
     }
 
     override fun onDestroyView() {

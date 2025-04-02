@@ -56,4 +56,15 @@
             app:argType="com.example.fipscan.ResultEntity" />
     </action>
 
+    <fragment
+        android:id="@+id/diagnosisFragment"
+        android:name="com.example.fipscan.ui.diagnosis.DiagnosisFragment"
+        android:label="Diagnosis"
+        tools:layout="@layout/fragment_diagnosis">
+
+        <argument
+            android:name="result"
+            app:argType="com.example.fipscan.ResultEntity" />
+    </fragment>
+
 </navigation>

@@ -9,11 +9,13 @@ import kotlinx.parcelize.Parcelize
 @Entity(tableName = "results")
 data class ResultEntity(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
+    val timestamp: Long = System.currentTimeMillis(),
     val patientName: String,
     val age: String,
     val testResults: String,
     val pdfFilePath: String?,
     val imagePath: String?,
     val collectionDate: String? = null,
-    val rawDataJson: String? = null
+    val rawDataJson: String? = null,
+    val diagnosis: String?
 ) : Parcelable

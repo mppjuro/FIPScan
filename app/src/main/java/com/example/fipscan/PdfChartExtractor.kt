@@ -12,11 +12,22 @@ import java.util.*
 import kotlin.math.max
 import kotlin.math.min
 
+data class BarChartSectionHeights(
+    val section1: List<Float>,
+    val section2: List<Float>,
+    val section3: List<Float>,
+    val section4: List<Float>
+)
+
+data class ChartExtractionResult(
+    val imagePaths: List<String>,
+    val barSections: BarChartSectionHeights?
+)
 class PdfChartExtractor(private val context: Context) {
     private val topMarginPercent = 0.2
     private val paddingPercent = 0.01
 
-    fun extractChartFromPDF(pdfFile: File?): List<String>? {
+    fun extractChartFromPDF(pdfFile: File?): ChartExtractionResult? {
         if (pdfFile == null || !pdfFile.exists()) {
             Log.e("PDF_PROCESSING", "Plik PDF nie istnieje")
             return null
@@ -74,9 +85,27 @@ class PdfChartExtractor(private val context: Context) {
                 Log.d("IMAGE_SAVE", "✅ Zapisano wykres: ${outputFile.absolutePath}")
                 Log.d("IMAGE_SIZE", "Wymiary obrazu: szerokość = ${finalBitmap.width}, wysokość = ${finalBitmap.height}")
 
+                val analysisResult = BarChartLevelAnalyzer.analyzeBarHeights(barChartBitmap, finalBitmap)
+
+                Log.d("BAR_LEVELS", "Poziomy słupków (% wysokości):")
+                analysisResult.barHeights.forEachIndexed { index, value ->
+                    Log.d("BAR_LEVELS", "Słupek ${index + 1}: %.2f%%".format(value))
+                }
+
+                Log.d("BAR_LEVELS", "Wykryte kolumny z czerwonymi pikselami (oddalone o ≥5% szerokości):")
+                analysisResult.redColumnIndices.forEachIndexed { index, col ->
+                    Log.d("BAR_LEVELS", "Kolumna ${index + 1}: $col")
+                }
+
+                val sectionHeights = convertToBarChartList(barChartBitmap, analysisResult.redColumnIndices)
+
                 pdfRenderer.close()
                 fileDescriptor.close()
-                return listOf(outputFile.absolutePath, barChartFile.absolutePath)
+
+                return ChartExtractionResult(
+                    imagePaths = listOf(outputFile.absolutePath, barChartFile.absolutePath),
+                    barSections = sectionHeights
+                )
             }
 
             pdfRenderer.close()
@@ -88,6 +117,67 @@ class PdfChartExtractor(private val context: Context) {
     }
 
     private data class CropInfo(val left: Int, val top: Int, val right: Int, val bottom: Int)
+
+    fun convertToBarChartList(
+        barChartBitmap: Bitmap,
+        redColumnIndices: List<Int>
+    ): BarChartSectionHeights {
+        val height = barChartBitmap.height
+        val width = barChartBitmap.width
+
+        val sortedRedCols = redColumnIndices.sorted().distinct()
+
+        if (sortedRedCols.size < 3) {
+            Log.e("BAR_CHART_LIST", "Za mało kolumn podziału (potrzeba co najmniej 3), obecnie: ${sortedRedCols.size}")
+            return BarChartSectionHeights(emptyList(), emptyList(), emptyList(), emptyList())
+        }
+
+        val boundaries = listOf(
+            0 to sortedRedCols[0],
+            sortedRedCols[0] to sortedRedCols[1],
+            sortedRedCols[1] to sortedRedCols[2],
+            sortedRedCols[2] to width
+        )
+
+        val numCols = listOf(7, 15, 5, 9)
+
+        val sections = mutableListOf<List<Float>>()
+
+        for ((range, colCount) in boundaries.zip(numCols)) {
+            val (xStart, xEnd) = range
+            val sectionWidth = xEnd - xStart
+            val colWidth = sectionWidth / colCount
+
+            val heights = mutableListOf<Float>()
+
+            for (i in 0 until colCount) {
+                val colXStart = xStart + i * colWidth
+                val colXEnd = min(xStart + (i + 1) * colWidth, xEnd)
+
+                var pixelsInColumn = 0
+
+                for (x in colXStart until colXEnd) {
+                    for (y in 0 until height) {
+                        if (!isWhite(barChartBitmap.getPixel(x, y))) {
+                            pixelsInColumn++
+                        }
+                    }
+                }
+
+                val averageHeight = pixelsInColumn.toFloat() / ((colXEnd - colXStart).coerceAtLeast(1))
+                val heightPercent = (averageHeight / height) * 100f
+                heights.add(heightPercent)
+            }
+
+            sections.add(heights)
+        }
+        return BarChartSectionHeights(
+            section1 = sections[0],
+            section2 = sections[1],
+            section3 = sections[2],
+            section4 = sections[3]
+        )
+    }
 
     private fun findCropInfo(bitmap: Bitmap): CropInfo {
         var minX = bitmap.width
@@ -221,7 +311,6 @@ class PdfChartExtractor(private val context: Context) {
                 }
             }
         }
-
         return result
     }
 
@@ -267,6 +356,4 @@ class PdfChartExtractor(private val context: Context) {
 
         return result
     }
-
-
 }
