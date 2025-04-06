@@ -301,9 +301,7 @@ class HomeFragment : Fragment() {
 
         val collectionDate = extractedData["Data"]
         val patient = extractedData["Pacjent"] as? String ?: "Nieznany"
-        // ... (reszta kodu do parsowania danych pacjenta) ...
         val age = extractedData["Wiek"] as? String ?: "Nieznany"
-        // ... (reszta kodu do formatowania info - finalInfo) ...
         val rawJson = Gson().toJson(extractedData)
 
         // Lista wyników badań poza normą
@@ -332,22 +330,22 @@ class HomeFragment : Fragment() {
                 val catInfo = """
                 📆 Data: $collectionDate
                 🐱 Pacjent: $patient
-                🐾 Gatunek: ${extractedData["Gatunek"] ?: "Nieznany"}
-                🏷️ Rasa: ${extractedData["Rasa"] ?: "Nieznana"}
-                ⚥ Płeć: ${extractedData["Płeć"] ?: "Nieznana"}
+                🐾 Gatunek: ${extractedData["Gatunek"] ?: "nie podano"}
+                🏷️ Rasa: ${extractedData["Rasa"] ?: "nie podano"}
+                ⚥ Płeć: ${extractedData["Płeć"] ?: "nie podano"}
                 📅 Wiek: $age
-                🎨 Umaszczenie: ${extractedData["Umaszczenie"] ?: "Nieznane"}
+                🎨 Umaszczenie: ${extractedData["Umaszczenie"] ?: "nie podano"}
             """.trimIndent() // Użyj wyekstrahowanych danych
                 "$catInfo\n\n📊 Wyniki poza normą:\nBadanie: wynik (norma) jednostka\n$resultsText\n"
             } else {
                 val catInfo = """
                 📆 Data: $collectionDate
                 🐱 Pacjent: $patient
-                🐾 Gatunek: ${extractedData["Gatunek"] ?: "Nieznany"}
-                🏷️ Rasa: ${extractedData["Rasa"] ?: "Nieznana"}
-                ⚥ Płeć: ${extractedData["Płeć"] ?: "Nieznana"}
+                🐾 Gatunek: ${extractedData["Gatunek"] ?: "nie podano"}
+                🏷️ Rasa: ${extractedData["Rasa"] ?: "nie podano"}
+                ⚥ Płeć: ${extractedData["Płeć"] ?: "nie podano"}
                 📅 Wiek: $age
-                🎨 Umaszczenie: ${extractedData["Umaszczenie"] ?: "Nieznane"}
+                🎨 Umaszczenie: ${extractedData["Umaszczenie"] ?: "nie podano"}
             """.trimIndent()
                 "$catInfo\n\n✅ Wszystkie wyniki w normie"
             }
