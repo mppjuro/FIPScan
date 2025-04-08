@@ -58,7 +58,7 @@ class DiagnosisFragment : Fragment() {
             textRiskComment.text = electroResult.fipRiskComment
             textFurtherTests.text = "Dalsze badania:\n${electroResult.furtherTestsAdvice}"
             textRiskSupplements.text = "Suplementy: ${electroResult.supplementAdvice}"
-            textRiskConsult.text = "Konsultacja: ${electroResult.vetConsultationAdvice}"
+            textRiskConsult.text = "Konsultacja: ${electroResult.vetConsultationAdvice}\n\n\n"
         }
     }
 
