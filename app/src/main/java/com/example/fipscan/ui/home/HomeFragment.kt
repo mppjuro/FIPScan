@@ -33,10 +33,8 @@ import android.widget.Toast
 import androidx.annotation.RequiresApi
 import java.util.Locale
 import com.example.fipscan.PdfChartExtractor
-import com.example.fipscan.R
 import com.google.gson.Gson
 import com.example.fipscan.BarChartLevelAnalyzer
-import com.example.fipscan.ui.diagnosis.DiagnosisFragment
 
 class HomeFragment : Fragment() {
 
@@ -45,7 +43,7 @@ class HomeFragment : Fragment() {
     private var pdfUri: Uri? = null
     private lateinit var pdfChartExtractor: PdfChartExtractor
     private var diagnosis: String? = null
-    var uploaded = false;
+    var uploaded = false
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -60,7 +58,11 @@ class HomeFragment : Fragment() {
         arguments?.let {
             val args = HomeFragmentArgs.fromBundle(it)
             args.result?.let { result ->
-                displayExistingResult(result)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    displayExistingResult(result)
+                } else {
+                    Toast.makeText(requireContext(), "Funkcja historii wyników wymaga Androida Q+", Toast.LENGTH_SHORT).show()
+                }
             }
         }
 
@@ -78,114 +80,106 @@ class HomeFragment : Fragment() {
     private fun extractTablesWithTabula() {
         pdfUri?.let { uri ->
             try {
-                // Generuj wspólny timestamp dla wszystkich plików
                 val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                 val pdfFilename = "input_$timestamp.pdf"
                 val csvFilename = "data_$timestamp.csv"
                 val chartFilename = "chart_$timestamp.png"
 
-                // Zapisz PDF z nową nazwą
                 val pdfFile = savePdfLocally(uri, pdfFilename)
                 if (pdfFile != null) {
                     Thread { uploadFileToFTP(pdfFile) }.start()
+                } else {
+                    activity?.runOnUiThread {
+                        Toast.makeText(requireContext(), "Nie udało się zapisać pliku PDF lokalnie.", Toast.LENGTH_LONG).show()
+                    }
+                    return@extractTablesWithTabula
                 }
 
                 requireContext().contentResolver.openInputStream(uri)?.use { inputStream ->
                     val pdfDocument = PDDocument.load(inputStream)
-                    var newChartFile: File? = null // Zmienna na plik wykresu
+                    var finalChartFileToSave: File? = null
 
-                    // Ekstrakcja i zapis wykresu
                     try {
                         val extractionResult = pdfChartExtractor.extractChartFromPDF(pdfFile)
                         if (extractionResult != null && extractionResult.imagePaths.isNotEmpty()) {
-                            val originalChartPath = extractionResult.imagePaths[0]
-                            val barChartPath = extractionResult.imagePaths.getOrNull(1)
-                            val barSections = extractionResult.barSections
+                            val originalChartPathFromExtractor = extractionResult.imagePaths[0]
+                            val barChartImagePath = extractionResult.imagePaths.getOrNull(1)
 
-                            barSections?.let {
-                                Log.d("BAR_SECTIONS", "Sekcja 1: ${it.section1}")
-                                Log.d("BAR_SECTIONS", "Sekcja 2: ${it.section2}")
-                                Log.d("BAR_SECTIONS", "Sekcja 3: ${it.section3}")
-                                Log.d("BAR_SECTIONS", "Sekcja 4: ${it.section4}")
+                            val chartToDisplayAndSavePath = originalChartPathFromExtractor
+                            finalChartFileToSave = File(chartToDisplayAndSavePath)
+
+
+                            // Log bar sections if available
+                            extractionResult.barSections?.let { sections ->
+                                Log.d("BAR_SECTIONS", "Sekcja 1: ${sections.section1}")
+                                Log.d("BAR_SECTIONS", "Sekcja 2: ${sections.section2}")
+                                Log.d("BAR_SECTIONS", "Sekcja 3: ${sections.section3}")
+                                Log.d("BAR_SECTIONS", "Sekcja 4: ${sections.section4}")
+                                this.diagnosis = BarChartLevelAnalyzer.analyzeGammapathy(sections.section1, sections.section4) //
+                            } ?: run { this.diagnosis = "Brak danych z sekcji wykresu" }
+                            Log.d("GAMMAPATHY", "Obliczona diagnoza z wykresu: ${this.diagnosis}")
+
+                            if(finalChartFileToSave.exists()) {
+                                Thread { uploadFileToFTP(finalChartFileToSave) }.start()
                             }
 
-                            // Obliczanie diagnozy z wykresu i zapisanie w zmiennej członkowskiej
-                            // 'diagnosis' jest teraz 'calculatedChartDiagnosis' dla jasności
-                            this.diagnosis = extractionResult.barSections?.let { sections ->
-                                BarChartLevelAnalyzer.analyzeGammapathy(sections.section1, sections.section4)
-                            } ?: "Brak danych" // Zmieniono domyślną wartość na bardziej opisową
-                            Log.d("GAMMAPATHY", "Obliczona diagnoza z wykresu: ${this.diagnosis}") // Logowanie obliczonej wartości
+                            if (barChartImagePath != null) {
+                                val barChartFile = File(barChartImagePath)
+                                if (barChartFile.exists()) {
+                                    Thread {
+                                        uploadFileToFTP(barChartFile)
+                                        try {
+                                            val bitmap = BitmapFactory.decodeFile(barChartImagePath)
+                                            val origBitmap = BitmapFactory.decodeFile(chartToDisplayAndSavePath) // use the main chart as original
 
-                            val storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
-                            val originalChartFile = File(storageDir, chartFilename)
-                            File(originalChartPath).copyTo(originalChartFile, overwrite = true)
-                            //File(originalChartPath).delete() // Odkomentuj jeśli chcesz usuwać oryginalny plik z cache
+                                            if (bitmap == null || origBitmap == null) {
+                                                Log.e("BAR_LEVELS", "Nie udało się załadować bitmapy do analizy słupków! bitmap=$bitmap, origBitmap=$origBitmap")
+                                            } else {
+                                                val analysisResult = BarChartLevelAnalyzer.analyzeBarHeights(bitmap, origBitmap) //
 
-                            // Wysyłka oryginalnego wykresu
-                            Thread { uploadFileToFTP(originalChartFile) }.start()
-
-                            // Wysyłka przyciętego bar_chart
-                            if (barChartPath != null) {
-                                val barChartFile = File(barChartPath)
-                                Thread {
-                                    uploadFileToFTP(barChartFile)
-                                    try {
-                                        val bitmap = BitmapFactory.decodeFile(barChartPath)
-                                        val origBitmap = BitmapFactory.decodeFile(originalChartPath)
-
-                                        if (bitmap == null || origBitmap == null) {
-                                            Log.e("BAR_LEVELS", "Nie udało się załadować bitmapy! bitmap=$bitmap, origBitmap=$origBitmap")
-                                        } else {
-                                            val analysisResult = BarChartLevelAnalyzer.analyzeBarHeights(bitmap, origBitmap)
-
-                                            Log.d("BAR_LEVELS", "Poziomy słupków (% wysokości):")
-                                            analysisResult.barHeights.forEachIndexed { index, value ->
-                                                Log.d("BAR_LEVELS", "Słupek ${index + 1}: %.2f%%".format(value))
+                                                Log.d("BAR_LEVELS", "Poziomy słupków (% wysokości):")
+                                                analysisResult.barHeights.forEachIndexed { index, value ->
+                                                    Log.d("BAR_LEVELS", "Słupek ${index + 1}: %.2f%%".format(value))
+                                                }
+                                                Log.d("BAR_LEVELS", "Wykryte kolumny z czerwonymi pikselami: ${analysisResult.redColumnIndices}")
+                                                Log.d("BAR_LEVELS", "Wymiary obrazu: szerokość=${analysisResult.imageWidth}, wysokość=${analysisResult.imageHeight}")
                                             }
-
-                                            Log.d("BAR_LEVELS", "Wykryte kolumny z czerwonymi pikselami (oddalone o ≥5% szerokości):")
-                                            analysisResult.redColumnIndices.forEachIndexed { index, col ->
-                                                Log.d("BAR_LEVELS", "Kolumna ${index + 1}: $col")
-                                            }
-
-                                            Log.d("BAR_LEVELS", "Wymiary obrazu: szerokość=${analysisResult.imageWidth}, wysokość=${analysisResult.imageHeight}")
+                                        } catch (e: Exception) {
+                                            Log.e("BAR_LEVELS", "Błąd analizy słupków", e)
                                         }
-                                    } catch (e: Exception) {
-                                        Log.e("BAR_LEVELS", "Błąd analizy słupków", e)
-                                    }
-                                }.start()
+                                    }.start()
+                                }
                             }
-                            newChartFile = originalChartFile // Przypisz plik wykresu
                         } else {
                             Log.w("CHART_EXTRACT", "Nie znaleziono wykresu lub wystąpił błąd ekstrakcji.")
-                            this.diagnosis = "Brak wykresu" // Ustaw stan, jeśli wykres nie został znaleziony
+                            this.diagnosis = "Brak wykresu"
                         }
                     } catch (e: Exception) {
                         Log.e("CHART_EXTRACT", "Błąd przetwarzania wykresu", e)
-                        this.diagnosis = "Błąd analizy wykresu" // Ustaw stan błędu
+                        this.diagnosis = "Błąd analizy wykresu"
                     }
 
-                    // Ekstrakcja tabel
                     val (tablesData, _) = extractTablesFromPDF(pdfDocument)
                     pdfDocument.close()
 
                     if (tablesData.isEmpty()) {
-                        binding.resultsTextView.text = "Nie znaleziono tabel!"
-                        return // Zakończ jeśli nie ma tabel
+                        activity?.runOnUiThread {
+                            _binding?.resultsTextView?.text = "Nie znaleziono tabel!"
+                        }
+                        return@use
                     }
 
-                    // Zapisz i wyślij CSV
                     val csvFile = saveAsCSV(tablesData, csvFilename)
                     Thread {
                         uploadFileToFTP(csvFile)
-                        // Przekazujemy odczytaną diagnozę z ZMIENNEJ CZŁONKOWSKIEJ 'diagnosis'
-                        analyzeCSVFile(csvFile, newChartFile?.absolutePath, pdfFile)
+                        analyzeCSVFile(csvFile, finalChartFileToSave?.absolutePath, pdfFile)
                     }.start()
                 }
             } catch (e: Exception) {
-                binding.resultsTextView.text = "Błąd przetwarzania pliku PDF!" // Bardziej ogólny komunikat
+                activity?.runOnUiThread {
+                    _binding?.resultsTextView?.text = "Błąd przetwarzania pliku PDF!"
+                }
                 Log.e("PDF_PROCESSING_ERROR", "Błąd główny przetwarzania PDF", e)
-                // Można też ustawić stan diagnozy na błąd
                 this.diagnosis = "Błąd przetwarzania PDF"
             }
         } ?: run {
@@ -195,7 +189,6 @@ class HomeFragment : Fragment() {
 
     private fun extractTablesFromPDF(pdfDocument: PDDocument): Pair<List<List<String>>, String?> {
         val outputData = mutableListOf<List<String>>()
-        var chartImagePath: String? = null
 
         try {
             val extractor = technology.tabula.ObjectExtractor(pdfDocument)
@@ -203,8 +196,6 @@ class HomeFragment : Fragment() {
 
             for (pageIndex in 0 until pdfDocument.numberOfPages) {
                 val page = extractor.extract(pageIndex + 1)
-
-                // Przetwarzanie tabel
                 val tables = algorithm.extract(page)
                 for (table in tables) {
                     for (row in table.rows) {
@@ -219,19 +210,16 @@ class HomeFragment : Fragment() {
                 }
             }
         } catch (e: Exception) {
-            Log.e("PDF_PROCESSING", "Błąd", e)
+            Log.e("PDF_PROCESSING", "Błąd ekstrakcji tabel z PDF", e)
         }
-        return Pair(outputData, chartImagePath)
+        return Pair(outputData, null)
     }
 
     private fun savePdfLocally(uri: Uri, filename: String): File? {
         return try {
             val storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+            storageDir?.mkdirs()
             val file = File(storageDir, filename)
-
-            // Tworzenie katalogu jeśli nie istnieje
-            storageDir?.takeIf { !it.exists() }?.mkdirs()
-
             requireContext().contentResolver.openInputStream(uri)?.use { input ->
                 FileOutputStream(file).use { output ->
                     input.copyTo(output)
@@ -239,12 +227,14 @@ class HomeFragment : Fragment() {
             }
             file
         } catch (e: IOException) {
+            Log.e("SAVE_PDF_LOCALLY", "Błąd zapisu PDF lokalnie", e)
             null
         }
     }
 
     private fun saveAsCSV(data: List<List<String>>, filename: String): File {
         val storageDir = requireContext().getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+        storageDir?.mkdirs()
         val file = File(storageDir, filename)
         file.writeText(data.joinToString("\n") { row -> row.joinToString(";") })
         return file
@@ -252,93 +242,101 @@ class HomeFragment : Fragment() {
 
     private fun uploadFileToFTP(file: File): Boolean {
         val ftpClient = FTPClient()
-        return try {
+        var loggedIn = false
+
+        try {
             val properties = Properties().apply {
                 requireContext().assets.open("ftp_config.properties").use { load(it) }
             }
 
-            ftpClient.connect(properties.getProperty("ftp.host"), 21)
+            val port = properties.getProperty("ftp.port", "21").toIntOrNull() ?: 21
+            ftpClient.connect(properties.getProperty("ftp.host"), port)
             ftpClient.enterLocalPassiveMode()
 
             if (!ftpClient.login(properties.getProperty("ftp.user"), properties.getProperty("ftp.pass"))) {
                 Log.e("FTP_LOGIN", "Logowanie nieudane: ${ftpClient.replyString}")
-                ftpClient.disconnect()
+                return false
+            }
+            loggedIn = true
+
+            ftpClient.setFileType(FTP.BINARY_FILE_TYPE)
+            Log.d("FTP_UPLOAD", "Aktualny katalog FTP: ${ftpClient.printWorkingDirectory()}")
+
+            val storedSuccessfully = FileInputStream(file).use { fis ->
+                if (!ftpClient.storeFile(file.name, fis)) {
+                    Log.e("FTP_UPLOAD", "Nie udało się wysłać pliku ${file.name}: ${ftpClient.replyString}")
+                    return@use false
+                }
+                true
+            }
+
+            if (!storedSuccessfully) {
                 return false
             }
 
-            ftpClient.setFileType(FTP.BINARY_FILE_TYPE)
-
-            Log.d("FTP_UPLOAD", "Aktualny katalog FTP: ${ftpClient.printWorkingDirectory()}")
-
-            FileInputStream(file).use { fis ->
-                if (!ftpClient.storeFile(file.name, fis)) {
-                    Log.e("FTP_UPLOAD", "Nie udało się wysłać pliku ${file.name}: ${ftpClient.replyString}")
-                    ftpClient.logout()
-                    ftpClient.disconnect()
-                    return false
-                }
-            }
-
-            Log.d("FTP_UPLOAD", "Plik ${file.name} wysłany poprawnie")
-
-            ftpClient.logout()
-            ftpClient.disconnect()
-
-            true
+            Log.d("FTP_UPLOAD", "Plik ${file.name} wysłany poprawnie.")
+            return true
 
         } catch (ex: Exception) {
-            Log.e("FTP_UPLOAD", "Błąd wysyłania pliku FTP", ex)
-            if (ftpClient.isConnected) {
-                ftpClient.disconnect()
+            Log.e("FTP_UPLOAD", "Błąd wysyłania pliku FTP ${file.name}", ex)
+            return false
+        } finally {
+            try {
+                if (ftpClient.isConnected) {
+                    if (loggedIn) {
+                        ftpClient.logout()
+                        Log.d("FTP_LOGOUT", "Wylogowano z FTP.")
+                    }
+                    ftpClient.disconnect()
+                    Log.d("FTP_DISCONNECT", "Rozłączono z FTP.")
+                }
+            } catch (ioe: IOException) {
+                Log.e("FTP_CLEANUP", "Błąd podczas zamykania połączenia FTP: ${ioe.message}", ioe)
             }
-            false
         }
     }
+
 
     private fun analyzeCSVFile(csvFile: File, chartImagePath: String?, pdfFile: File?) {
         val csvLines = csvFile.readLines()
         val extractedData = ExtractData.parseLabResults(csvLines)
 
-        val collectionDate = extractedData["Data"]
+        val collectionDate = extractedData["Data"] as? String ?: "Brak daty"
         val patient = extractedData["Pacjent"] as? String ?: "Nieznany"
         val age = extractedData["Wiek"] as? String ?: "Nieznany"
         val rawJson = Gson().toJson(extractedData)
 
-        // Lista wyników badań poza normą
         val abnormalResults = mutableListOf<String>()
+        val metadataKeys = setOf("Data", "Właściciel", "Pacjent", "Gatunek", "Rasa", "Płeć", "Wiek", "Lecznica", "Lekarz", "Rodzaj próbki", "Umaszczenie", "Mikrochip", "results")
 
-        // Iteracja po danych i wyszukiwanie wyników badań
+
         for (key in extractedData.keys) {
-            if (key.endsWith("Unit") || key.endsWith("RangeMin") || key.endsWith("RangeMax")) {
+            if (key.endsWith("Unit") || key.endsWith("RangeMin") || key.endsWith("RangeMax") || key.endsWith("Flag") || key in metadataKeys) {
                 continue
             }
 
             val testName = key
             val value = extractedData[testName] as? String ?: continue
             val unit = extractedData["${testName}Unit"] as? String ?: ""
-            val minRange = extractedData["${testName}RangeMin"] as? String ?: continue
-            val maxRange = extractedData["${testName}RangeMax"] as? String ?: minRange // Jeśli nie ma max, traktujemy min jako granicę
+
+            val minRangeStr = extractedData["${testName}RangeMin"] as? String
+            val maxRangeStr = extractedData["${testName}RangeMax"] as? String
+
+            if (minRangeStr == null && maxRangeStr == null) {
+                continue
+            }
+            val minRange = minRangeStr ?: "-"
+            val maxRange = maxRangeStr ?: minRange
 
             if (isOutOfRange(value, minRange, maxRange)) {
-                abnormalResults.add("$testName: $value $unit ($minRange - $maxRange)")
+                abnormalResults.add("$testName: $value $unit (norma: $minRange - $maxRange)")
             }
         }
 
         activity?.runOnUiThread {
-            binding.resultsTextView.text = if (abnormalResults.isNotEmpty()) {
-                val resultsText = abnormalResults.joinToString("\n")
-                val catInfo = """
-                📆 Data: $collectionDate
-                🐱 Pacjent: $patient
-                🐾 Gatunek: ${extractedData["Gatunek"] ?: "nie podano"}
-                🏷️ Rasa: ${extractedData["Rasa"] ?: "nie podano"}
-                ⚥ Płeć: ${extractedData["Płeć"] ?: "nie podano"}
-                📅 Wiek: $age
-                🎨 Umaszczenie: ${extractedData["Umaszczenie"] ?: "nie podano"}
-            """.trimIndent() // Użyj wyekstrahowanych danych
-                "$catInfo\n\n📊 Wyniki poza normą:\nBadanie: wynik (norma) jednostka\n$resultsText\n"
-            } else {
-                val catInfo = """
+            val currentBinding = _binding ?: return@runOnUiThread
+
+            val patientInfo = """
                 📆 Data: $collectionDate
                 🐱 Pacjent: $patient
                 🐾 Gatunek: ${extractedData["Gatunek"] ?: "nie podano"}
@@ -347,28 +345,31 @@ class HomeFragment : Fragment() {
                 📅 Wiek: $age
                 🎨 Umaszczenie: ${extractedData["Umaszczenie"] ?: "nie podano"}
             """.trimIndent()
-                "$catInfo\n\n✅ Wszystkie wyniki w normie"
+
+            currentBinding.resultsTextView.text = if (abnormalResults.isNotEmpty()) {
+                val resultsText = abnormalResults.joinToString("\n")
+                "$patientInfo\n\n📊 Wyniki poza normą:\nBadanie: wynik (norma) jednostka\n$resultsText\n"
+            } else {
+                "$patientInfo\n\n✅ Wszystkie wyniki w normie"
             }
+
+            currentBinding.scrollView.post {
+                _binding?.takeIf { isAdded }?.let { cb ->
+                    if (cb.resultsTextView.text.isNotEmpty()) {
+                        cb.scrollView.smoothScrollTo(0, 0)
+                    }
+                }
+            }
+            currentBinding.textHome.text = "Wyniki: $patient"
+            currentBinding.textScanResult.text = "Diagnoza z wykresu: ${this.diagnosis ?: "Brak danych"}\n\n\n"
         }
 
-        binding.scrollView.postDelayed({
-            if (binding.resultsTextView.text.isNotEmpty()) {
-                binding.scrollView.smoothScrollTo(0, 0)
-            }
-        }, 100)
-
-        binding.textHome.text = "Wyniki: ${patient}"
         displayImage(chartImagePath)
 
-        // Logowanie wartości ZMIENNEJ CZŁONKOWSKIEJ PRZED wywołaniem zapisu do bazy
         Log.d("AnalyzeCSV", "Przekazuję do saveResultToDatabase - wartość zmiennej członkowskiej 'diagnosis': ${this.diagnosis}")
-        activity?.runOnUiThread {
-            binding.textScanResult.text = "Diagnoza z wykresu: " + this.diagnosis + "\n\n\n"
-        }
-        // Wywołanie zapisu do bazy z przekazaniem diagnozy odczytanej ze ZMIENNEJ CZŁONKOWSKIEJ 'diagnosis'
         saveResultToDatabase(
             patient, age, abnormalResults.joinToString("\n"),
-            pdfFile, chartImagePath, collectionDate as? String, rawJson,
+            pdfFile, chartImagePath, collectionDate, rawJson,
             this.diagnosis
         )
     }
@@ -379,91 +380,111 @@ class HomeFragment : Fragment() {
                 result.data?.data?.let {
                     pdfUri = it
                     extractTablesWithTabula()
-                    uploaded = true;
+                    uploaded = true
                 }
             }
         }
 
-    private fun isOutOfRange(value: String, min: String, max: String): Boolean {
-        return try {
-            val v = value.replace(Regex("[<>]"), "").replace(",", ".").toDouble()
-            val minVal = min.replace(",", ".").toDoubleOrNull() ?: return false
-            val maxVal = max.replace(",", ".").toDoubleOrNull() ?: return false
-            v < minVal || v > maxVal
+    private fun isOutOfRange(valueStr: String, minStr: String, maxStr: String): Boolean {
+        try {
+            val v = valueStr.replace(Regex("[<>]"), "").replace(",", ".").toDouble()
+
+            val minVal = minStr.replace(",", ".").toDoubleOrNull()
+            val maxVal = maxStr.replace(",", ".").toDoubleOrNull()
+
+            if (minVal == null && maxVal == null) {
+                return false
+            }
+
+            var outOfBounds = false
+            if (minVal != null && v < minVal) {
+                outOfBounds = true
+            }
+            if (maxVal != null && v > maxVal) {
+                outOfBounds = true
+            }
+            return outOfBounds
+        } catch (e: NumberFormatException) {
+            return false
         } catch (e: Exception) {
-            Log.e("ERROR", "Błąd", e)
-            false
+            Log.e("isOutOfRange_ERROR", "Error in isOutOfRange for value:$valueStr, min:$minStr, max:$maxStr", e)
+            return false
         }
     }
+
 
     private fun saveResultToDatabase(
         patient: String,
         age: String,
-        results: String, // Wyniki poza normą z analizy laboratoryjnej
+        results: String,
         pdfFile: File?,
         imagePath: String?,
         collectionDate: String?,
         rawDataJson: String?,
-        diagnosisValueToSave: String? // Zmieniona nazwa dla jasności - to jest diagnoza z WYKRESU
+        diagnosisValueToSave: String?
     ) {
         val pdfFilePath = pdfFile?.absolutePath
 
-        // Tworzenie encji z przekazaną wartością diagnozy z wykresu
         val result = ResultEntity(
             patientName = patient,
             age = age,
-            testResults = results, // Wyniki lab. poza normą trafiają do 'testResults'
+            testResults = results,
             pdfFilePath = pdfFilePath,
             imagePath = imagePath,
             collectionDate = collectionDate,
             rawDataJson = rawDataJson,
-            diagnosis = diagnosisValueToSave // Diagnoza z WYKRESU trafia do pola 'diagnosis'
+            diagnosis = diagnosisValueToSave
         )
 
-        // Logowanie encji PRZED próbą zapisu
         Log.d("SaveEntity", "Próba zapisu/zastąpienia ResultEntity: $result")
 
-        val db = AppDatabase.getDatabase(requireContext())
+        val currentContext = context ?: return
+        val db = AppDatabase.getDatabase(currentContext) //
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                // Usuwanie duplikatów (jeśli jest taka potrzeba w logice aplikacji)
                 Log.d("SaveEntity", "Próba usunięcia duplikatów dla: $patient, $age")
-                db.resultDao().deleteDuplicates(patient, age) // Upewnij się, że ta logika jest poprawna i potrzebna
+                db.resultDao().deleteDuplicates(patient, age)
 
-                // Zapis/Zastąpienie rekordu w bazie danych
                 Log.d("SaveEntity", "Wywołanie insertResult dla pacjenta: $patient (strategia: REPLACE)")
-                db.resultDao().insertResult(result) // Używa strategii REPLACE zdefiniowanej w DAO
+                db.resultDao().insertResult(result)
                 Log.i("SaveEntity", "Rekord dla pacjenta '$patient' zapisany/zastąpiony pomyślnie.")
 
             } catch (e: Exception) {
-                // Logowanie JAKIEGOKOLWIEK błędu podczas operacji na bazie
-                Log.e("SaveEntity", "!!! BŁĄD podczas operacji na bazie danych (delete/insert) !!!", e)
-                // Można by tu dodać informację dla użytkownika, np. przez Toast na głównym wątku
+                Log.e("SaveEntity", "!!! BŁĄD podczas operacji na bazie danych !!!", e)
                 activity?.runOnUiThread {
-                    Toast.makeText(requireContext(), "Błąd zapisu do bazy danych!", Toast.LENGTH_LONG).show()
+                    context?.let { ctx ->
+                        Toast.makeText(ctx, "Błąd zapisu do bazy danych!", Toast.LENGTH_LONG).show()
+                    }
                 }
             }
         }
     }
+
     private fun savePdfToDownloadsUsingMediaStore(filePath: String, fileName: String) {
+        val currentContext = context ?: return
         try {
             val sourceFile = File(filePath)
             if (!sourceFile.exists()) {
-                Toast.makeText(requireContext(), "Plik źródłowy nie istnieje", Toast.LENGTH_SHORT).show()
+                Toast.makeText(currentContext, "Plik źródłowy nie istnieje", Toast.LENGTH_SHORT).show()
                 return
             }
 
-            val resolver = requireContext().contentResolver
+            val resolver = currentContext.contentResolver
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, "$fileName.pdf")
                 put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                } else {
+                    val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+                    downloadsDir.mkdirs()
+                    val fullPath = File(downloadsDir, "$fileName.pdf")
+                    put(MediaStore.MediaColumns.DATA, fullPath.absolutePath)
                 }
             }
 
             val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                ?: throw Exception("Nie można utworzyć pliku")
+                ?: throw Exception("Nie można utworzyć pliku w MediaStore")
 
             resolver.openOutputStream(uri)?.use { output ->
                 FileInputStream(sourceFile).use { input ->
@@ -471,57 +492,71 @@ class HomeFragment : Fragment() {
                 }
             }
 
-            Toast.makeText(
-                requireContext(),
-                "Zapisano w: ${Environment.DIRECTORY_DOWNLOADS}/$fileName.pdf",
-                Toast.LENGTH_LONG
-            ).show()
+            val pathHint = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                "${Environment.DIRECTORY_DOWNLOADS}/$fileName.pdf"
+            } else {
+                "Pobrane"
+            }
+            Toast.makeText(currentContext, "Zapisano w: $pathHint", Toast.LENGTH_LONG).show()
+
         } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Błąd zapisu: ${e.message}", Toast.LENGTH_SHORT).show()
-            Log.e("PDF_EXPORT", e.toString())
+            Toast.makeText(currentContext, "Błąd zapisu PDF: ${e.message}", Toast.LENGTH_SHORT).show()
+            Log.e("PDF_EXPORT", "Błąd zapisu PDF do pobranych", e)
         }
     }
 
+
     private fun displayImage(imagePath: String?) {
-        imagePath?.let {
-            Log.d("IMAGE_DISPLAY", "Próbuję wczytać wykres: $it")
+        activity?.runOnUiThread {
+            val currentBinding = _binding ?: return@runOnUiThread // Guard
 
-            val file = File(it)
-            if (!file.exists()) {
-                Log.e("IMAGE_DISPLAY", "Błąd: Plik nie istnieje!")
-                return
-            }
-
-            val bitmap = BitmapFactory.decodeFile(it)
-            if (bitmap == null) {
-                Log.e("IMAGE_DISPLAY", "Błąd: Nie udało się załadować bitmapy!")
-                return
-            }
-
-            activity?.runOnUiThread {
-                binding.chartImageView.visibility = View.VISIBLE
-                binding.chartImageView.setImageBitmap(bitmap)
+            imagePath?.let { path ->
+                Log.d("IMAGE_DISPLAY", "Próbuję wczytać wykres: $path")
+                val file = File(path)
+                if (!file.exists()) {
+                    Log.e("IMAGE_DISPLAY", "Błąd: Plik nie istnieje! $path")
+                    currentBinding.chartImageView.visibility = View.GONE
+                    return@let
+                }
+                val bitmap = BitmapFactory.decodeFile(path)
+                if (bitmap == null) {
+                    Log.e("IMAGE_DISPLAY", "Błąd: Nie udało się załadować bitmapy! $path")
+                    currentBinding.chartImageView.visibility = View.GONE
+                    return@let
+                }
+                currentBinding.chartImageView.visibility = View.VISIBLE
+                currentBinding.chartImageView.setImageBitmap(bitmap)
                 Log.d("IMAGE_DISPLAY", "Wykres poprawnie wczytany")
+            } ?: run {
+                Log.e("IMAGE_DISPLAY", "Nie znaleziono ścieżki do obrazu!")
+                currentBinding.chartImageView.visibility = View.GONE
             }
-        } ?: Log.e("IMAGE_DISPLAY", "Nie znaleziono ścieżki do obrazu!")
+        }
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun displayExistingResult(result: ResultEntity) {
-        binding.textHome.text = "Wyniki: ${result.patientName}, ${result.age}"
-        binding.resultsTextView.text = "Wyniki poza normą:\n" + result.testResults
-        binding.textScanResult.text = "Diagnoza z wykresu: " + result.diagnosis + "\n\n\n" ?: "Diagnoza z wykresu: brak danych"
+        val currentBinding = _binding ?: return
+
+        currentBinding.textHome.text = "Wyniki: ${result.patientName}, ${result.age}"
+        currentBinding.resultsTextView.text = "Wyniki poza normą:\n${result.testResults}"
+        currentBinding.textScanResult.text = "Diagnoza z wykresu: ${result.diagnosis ?: "brak danych"}\n\n\n"
+
         result.imagePath?.let {
             val bitmap = BitmapFactory.decodeFile(it)
-            binding.chartImageView.visibility = View.VISIBLE
-            binding.chartImageView.setImageBitmap(bitmap)
+            currentBinding.chartImageView.setImageBitmap(bitmap)
+            currentBinding.chartImageView.visibility = View.VISIBLE
+        } ?: run {
+            currentBinding.chartImageView.visibility = View.GONE
         }
 
-        binding.buttonSaveOriginal.visibility = View.VISIBLE
-        binding.buttonSaveOriginal.setOnClickListener {
-            result.pdfFilePath?.let { filePath ->
-                val fileName = "${result.patientName}_${SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())}"
-                savePdfToDownloadsUsingMediaStore(filePath, fileName)
+        currentBinding.buttonSaveOriginal.visibility = View.VISIBLE
+        currentBinding.buttonSaveOriginal.setOnClickListener {
+            _binding?.let {
+                result.pdfFilePath?.let { filePath ->
+                    val fileName = "${result.patientName}_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}"
+                    savePdfToDownloadsUsingMediaStore(filePath, fileName)
+                } ?: Toast.makeText(context, "Brak ścieżki do pliku PDF.", Toast.LENGTH_SHORT).show()
             }
         }
     }
