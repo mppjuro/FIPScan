@@ -43,6 +43,7 @@ class DiagnosisFragment : Fragment() {
         // Nagłówek
         val patient = extractedMap["Pacjent"] as? String ?: "Nieznany"
         val date = extractedMap["Data"] as? String ?: ""
+<<<<<<< HEAD
 
         if (patient == "Nieznany") {
             with(binding) {
@@ -56,12 +57,28 @@ class DiagnosisFragment : Fragment() {
                 textSupplements.text = ""
                 textVetConsult.text = ""
 
+=======
+        if (patient == "Nieznany") {
+            binding.textHeader.text = "📄 Wczytaj dane pacjenta"
+
+            // Analizy
+            val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
+            val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap)
+
+            // Wyświetlanie wyników
+            with(binding) {
+                textDiagnosticComment.text = "Wczytaj dane pacjenta"
+                textSupplements.text = ""
+                textVetConsult.text = ""
+
+>>>>>>> 9b288a25f89f68977e1deff6e8921b602853953d
                 textRiskComment.text = ""
                 textFurtherTests.text = ""
                 textRiskSupplements.text = ""
                 textRiskConsult.text = ""
             }
         } else {
+<<<<<<< HEAD
             with(binding) {
                 binding.textHeader.text = "📄 Diagnoza: $patient  ${if (date.isNotBlank()) "📅 $date" else ""}"
 
@@ -69,6 +86,16 @@ class DiagnosisFragment : Fragment() {
                 val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
                 val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap)
 
+=======
+            binding.textHeader.text = "📄 Diagnoza: $patient  ${if (date.isNotBlank()) "📅 $date" else ""}"
+
+            // Analizy
+            val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
+            val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap)
+
+            // Wyświetlanie wyników
+            with(binding) {
+>>>>>>> 9b288a25f89f68977e1deff6e8921b602853953d
                 textDiagnosticComment.text = labResult.diagnosticComment
                 textSupplements.text = "Suplementy: ${labResult.supplementAdvice}"
                 textVetConsult.text = "Konsultacja: ${labResult.vetConsultationAdvice}"
@@ -79,6 +106,7 @@ class DiagnosisFragment : Fragment() {
                 textRiskConsult.text = "Konsultacja: ${electroResult.vetConsultationAdvice}\n\n\n"
             }
         }
+
     }
 
     override fun onDestroyView() {
