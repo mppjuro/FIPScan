@@ -43,23 +43,44 @@ class DiagnosisFragment : Fragment() {
         // Nagłówek
         val patient = extractedMap["Pacjent"] as? String ?: "Nieznany"
         val date = extractedMap["Data"] as? String ?: ""
-        binding.textHeader.text = "📄 Diagnoza: $patient  ${if (date.isNotBlank()) "📅 $date" else ""}"
+        if (patient == "Nieznany") {
+            binding.textHeader.text = "📄 Wczytaj dane pacjenta"
 
-        // Analizy
-        val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
-        val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap)
+            // Analizy
+            val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
+            val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap)
 
-        // Wyświetlanie wyników
-        with(binding) {
-            textDiagnosticComment.text = labResult.diagnosticComment
-            textSupplements.text = "Suplementy: ${labResult.supplementAdvice}"
-            textVetConsult.text = "Konsultacja: ${labResult.vetConsultationAdvice}"
+            // Wyświetlanie wyników
+            with(binding) {
+                textDiagnosticComment.text = "Wczytaj dane pacjenta"
+                textSupplements.text = ""
+                textVetConsult.text = ""
 
-            textRiskComment.text = electroResult.fipRiskComment
-            textFurtherTests.text = "Dalsze badania:\n${electroResult.furtherTestsAdvice}"
-            textRiskSupplements.text = "Suplementy: ${electroResult.supplementAdvice}"
-            textRiskConsult.text = "Konsultacja: ${electroResult.vetConsultationAdvice}\n\n\n"
+                textRiskComment.text = ""
+                textFurtherTests.text = ""
+                textRiskSupplements.text = ""
+                textRiskConsult.text = ""
+            }
+        } else {
+            binding.textHeader.text = "📄 Diagnoza: $patient  ${if (date.isNotBlank()) "📅 $date" else ""}"
+
+            // Analizy
+            val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
+            val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap)
+
+            // Wyświetlanie wyników
+            with(binding) {
+                textDiagnosticComment.text = labResult.diagnosticComment
+                textSupplements.text = "Suplementy: ${labResult.supplementAdvice}"
+                textVetConsult.text = "Konsultacja: ${labResult.vetConsultationAdvice}"
+
+                textRiskComment.text = electroResult.fipRiskComment
+                textFurtherTests.text = "Dalsze badania:\n${electroResult.furtherTestsAdvice}"
+                textRiskSupplements.text = "Suplementy: ${electroResult.supplementAdvice}"
+                textRiskConsult.text = "Konsultacja: ${electroResult.vetConsultationAdvice}\n\n\n"
+            }
         }
+
     }
 
     override fun onDestroyView() {
