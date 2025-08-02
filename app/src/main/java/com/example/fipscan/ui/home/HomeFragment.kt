@@ -3,38 +3,44 @@ package com.example.fipscan.ui.home
 import android.app.Activity
 import android.content.ContentValues
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.provider.MediaStore
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.RequiresApi
 import androidx.fragment.app.Fragment
-import com.example.fipscan.ExtractData
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.lifecycleScope
+import com.example.fipscan.*
 import com.example.fipscan.databinding.FragmentHomeBinding
+import com.google.gson.Gson
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.apache.commons.net.ftp.FTP
 import org.apache.commons.net.ftp.FTPClient
 import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
-import com.example.fipscan.AppDatabase
-import com.example.fipscan.ResultEntity
-import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
-import android.graphics.BitmapFactory
-import android.os.Build
-import android.provider.MediaStore
-import android.widget.Toast
-import androidx.annotation.RequiresApi
-import java.util.Locale
-import com.example.fipscan.PdfChartExtractor
-import com.google.gson.Gson
-import com.example.fipscan.BarChartLevelAnalyzer
+
+// Dodajemy ViewModel do przechowywania stanu fragmentu
+class HomeViewModel : ViewModel() {
+    var patientInfo: String? = null
+    var resultsText: String? = null
+    var diagnosisText: String? = null
+    var chartImagePath: String? = null
+    var pdfFilePath: String? = null
+}
 
 class HomeFragment : Fragment() {
 
@@ -42,8 +48,7 @@ class HomeFragment : Fragment() {
     private val binding get() = _binding!!
     private var pdfUri: Uri? = null
     private lateinit var pdfChartExtractor: PdfChartExtractor
-    private var diagnosis: String? = null
-    var uploaded = false
+    private val viewModel: HomeViewModel by viewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -54,6 +59,12 @@ class HomeFragment : Fragment() {
         binding.buttonLoadPdf.setOnClickListener { openFilePicker() }
 
         pdfChartExtractor = PdfChartExtractor(requireContext())
+
+        // Przywracamy stan z ViewModel (jeśli istnieje)
+        viewModel.patientInfo?.let { binding.resultsTextView.text = it }
+        viewModel.resultsText?.let { binding.resultsTextView.append(it) }
+        viewModel.diagnosisText?.let { binding.textScanResult.text = it }
+        viewModel.chartImagePath?.let { displayImage(it) }
 
         arguments?.let {
             val args = HomeFragmentArgs.fromBundle(it)
@@ -83,7 +94,6 @@ class HomeFragment : Fragment() {
                 val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                 val pdfFilename = "input_$timestamp.pdf"
                 val csvFilename = "data_$timestamp.csv"
-                val chartFilename = "chart_$timestamp.png"
 
                 val pdfFile = savePdfLocally(uri, pdfFilename)
                 if (pdfFile != null) {
@@ -98,65 +108,47 @@ class HomeFragment : Fragment() {
                 requireContext().contentResolver.openInputStream(uri)?.use { inputStream ->
                     val pdfDocument = PDDocument.load(inputStream)
                     var finalChartFileToSave: File? = null
+                    var barChartImagePath: String? = null
+                    var chartToDisplayAndSavePath: String? = null
 
                     try {
                         val extractionResult = pdfChartExtractor.extractChartFromPDF(pdfFile)
                         if (extractionResult != null && extractionResult.imagePaths.isNotEmpty()) {
-                            val originalChartPathFromExtractor = extractionResult.imagePaths[0]
-                            val barChartImagePath = extractionResult.imagePaths.getOrNull(1)
-
-                            val chartToDisplayAndSavePath = originalChartPathFromExtractor
+                            chartToDisplayAndSavePath = extractionResult.imagePaths[0]
+                            barChartImagePath = extractionResult.imagePaths.getOrNull(1)
                             finalChartFileToSave = File(chartToDisplayAndSavePath)
 
-
-                            // Log bar sections if available
                             extractionResult.barSections?.let { sections ->
-                                Log.d("BAR_SECTIONS", "Sekcja 1: ${sections.section1}")
-                                Log.d("BAR_SECTIONS", "Sekcja 2: ${sections.section2}")
-                                Log.d("BAR_SECTIONS", "Sekcja 3: ${sections.section3}")
-                                Log.d("BAR_SECTIONS", "Sekcja 4: ${sections.section4}")
-                                this.diagnosis = BarChartLevelAnalyzer.analyzeGammapathy(sections.section1, sections.section4) //
-                            } ?: run { this.diagnosis = "Brak danych z sekcji wykresu" }
-                            Log.d("GAMMAPATHY", "Obliczona diagnoza z wykresu: ${this.diagnosis}")
-
-                            if(finalChartFileToSave.exists()) {
-                                Thread { uploadFileToFTP(finalChartFileToSave) }.start()
-                            }
-
-                            if (barChartImagePath != null) {
-                                val barChartFile = File(barChartImagePath)
-                                if (barChartFile.exists()) {
-                                    Thread {
-                                        uploadFileToFTP(barChartFile)
-                                        try {
-                                            val bitmap = BitmapFactory.decodeFile(barChartImagePath)
-                                            val origBitmap = BitmapFactory.decodeFile(chartToDisplayAndSavePath) // use the main chart as original
-
-                                            if (bitmap == null || origBitmap == null) {
-                                                Log.e("BAR_LEVELS", "Nie udało się załadować bitmapy do analizy słupków! bitmap=$bitmap, origBitmap=$origBitmap")
-                                            } else {
-                                                val analysisResult = BarChartLevelAnalyzer.analyzeBarHeights(bitmap, origBitmap) //
-
-                                                Log.d("BAR_LEVELS", "Poziomy słupków (% wysokości):")
-                                                analysisResult.barHeights.forEachIndexed { index, value ->
-                                                    Log.d("BAR_LEVELS", "Słupek ${index + 1}: %.2f%%".format(value))
-                                                }
-                                                Log.d("BAR_LEVELS", "Wykryte kolumny z czerwonymi pikselami: ${analysisResult.redColumnIndices}")
-                                                Log.d("BAR_LEVELS", "Wymiary obrazu: szerokość=${analysisResult.imageWidth}, wysokość=${analysisResult.imageHeight}")
-                                            }
-                                        } catch (e: Exception) {
-                                            Log.e("BAR_LEVELS", "Błąd analizy słupków", e)
-                                        }
-                                    }.start()
-                                }
-                            }
+                                viewModel.diagnosisText = BarChartLevelAnalyzer.analyzeGammapathy(sections.section1, sections.section4)
+                            } ?: run { viewModel.diagnosisText = "Brak danych z sekcji wykresu" }
                         } else {
-                            Log.w("CHART_EXTRACT", "Nie znaleziono wykresu lub wystąpił błąd ekstrakcji.")
-                            this.diagnosis = "Brak wykresu"
+                            viewModel.diagnosisText = "Brak wykresu"
+                        }
+
+                        if (finalChartFileToSave?.exists() == true) {
+                            Thread { uploadFileToFTP(finalChartFileToSave) }.start()
+                        }
+
+                        barChartImagePath?.let { path ->
+                            val barChartFile = File(path)
+                            if (barChartFile.exists()) {
+                                Thread {
+                                    uploadFileToFTP(barChartFile)
+                                    try {
+                                        val bitmap = BitmapFactory.decodeFile(path)
+                                        val origBitmap = BitmapFactory.decodeFile(chartToDisplayAndSavePath)
+                                        if (bitmap != null && origBitmap != null) {
+                                            BarChartLevelAnalyzer.analyzeBarHeights(bitmap, origBitmap)
+                                        }
+                                    } catch (e: Exception) {
+                                        Log.e("BAR_LEVELS", "Błąd analizy słupków", e)
+                                    }
+                                }.start()
+                            }
                         }
                     } catch (e: Exception) {
                         Log.e("CHART_EXTRACT", "Błąd przetwarzania wykresu", e)
-                        this.diagnosis = "Błąd analizy wykresu"
+                        viewModel.diagnosisText = "Błąd analizy wykresu"
                     }
 
                     val (tablesData, _) = extractTablesFromPDF(pdfDocument)
@@ -164,7 +156,7 @@ class HomeFragment : Fragment() {
 
                     if (tablesData.isEmpty()) {
                         activity?.runOnUiThread {
-                            _binding?.resultsTextView?.text = "Nie znaleziono tabel!"
+                            binding.resultsTextView.text = "Nie znaleziono tabel!"
                         }
                         return@use
                     }
@@ -172,15 +164,15 @@ class HomeFragment : Fragment() {
                     val csvFile = saveAsCSV(tablesData, csvFilename)
                     Thread {
                         uploadFileToFTP(csvFile)
-                        analyzeCSVFile(csvFile, finalChartFileToSave?.absolutePath, pdfFile)
+                        analyzeCSVFile(csvFile, chartToDisplayAndSavePath, pdfFile)
                     }.start()
                 }
             } catch (e: Exception) {
                 activity?.runOnUiThread {
-                    _binding?.resultsTextView?.text = "Błąd przetwarzania pliku PDF!"
+                    binding.resultsTextView.text = "Błąd przetwarzania pliku PDF!"
                 }
                 Log.e("PDF_PROCESSING_ERROR", "Błąd główny przetwarzania PDF", e)
-                this.diagnosis = "Błąd przetwarzania PDF"
+                viewModel.diagnosisText = "Błąd przetwarzania PDF"
             }
         } ?: run {
             Toast.makeText(requireContext(), "Nie wybrano pliku PDF", Toast.LENGTH_SHORT).show()
@@ -309,7 +301,6 @@ class HomeFragment : Fragment() {
         val abnormalResults = mutableListOf<String>()
         val metadataKeys = setOf("Data", "Właściciel", "Pacjent", "Gatunek", "Rasa", "Płeć", "Wiek", "Lecznica", "Lekarz", "Rodzaj próbki", "Umaszczenie", "Mikrochip", "results")
 
-
         for (key in extractedData.keys) {
             if (key.endsWith("Unit") || key.endsWith("RangeMin") || key.endsWith("RangeMax") || key.endsWith("Flag") || key in metadataKeys) {
                 continue
@@ -334,8 +325,6 @@ class HomeFragment : Fragment() {
         }
 
         activity?.runOnUiThread {
-            val currentBinding = _binding ?: return@runOnUiThread
-
             val patientInfo = """
                 📆 Data: $collectionDate
                 🐱 Pacjent: $patient
@@ -346,33 +335,34 @@ class HomeFragment : Fragment() {
                 🎨 Umaszczenie: ${extractedData["Umaszczenie"] ?: "nie podano"}
             """.trimIndent()
 
-            currentBinding.resultsTextView.text = if (abnormalResults.isNotEmpty()) {
-                val resultsText = abnormalResults.joinToString("\n")
-                "$patientInfo\n\n📊 Wyniki poza normą:\nBadanie: wynik (norma) jednostka\n$resultsText\n"
+            val resultsText = if (abnormalResults.isNotEmpty()) {
+                "\n\n📊 Wyniki poza normą:\nBadanie: wynik (norma) jednostka\n${abnormalResults.joinToString("\n")}\n"
             } else {
-                "$patientInfo\n\n✅ Wszystkie wyniki w normie"
+                "\n\n✅ Wszystkie wyniki w normie"
             }
 
-            currentBinding.scrollView.post {
-                _binding?.takeIf { isAdded }?.let { cb ->
-                    if (cb.resultsTextView.text.isNotEmpty()) {
-                        cb.scrollView.smoothScrollTo(0, 0)
-                    }
-                }
-            }
-            currentBinding.textHome.text = "Wyniki: $patient"
-            currentBinding.textScanResult.text = "Diagnoza z wykresu: ${this.diagnosis ?: "Brak danych"}\n\n\n"
+            // Aktualizujemy ViewModel
+            viewModel.patientInfo = patientInfo
+            viewModel.resultsText = resultsText
+            viewModel.diagnosisText = "Diagnoza z wykresu: ${viewModel.diagnosisText ?: "Brak danych"}\n\n\n"
+            viewModel.chartImagePath = chartImagePath
+            viewModel.pdfFilePath = pdfFile?.absolutePath
+
+            // Aktualizujemy UI
+            binding.resultsTextView.text = patientInfo + resultsText
+            binding.textHome.text = "Wyniki: $patient"
+            binding.textScanResult.text = viewModel.diagnosisText
         }
 
         displayImage(chartImagePath)
 
-        Log.d("AnalyzeCSV", "Przekazuję do saveResultToDatabase - wartość zmiennej członkowskiej 'diagnosis': ${this.diagnosis}")
         saveResultToDatabase(
             patient, age, abnormalResults.joinToString("\n"),
             pdfFile, chartImagePath, collectionDate, rawJson,
-            this.diagnosis
+            viewModel.diagnosisText
         )
     }
+
 
     private val filePicker =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -380,7 +370,6 @@ class HomeFragment : Fragment() {
                 result.data?.data?.let {
                     pdfUri = it
                     extractTablesWithTabula()
-                    uploaded = true
                 }
             }
         }
@@ -508,56 +497,58 @@ class HomeFragment : Fragment() {
 
     private fun displayImage(imagePath: String?) {
         activity?.runOnUiThread {
-            val currentBinding = _binding ?: return@runOnUiThread // Guard
-
             imagePath?.let { path ->
                 Log.d("IMAGE_DISPLAY", "Próbuję wczytać wykres: $path")
                 val file = File(path)
                 if (!file.exists()) {
                     Log.e("IMAGE_DISPLAY", "Błąd: Plik nie istnieje! $path")
-                    currentBinding.chartImageView.visibility = View.GONE
+                    binding.chartImageView.visibility = View.GONE
                     return@let
                 }
                 val bitmap = BitmapFactory.decodeFile(path)
                 if (bitmap == null) {
                     Log.e("IMAGE_DISPLAY", "Błąd: Nie udało się załadować bitmapy! $path")
-                    currentBinding.chartImageView.visibility = View.GONE
+                    binding.chartImageView.visibility = View.GONE
                     return@let
                 }
-                currentBinding.chartImageView.visibility = View.VISIBLE
-                currentBinding.chartImageView.setImageBitmap(bitmap)
+                binding.chartImageView.visibility = View.VISIBLE
+                binding.chartImageView.setImageBitmap(bitmap)
                 Log.d("IMAGE_DISPLAY", "Wykres poprawnie wczytany")
             } ?: run {
                 Log.e("IMAGE_DISPLAY", "Nie znaleziono ścieżki do obrazu!")
-                currentBinding.chartImageView.visibility = View.GONE
+                binding.chartImageView.visibility = View.GONE
             }
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun displayExistingResult(result: ResultEntity) {
-        val currentBinding = _binding ?: return
+        // Aktualizujemy ViewModel danymi z historii
+        viewModel.patientInfo = "Wyniki poza normą:\n${result.testResults}"
+        viewModel.resultsText = null
+        viewModel.diagnosisText = "Diagnoza z wykresu: ${result.diagnosis ?: "brak danych"}\n\n\n"
+        viewModel.chartImagePath = result.imagePath
+        viewModel.pdfFilePath = result.pdfFilePath
 
-        currentBinding.textHome.text = "Wyniki: ${result.patientName}, ${result.age}"
-        currentBinding.resultsTextView.text = "Wyniki poza normą:\n${result.testResults}"
-        currentBinding.textScanResult.text = "Diagnoza z wykresu: ${result.diagnosis ?: "brak danych"}\n\n\n"
+        // Aktualizujemy UI
+        binding.textHome.text = "Wyniki: ${result.patientName}, ${result.age}"
+        binding.resultsTextView.text = viewModel.patientInfo
+        binding.textScanResult.text = viewModel.diagnosisText
 
         result.imagePath?.let {
             val bitmap = BitmapFactory.decodeFile(it)
-            currentBinding.chartImageView.setImageBitmap(bitmap)
-            currentBinding.chartImageView.visibility = View.VISIBLE
+            binding.chartImageView.setImageBitmap(bitmap)
+            binding.chartImageView.visibility = View.VISIBLE
         } ?: run {
-            currentBinding.chartImageView.visibility = View.GONE
+            binding.chartImageView.visibility = View.GONE
         }
 
-        currentBinding.buttonSaveOriginal.visibility = View.VISIBLE
-        currentBinding.buttonSaveOriginal.setOnClickListener {
-            _binding?.let {
-                result.pdfFilePath?.let { filePath ->
-                    val fileName = "${result.patientName}_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}"
-                    savePdfToDownloadsUsingMediaStore(filePath, fileName)
-                } ?: Toast.makeText(context, "Brak ścieżki do pliku PDF.", Toast.LENGTH_SHORT).show()
-            }
+        binding.buttonSaveOriginal.visibility = View.VISIBLE
+        binding.buttonSaveOriginal.setOnClickListener {
+            result.pdfFilePath?.let { filePath ->
+                val fileName = "${result.patientName}_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}"
+                savePdfToDownloadsUsingMediaStore(filePath, fileName)
+            } ?: Toast.makeText(context, "Brak ścieżki do pliku PDF.", Toast.LENGTH_SHORT).show()
         }
     }
 
