@@ -14,9 +14,6 @@
   },
   {
     "level_": 0,
-<<<<<<< HEAD
-    "message_": "JSON \u0027C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\.cxx\\Debug\\704v6b5o\\x86\\android_gradle_build.json\u0027 was up-to-date",
-=======
     "message_": "rebuilding JSON C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\.cxx\\Debug\\704v6b5o\\x86\\android_gradle_build.json due to:",
     "file_": "C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\libcxx_helper\\CMakeLists.txt",
     "tag_": "debug|x86",
@@ -135,7 +132,6 @@
   {
     "level_": 0,
     "message_": "hard linked C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\.cxx\\Debug\\704v6b5o\\x86\\compile_commands.json to C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\.cxx\\tools\\debug\\x86\\compile_commands.json",
->>>>>>> 9b288a25f89f68977e1deff6e8921b602853953d
     "file_": "C:\\Users\\PJURO\\Desktop\\FIPScan\\opencv\\libcxx_helper\\CMakeLists.txt",
     "tag_": "debug|x86",
     "diagnosticCode_": 0,
