@@ -103,7 +103,7 @@ def openCVersionCode = ((4 * 100 + 11) * 100 + 0) * 10 + 0
 println "OpenCV: " +openCVersionName + " " + project.buildscript.sourceFile
 
 android {
-    namespace 'org.opencv'
+    namespace = 'org.opencv'
     compileSdkVersion 35
 
     defaultConfig {
@@ -121,7 +121,7 @@ android {
     
     android {
         buildFeatures {
-            buildConfig true
+            buildConfig = true
         }
     }
     compileOptions {

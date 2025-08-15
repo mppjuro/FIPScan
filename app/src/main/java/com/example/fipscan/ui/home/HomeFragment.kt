@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.ContentValues
 import android.content.Intent
 import android.graphics.BitmapFactory
+import android.graphics.Color
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -13,12 +14,12 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.lifecycleScope
 import com.example.fipscan.*
 import com.example.fipscan.databinding.FragmentHomeBinding
@@ -32,18 +33,10 @@ import org.apache.commons.net.ftp.FTPClient
 import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
-
-// Dodajemy ViewModel do przechowywania stanu fragmentu
-class HomeViewModel : ViewModel() {
-    var patientInfo: String? = null
-    var resultsText: String? = null
-    var diagnosisText: String? = null
-    var chartImagePath: String? = null
-    var pdfFilePath: String? = null
-}
+import android.widget.AdapterView
+import kotlin.math.min
 
 class HomeFragment : Fragment() {
-
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private var pdfUri: Uri? = null
@@ -53,32 +46,98 @@ class HomeFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        PDFBoxResourceLoader.init(requireContext())
+        // Initialize the binding object first
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
 
+        val rivaltaOptions = arrayOf("nie wykonano", "negatywna", "pozytywna")
+        val adapter = ArrayAdapter(
+            requireContext(),
+            android.R.layout.simple_spinner_item,
+            rivaltaOptions
+        ).apply {
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        }
+        binding.rivaltaSpinner.adapter = adapter
+
+        PDFBoxResourceLoader.init(requireContext())
         binding.buttonLoadPdf.setOnClickListener { openFilePicker() }
 
         pdfChartExtractor = PdfChartExtractor(requireContext())
 
-        // Przywracamy stan z ViewModel (jeśli istnieje)
-        viewModel.patientInfo?.let { binding.resultsTextView.text = it }
-        viewModel.resultsText?.let { binding.resultsTextView.append(it) }
-        viewModel.diagnosisText?.let { binding.textScanResult.text = it }
-        viewModel.chartImagePath?.let { displayImage(it) }
+        binding.rivaltaLabel.visibility = View.GONE
+        binding.rivaltaSpinner.visibility = View.GONE
+
+        binding.riskSaveContainer.visibility =
+            if (viewModel.pdfFile != null || viewModel.pdfFilePath != null) View.VISIBLE
+            else View.GONE
+
+        // Listener dla spinnera Rivalta
+        binding.rivaltaSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val newStatus = parent?.getItemAtPosition(position).toString()
+                viewModel.currentRivaltaStatus = newStatus
+                //updateRiskIndicator()
+                recalculateRiskAndUpdateUI()
+                saveCurrentResult()
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
 
         arguments?.let {
             val args = HomeFragmentArgs.fromBundle(it)
             args.result?.let { result ->
+                // Inicjalizuj ViewModel danymi z historii
+                viewModel.apply {
+                    patientName = result.patientName
+                    rawDataJson = result.rawDataJson
+                    currentRivaltaStatus = result.rivaltaStatus ?: "nie wykonano"
+                }
+
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     displayExistingResult(result)
-                } else {
-                    Toast.makeText(requireContext(), "Funkcja historii wyników wymaga Androida Q+", Toast.LENGTH_SHORT).show()
                 }
             }
         }
 
+        binding.buttonSaveOriginal.setOnClickListener {
+            viewModel.pdfFile?.absolutePath?.let { filePath ->
+                val fileName = "${viewModel.patientName}_${SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())}"
+                savePdfToDownloadsUsingMediaStore(filePath, fileName)
+            } ?: Toast.makeText(requireContext(), "Brak pliku PDF", Toast.LENGTH_SHORT).show()
+        }
+
         return binding.root
     }
+
+    private fun updateRiskIndicator(percentage: Int? = null) {
+        activity?.runOnUiThread {
+            binding.riskSaveContainer.visibility = View.VISIBLE
+
+            if (percentage != null) {
+                binding.riskIndicator.text = "Ryzyko FIP: $percentage%"
+                val bgColor = calculateBackgroundColor(percentage)
+                binding.riskIndicator.setBackgroundColor(bgColor)
+                binding.riskIndicator.visibility = View.VISIBLE
+            } else {
+                binding.riskIndicator.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun calculateBackgroundColor(percentage: Int): Int {
+        // Zielony (0%) -> Czerwony (100%)
+        val r = min(255, percentage * 255 / 100)
+        val g = min(255, (100 - percentage) * 255 / 100)
+        val b = 0
+
+        return Color.rgb(
+            min(255, r + 150),
+            min(255, g + 150),
+            min(255, b + 150)
+        )
+    }
+
 
     private fun openFilePicker() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
@@ -179,6 +238,100 @@ class HomeFragment : Fragment() {
         }
     }
 
+    private fun analyzeCSVFile(csvFile: File, chartImagePath: String?, pdfFile: File?) {
+        val rivaltaStatus = viewModel.currentRivaltaStatus
+        val csvLines = csvFile.readLines()
+        val extractedData = ExtractData.parseLabResults(csvLines)
+
+        // Analiza wyników elektroforezy z uwzględnieniem próby Rivalta
+        val electroResult = ElectrophoresisAnalyzer.assessFipRisk(
+            extractedData,
+            rivaltaStatus
+        )
+
+        viewModel.collectionDate = extractedData["Data"] as? String ?: "Brak daty"
+        viewModel.patientName = extractedData["Pacjent"] as? String ?: "Nieznany"
+        viewModel.patientAge = extractedData["Wiek"] as? String ?: "Nieznany"
+        viewModel.patientSpecies = extractedData["Gatunek"] as? String ?: "nie podano"
+        viewModel.patientBreed = extractedData["Rasa"] as? String ?: "nie podano"
+        viewModel.patientGender = extractedData["Płeć"] as? String ?: "nie podano"
+        viewModel.patientCoat = extractedData["Umaszczenie"] as? String ?: "nie podano"
+        viewModel.rawDataJson = Gson().toJson(extractedData)
+
+        val abnormalResults = mutableListOf<String>()
+        val metadataKeys = setOf("Data", "Właściciel", "Pacjent", "Gatunek", "Rasa", "Płeć", "Wiek", "Lecznica", "Lekarz", "Rodzaj próbki", "Umaszczenie", "Mikrochip", "results")
+
+        for (key in extractedData.keys) {
+            if (key.endsWith("Unit") || key.endsWith("RangeMin") || key.endsWith("RangeMax") || key.endsWith("Flag") || key in metadataKeys) {
+                continue
+            }
+
+            val testName = key
+            val value = extractedData[testName] as? String ?: continue
+            val unit = extractedData["${testName}Unit"] as? String ?: ""
+
+            val minRangeStr = extractedData["${testName}RangeMin"] as? String
+            val maxRangeStr = extractedData["${testName}RangeMax"] as? String
+
+            if (minRangeStr == null && maxRangeStr == null) {
+                continue
+            }
+            val minRange = minRangeStr ?: "-"
+            val maxRange = maxRangeStr ?: minRange
+
+            if (isOutOfRange(value, minRange, maxRange)) {
+                abnormalResults.add("$testName: $value $unit (norma: $minRange - $maxRange)")
+            }
+        }
+
+        viewModel.abnormalResults = abnormalResults.joinToString("\n")
+        viewModel.pdfFile = pdfFile
+        viewModel.chartImagePath = chartImagePath
+
+        activity?.runOnUiThread {
+            val patientInfo = """
+                📆 Data: ${viewModel.collectionDate}
+                🐱 Pacjent: ${viewModel.patientName}
+                🐾 Gatunek: ${viewModel.patientSpecies}
+                🏷️ Rasa: ${viewModel.patientBreed}
+                ⚥ Płeć: ${viewModel.patientGender}
+                📅 Wiek: ${viewModel.patientAge}
+                🎨 Umaszczenie: ${viewModel.patientCoat}
+            """.trimIndent()
+
+            val resultsText = if (abnormalResults.isNotEmpty()) {
+                "\n\n📊 Wyniki poza normą:\nBadanie: wynik (norma) jednostka\n${abnormalResults.joinToString("\n")}\n"
+            } else {
+                "\n\n✅ Wszystkie wyniki w normie"
+            }
+
+            binding.buttonSaveOriginal.visibility =
+                if (pdfFile != null) View.VISIBLE else View.GONE
+
+            binding.buttonSaveOriginal.setOnClickListener {
+                pdfFile?.absolutePath?.let { filePath ->
+                    val fileName = "${viewModel.patientName}_${SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())}"
+                    savePdfToDownloadsUsingMediaStore(filePath, fileName)
+                } ?: Toast.makeText(requireContext(), "Brak pliku PDF", Toast.LENGTH_SHORT).show()
+            }
+
+            // Aktualizujemy UI
+            binding.resultsTextView.text = patientInfo + resultsText
+            binding.textHome.text = "Wyniki: ${viewModel.patientName}"
+
+            // Pokazujemy spinner Rivalta i wskaźnik ryzyka
+            binding.rivaltaLabel.visibility = View.VISIBLE
+            binding.rivaltaSpinner.visibility = View.VISIBLE
+            binding.riskIndicator.visibility = View.VISIBLE
+            binding.rivaltaContainer.visibility = View.VISIBLE
+            recalculateRiskAndUpdateUI()
+        }
+
+        displayImage(chartImagePath)
+        saveCurrentResult()
+    }
+
+
     private fun extractTablesFromPDF(pdfDocument: PDDocument): Pair<List<List<String>>, String?> {
         val outputData = mutableListOf<List<String>>()
 
@@ -192,7 +345,10 @@ class HomeFragment : Fragment() {
                 for (table in tables) {
                     for (row in table.rows) {
                         val rowData = row.map {
-                            (it as? technology.tabula.RectangularTextContainer<*>)?.text?.replace("\r", " ")?.trim() ?: ""
+                            (it as? technology.tabula.RectangularTextContainer<*>)?.text?.replace(
+                                "\r",
+                                " "
+                            )?.trim() ?: ""
                         }.filter { it.isNotBlank() }
 
                         if (rowData.isNotEmpty()) {
@@ -288,82 +444,19 @@ class HomeFragment : Fragment() {
         }
     }
 
-
-    private fun analyzeCSVFile(csvFile: File, chartImagePath: String?, pdfFile: File?) {
-        val csvLines = csvFile.readLines()
-        val extractedData = ExtractData.parseLabResults(csvLines)
-
-        val collectionDate = extractedData["Data"] as? String ?: "Brak daty"
-        val patient = extractedData["Pacjent"] as? String ?: "Nieznany"
-        val age = extractedData["Wiek"] as? String ?: "Nieznany"
-        val rawJson = Gson().toJson(extractedData)
-
-        val abnormalResults = mutableListOf<String>()
-        val metadataKeys = setOf("Data", "Właściciel", "Pacjent", "Gatunek", "Rasa", "Płeć", "Wiek", "Lecznica", "Lekarz", "Rodzaj próbki", "Umaszczenie", "Mikrochip", "results")
-
-        for (key in extractedData.keys) {
-            if (key.endsWith("Unit") || key.endsWith("RangeMin") || key.endsWith("RangeMax") || key.endsWith("Flag") || key in metadataKeys) {
-                continue
-            }
-
-            val testName = key
-            val value = extractedData[testName] as? String ?: continue
-            val unit = extractedData["${testName}Unit"] as? String ?: ""
-
-            val minRangeStr = extractedData["${testName}RangeMin"] as? String
-            val maxRangeStr = extractedData["${testName}RangeMax"] as? String
-
-            if (minRangeStr == null && maxRangeStr == null) {
-                continue
-            }
-            val minRange = minRangeStr ?: "-"
-            val maxRange = maxRangeStr ?: minRange
-
-            if (isOutOfRange(value, minRange, maxRange)) {
-                abnormalResults.add("$testName: $value $unit (norma: $minRange - $maxRange)")
-            }
-        }
-
-        activity?.runOnUiThread {
-            val patientInfo = """
-                📆 Data: $collectionDate
-                🐱 Pacjent: $patient
-                🐾 Gatunek: ${extractedData["Gatunek"] ?: "nie podano"}
-                🏷️ Rasa: ${extractedData["Rasa"] ?: "nie podano"}
-                ⚥ Płeć: ${extractedData["Płeć"] ?: "nie podano"}
-                📅 Wiek: $age
-                🎨 Umaszczenie: ${extractedData["Umaszczenie"] ?: "nie podano"}
-            """.trimIndent()
-
-            val resultsText = if (abnormalResults.isNotEmpty()) {
-                "\n\n📊 Wyniki poza normą:\nBadanie: wynik (norma) jednostka\n${abnormalResults.joinToString("\n")}\n"
-            } else {
-                "\n\n✅ Wszystkie wyniki w normie"
-            }
-
-            // Aktualizujemy ViewModel
-            viewModel.patientInfo = patientInfo
-            viewModel.resultsText = resultsText
-            viewModel.diagnosisText = "Diagnoza z wykresu: ${viewModel.diagnosisText ?: "Brak danych"}\n\n\n"
-            viewModel.chartImagePath = chartImagePath
-            viewModel.pdfFilePath = pdfFile?.absolutePath
-
-            // Aktualizujemy UI
-            binding.resultsTextView.text = patientInfo + resultsText
-            binding.textHome.text = "Wyniki: $patient"
-            binding.textScanResult.text = viewModel.diagnosisText
-        }
-
-        displayImage(chartImagePath)
-
+    private fun saveCurrentResult() {
         saveResultToDatabase(
-            patient, age, abnormalResults.joinToString("\n"),
-            pdfFile, chartImagePath, collectionDate, rawJson,
-            viewModel.diagnosisText
+            viewModel.patientName ?: "Nieznany",
+            viewModel.patientAge ?: "Nieznany",
+            viewModel.abnormalResults ?: "",
+            viewModel.pdfFile,
+            viewModel.chartImagePath,
+            viewModel.collectionDate,
+            viewModel.rawDataJson,
+            viewModel.diagnosisText,
+            viewModel.currentRivaltaStatus
         )
     }
-
-
     private val filePicker =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
@@ -410,7 +503,8 @@ class HomeFragment : Fragment() {
         imagePath: String?,
         collectionDate: String?,
         rawDataJson: String?,
-        diagnosisValueToSave: String?
+        diagnosisValueToSave: String?,
+        rivaltaStatus: String
     ) {
         val pdfFilePath = pdfFile?.absolutePath
 
@@ -422,32 +516,29 @@ class HomeFragment : Fragment() {
             imagePath = imagePath,
             collectionDate = collectionDate,
             rawDataJson = rawDataJson,
-            diagnosis = diagnosisValueToSave
+            diagnosis = diagnosisValueToSave,
+            rivaltaStatus = rivaltaStatus,
+            species = viewModel.patientSpecies,
+            breed = viewModel.patientBreed,
+            gender = viewModel.patientGender,
+            coat = viewModel.patientCoat
         )
 
-        Log.d("SaveEntity", "Próba zapisu/zastąpienia ResultEntity: $result")
-
         val currentContext = context ?: return
-        val db = AppDatabase.getDatabase(currentContext) //
+        val db = AppDatabase.getDatabase(currentContext)
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                Log.d("SaveEntity", "Próba usunięcia duplikatów dla: $patient, $age")
                 db.resultDao().deleteDuplicates(patient, age)
-
-                Log.d("SaveEntity", "Wywołanie insertResult dla pacjenta: $patient (strategia: REPLACE)")
                 db.resultDao().insertResult(result)
-                Log.i("SaveEntity", "Rekord dla pacjenta '$patient' zapisany/zastąpiony pomyślnie.")
-
             } catch (e: Exception) {
-                Log.e("SaveEntity", "!!! BŁĄD podczas operacji na bazie danych !!!", e)
+                Log.e("SaveEntity", "Błąd zapisu do bazy danych", e)
                 activity?.runOnUiThread {
-                    context?.let { ctx ->
-                        Toast.makeText(ctx, "Błąd zapisu do bazy danych!", Toast.LENGTH_LONG).show()
-                    }
+                    Toast.makeText(currentContext, "Błąd zapisu do bazy danych!", Toast.LENGTH_LONG).show()
                 }
             }
         }
     }
+
 
     private fun savePdfToDownloadsUsingMediaStore(filePath: String, fileName: String) {
         val currentContext = context ?: return
@@ -523,32 +614,87 @@ class HomeFragment : Fragment() {
 
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun displayExistingResult(result: ResultEntity) {
-        // Aktualizujemy ViewModel danymi z historii
-        viewModel.patientInfo = "Wyniki poza normą:\n${result.testResults}"
-        viewModel.resultsText = null
-        viewModel.diagnosisText = "Diagnoza z wykresu: ${result.diagnosis ?: "brak danych"}\n\n\n"
-        viewModel.chartImagePath = result.imagePath
-        viewModel.pdfFilePath = result.pdfFilePath
+        _binding?.let { binding ->
+            binding.rivaltaLabel.visibility = View.VISIBLE
+            binding.rivaltaSpinner.visibility = View.VISIBLE
+            binding.riskIndicator.visibility = View.VISIBLE
+            binding.rivaltaContainer.visibility = View.VISIBLE
+            binding.riskSaveContainer.visibility = View.VISIBLE
 
-        // Aktualizujemy UI
-        binding.textHome.text = "Wyniki: ${result.patientName}, ${result.age}"
-        binding.resultsTextView.text = viewModel.patientInfo
-        binding.textScanResult.text = viewModel.diagnosisText
+            binding.buttonSaveOriginal.visibility =
+                if (result.pdfFilePath != null) View.VISIBLE else View.GONE
+            // Ustaw kontenery na widoczne
+            binding.rivaltaContainer.visibility = View.VISIBLE
+            binding.riskSaveContainer.visibility = View.VISIBLE
 
-        result.imagePath?.let {
-            val bitmap = BitmapFactory.decodeFile(it)
-            binding.chartImageView.setImageBitmap(bitmap)
-            binding.chartImageView.visibility = View.VISIBLE
-        } ?: run {
-            binding.chartImageView.visibility = View.GONE
+            // Aktualizuj ViewModel
+            viewModel.patientName = result.patientName
+            viewModel.patientAge = result.age
+            viewModel.collectionDate = result.collectionDate
+            viewModel.patientSpecies = result.species
+            viewModel.patientBreed = result.breed
+            viewModel.patientGender = result.gender
+            viewModel.patientCoat = result.coat
+            viewModel.currentRivaltaStatus = result.rivaltaStatus ?: "nie wykonano"
+            viewModel.diagnosisText = result.diagnosis ?: ""
+            viewModel.chartImagePath = result.imagePath
+            viewModel.pdfFilePath = result.pdfFilePath
+
+            // Aktualizuj UI
+            binding.textHome.text = "Wyniki: ${result.patientName}, ${result.age}"
+
+            val patientInfo = """
+            📆 Data: ${result.collectionDate}
+            🐱 Pacjent: ${result.patientName}
+            🐾 Gatunek: ${result.species ?: "nie podano"}
+            🏷️ Rasa: ${result.breed ?: "nie podano"}
+            ⚥ Płeć: ${result.gender ?: "nie podano"}
+            📅 Wiek: ${result.age}
+            🎨 Umaszczenie: ${result.coat ?: "nie podano"}
+        """.trimIndent()
+
+            binding.resultsTextView.text = patientInfo + "\n\n${result.testResults}\n\n"
+
+            // Ustaw spinner
+            val rivaltaOptions = listOf("nie wykonano", "negatywna", "pozytywna")
+            val position = rivaltaOptions.indexOf(viewModel.currentRivaltaStatus)
+            if (position >= 0) {
+                binding.rivaltaSpinner.setSelection(position)
+            }
+
+            val extractedData = Gson().fromJson(result.rawDataJson, Map::class.java) as? Map<String, Any>
+                ?: emptyMap()
+
+            val electroResult = ElectrophoresisAnalyzer.assessFipRisk(
+                extractedData,
+                viewModel.currentRivaltaStatus
+            )
+
+            updateRiskIndicator(electroResult.riskPercentage)
+            recalculateRiskAndUpdateUI()
+
+            result.pdfFilePath?.let { path ->
+                viewModel.pdfFile = File(path)
+            }
+
+            // Wyświetl wykres
+            result.imagePath?.let {
+                displayImage(it)
+            }
         }
+    }
 
-        binding.buttonSaveOriginal.visibility = View.VISIBLE
-        binding.buttonSaveOriginal.setOnClickListener {
-            result.pdfFilePath?.let { filePath ->
-                val fileName = "${result.patientName}_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}"
-                savePdfToDownloadsUsingMediaStore(filePath, fileName)
-            } ?: Toast.makeText(context, "Brak ścieżki do pliku PDF.", Toast.LENGTH_SHORT).show()
+    private fun recalculateRiskAndUpdateUI() {
+        val rawDataJson = viewModel.rawDataJson
+        if (rawDataJson != null) {
+            val extractedData = Gson().fromJson(rawDataJson, Map::class.java) as? Map<String, Any>
+            if (extractedData != null) {
+                val electroResult = ElectrophoresisAnalyzer.assessFipRisk(
+                    extractedData,
+                    viewModel.currentRivaltaStatus
+                )
+                updateRiskIndicator(electroResult.riskPercentage)
+            }
         }
     }
 

@@ -8,14 +8,6 @@
     android:padding="16dp"
     android:fitsSystemWindows="true">
 
-    <!-- Guideline dla bezpiecznego marginesu od góry (poniżej paska stanu) -->
-    <androidx.constraintlayout.widget.Guideline
-        android:id="@+id/guidelineTop"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        app:layout_constraintGuide_begin="0dp" />
-
     <TextView
         android:id="@+id/textHome"
         android:layout_width="0dp"
@@ -25,7 +17,7 @@
         android:textStyle="bold"
         android:gravity="center"
         android:layout_marginBottom="16dp"
-        app:layout_constraintTop_toBottomOf="@id/guidelineTop"
+        app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
@@ -35,40 +27,89 @@
         android:layout_height="wrap_content"
         android:text="@string/wgraj_pdf"
         android:textColor="@color/white"
-        android:layout_marginBottom="16dp"
         app:layout_constraintTop_toBottomOf="@id/textHome"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         tools:ignore="VisualLintButtonSize" />
 
+    <LinearLayout
+        android:id="@+id/rivaltaContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginTop="16dp"
+        android:translationZ="10dp"
+        app:layout_constraintTop_toBottomOf="@id/buttonLoadPdf"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/rivaltaLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/proba_rivalta"
+            android:layout_marginEnd="8dp"/>
+
+        <Spinner
+            android:id="@+id/rivaltaSpinner"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"/>
+    </LinearLayout>
+
     <ImageView
         android:id="@+id/chartImageView"
         android:layout_width="match_parent"
-        android:layout_height="335dp"
+        android:layout_height="300dp"
         android:visibility="gone"
-        android:scaleType="fitEnd"
+        android:scaleType="fitCenter"
         android:layout_marginTop="16dp"
         android:contentDescription="@string/wykres_diagnostyczny"
-        tools:ignore="MissingConstraints" />
-
-    <Button
-        android:id="@+id/buttonSaveOriginal"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="@string/zapisz_oryg"
-        android:textColor="@color/white"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@+id/chartImageView"
+        app:layout_constraintTop_toBottomOf="@id/rivaltaContainer"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
 
+    <!-- Kontener dla wskaźnika ryzyka i przycisku -->
+    <LinearLayout
+        android:id="@+id/riskSaveContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:visibility="visible"
+        app:layout_constraintTop_toBottomOf="@id/chartImageView"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <TextView
+            android:id="@+id/riskIndicator"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:visibility="visible"
+            android:textColor="@color/black" />
+
+        <Button
+            android:id="@+id/buttonSaveOriginal"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:visibility="visible"
+            android:text="@string/zapisz_oryg"
+            android:textColor="@color/white" />
+    </LinearLayout>
+
+    <!-- ScrollView przesunięty pod kontener ryzyka/zapisu -->
     <ScrollView
         android:id="@+id/scrollView"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:fillViewport="true"
         android:scrollbars="vertical"
-        app:layout_constraintTop_toBottomOf="@id/buttonSaveOriginal"
+        app:layout_constraintTop_toBottomOf="@id/riskSaveContainer"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -84,14 +125,14 @@
                 android:layout_height="wrap_content"
                 android:padding="8dp"
                 android:singleLine="false"
-                android:textSize="24sp"
+                android:textSize="16sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/textScanResult"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="24sp"
+                android:textSize="16sp"
                 android:textStyle="bold"
                 android:padding="8dp"/>
         </LinearLayout>
