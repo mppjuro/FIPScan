@@ -17,5 +17,10 @@ data class ResultEntity(
     val imagePath: String?,
     val collectionDate: String? = null,
     val rawDataJson: String? = null,
-    val diagnosis: String?
+    val diagnosis: String?,
+    val rivaltaStatus: String? = null,
+    val species: String? = null,
+    val breed: String? = null,
+    val gender: String? = null,
+    val coat: String? = null
 ) : Parcelable

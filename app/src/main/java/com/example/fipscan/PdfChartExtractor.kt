@@ -116,7 +116,7 @@ class PdfChartExtractor(private val context: Context) {
         return null
     }
 
-    private data class CropInfo(val left: Int, val top: Int, val right: Int, val bottom: Int)
+    data class CropInfo(val left: Int, val top: Int, val right: Int, val bottom: Int)
 
     fun convertToBarChartList(
         barChartBitmap: Bitmap,
@@ -179,7 +179,7 @@ class PdfChartExtractor(private val context: Context) {
         )
     }
 
-    private fun findCropInfo(bitmap: Bitmap): CropInfo {
+    fun findCropInfo(bitmap: Bitmap): CropInfo {
         var minX = bitmap.width
         var minY = bitmap.height
         var maxX = 0
@@ -199,7 +199,7 @@ class PdfChartExtractor(private val context: Context) {
         return CropInfo(minX, minY, maxX, maxY)
     }
 
-    private fun addPadding(cropInfo: CropInfo, bitmap: Bitmap): CropInfo {
+    fun addPadding(cropInfo: CropInfo, bitmap: Bitmap): CropInfo {
         if (paddingPercent < 0.01) {
             return CropInfo(cropInfo.left, cropInfo.top, cropInfo.right, cropInfo.bottom)
         }
@@ -214,7 +214,7 @@ class PdfChartExtractor(private val context: Context) {
         return CropInfo(newLeft, newTop, newRight, newBottom)
     }
 
-    private fun renderPage(pdfRenderer: PdfRenderer, pageIndex: Int): Bitmap {
+    fun renderPage(pdfRenderer: PdfRenderer, pageIndex: Int): Bitmap {
         val page = pdfRenderer.openPage(pageIndex)
         val bitmap = Bitmap.createBitmap(page.width * 3, page.height * 3, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
@@ -224,12 +224,12 @@ class PdfChartExtractor(private val context: Context) {
         return bitmap
     }
 
-    private fun removeTopMargin(bitmap: Bitmap): Bitmap {
+    fun removeTopMargin(bitmap: Bitmap): Bitmap {
         val cutHeight = (bitmap.height * topMarginPercent).toInt()
         return Bitmap.createBitmap(bitmap, 0, cutHeight, bitmap.width, bitmap.height - cutHeight)
     }
 
-    private fun countBluePixels(bitmap: Bitmap): Int {
+    fun countBluePixels(bitmap: Bitmap): Int {
         var count = 0
         for (x in 0 until bitmap.width step 5) {
             for (y in 0 until bitmap.height step 5) {
@@ -246,7 +246,7 @@ class PdfChartExtractor(private val context: Context) {
         return (r in 70..130 && g in 119..179 && b in 207..255)
     }
 
-    private fun cropAboveDominantLine(bitmap: Bitmap): Bitmap {
+    fun cropAboveDominantLine(bitmap: Bitmap): Bitmap {
         val height = bitmap.height
         val width = bitmap.width
 
@@ -285,7 +285,7 @@ class PdfChartExtractor(private val context: Context) {
         return r > 240 && g > 240 && b > 240
     }
 
-    private fun getDominantNonWhiteColor(bitmap: Bitmap): Int {
+    fun getDominantNonWhiteColor(bitmap: Bitmap): Int {
         val colorCount = mutableMapOf<Int, Int>()
 
         for (x in 0 until bitmap.width step 5) {
@@ -300,7 +300,7 @@ class PdfChartExtractor(private val context: Context) {
         return colorCount.maxByOrNull { it.value }?.key ?: Color.BLUE // fallback: niebieski
     }
 
-    private fun replaceNonWhiteWithDominant(bitmap: Bitmap, targetColor: Int): Bitmap {
+    fun replaceNonWhiteWithDominant(bitmap: Bitmap, targetColor: Int): Bitmap {
         val result = bitmap.copy(Bitmap.Config.ARGB_8888, true)
 
         for (x in 0 until result.width) {
@@ -321,7 +321,7 @@ class PdfChartExtractor(private val context: Context) {
         return r > 250 && g > 250 && b > 250
     }
 
-    private fun convertToBarChartLike(bitmap: Bitmap): Bitmap {
+    fun convertToBarChartLike(bitmap: Bitmap): Bitmap {
         val width = bitmap.width
         val height = bitmap.height
         val result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
