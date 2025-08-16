@@ -284,7 +284,7 @@ class HomeFragment : Fragment() {
             }
         }
 
-        viewModel.abnormalResults = abnormalResults.joinToString("\n")
+        viewModel.results = abnormalResults.joinToString("\n")
         viewModel.pdfFile = pdfFile
         viewModel.chartImagePath = chartImagePath
 
@@ -300,7 +300,7 @@ class HomeFragment : Fragment() {
             """.trimIndent()
 
             val resultsText = if (abnormalResults.isNotEmpty()) {
-                "\n\n📊 Wyniki poza normą:\nBadanie: wynik (norma) jednostka\n${abnormalResults.joinToString("\n")}\n"
+                "\n\n📊 Wyniki poza normą:\nBadanie: wynik (norma) jednostka\n${abnormalResults.joinToString("\n")}\n\n"
             } else {
                 "\n\n✅ Wszystkie wyniki w normie"
             }
@@ -448,7 +448,7 @@ class HomeFragment : Fragment() {
         saveResultToDatabase(
             viewModel.patientName ?: "Nieznany",
             viewModel.patientAge ?: "Nieznany",
-            viewModel.abnormalResults ?: "",
+            viewModel.results,
             viewModel.pdfFile,
             viewModel.chartImagePath,
             viewModel.collectionDate,
@@ -498,7 +498,7 @@ class HomeFragment : Fragment() {
     private fun saveResultToDatabase(
         patient: String,
         age: String,
-        results: String,
+        results: String?,
         pdfFile: File?,
         imagePath: String?,
         collectionDate: String?,
@@ -508,26 +508,27 @@ class HomeFragment : Fragment() {
     ) {
         val pdfFilePath = pdfFile?.absolutePath
 
-        val result = ResultEntity(
-            patientName = patient,
-            age = age,
-            testResults = results,
-            pdfFilePath = pdfFilePath,
-            imagePath = imagePath,
-            collectionDate = collectionDate,
-            rawDataJson = rawDataJson,
-            diagnosis = diagnosisValueToSave,
-            rivaltaStatus = rivaltaStatus,
-            species = viewModel.patientSpecies,
-            breed = viewModel.patientBreed,
-            gender = viewModel.patientGender,
-            coat = viewModel.patientCoat
-        )
-
         val currentContext = context ?: return
         val db = AppDatabase.getDatabase(currentContext)
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                var r = db.resultDao().getResultByNameAge(patient, age)
+                var result = ResultEntity(
+                    patientName = patient,
+                    age = age,
+                    testResults = if (results.isNullOrEmpty()) r.testResults else results,
+                    pdfFilePath = pdfFilePath,
+                    imagePath = imagePath,
+                    collectionDate = collectionDate,
+                    rawDataJson = rawDataJson,
+                    diagnosis = diagnosisValueToSave,
+                    rivaltaStatus = rivaltaStatus,
+                    species = viewModel.patientSpecies,
+                    breed = viewModel.patientBreed,
+                    gender = viewModel.patientGender,
+                    coat = viewModel.patientCoat
+                )
+
                 db.resultDao().deleteDuplicates(patient, age)
                 db.resultDao().insertResult(result)
             } catch (e: Exception) {
@@ -653,7 +654,12 @@ class HomeFragment : Fragment() {
             🎨 Umaszczenie: ${result.coat ?: "nie podano"}
         """.trimIndent()
 
-            binding.resultsTextView.text = patientInfo + "\n\n${result.testResults}\n\n"
+            binding.resultsTextView.text = buildString {
+                append(patientInfo)
+                append("\n\n")
+                append(result.testResults ?: "Brak danych o wynikach")
+                append("\n\n")
+            }
 
             // Ustaw spinner
             val rivaltaOptions = listOf("nie wykonano", "negatywna", "pozytywna")

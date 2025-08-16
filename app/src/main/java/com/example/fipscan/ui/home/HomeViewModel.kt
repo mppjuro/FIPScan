@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import java.io.File
 
 class HomeViewModel : ViewModel() {
+
     var diagnosisText: String? = null
     var chartImagePath: String? = null
     var pdfFilePath: String? = null
@@ -14,7 +15,7 @@ class HomeViewModel : ViewModel() {
     var patientBreed: String? = null
     var patientGender: String? = null
     var patientCoat: String? = null
-    var abnormalResults: String? = null
+    var results: String? = null
     var rawDataJson: String? = null
     var pdfFile: File? = null
     var currentRivaltaStatus: String = "nie wykonano"
