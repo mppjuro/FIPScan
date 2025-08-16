@@ -12,7 +12,7 @@ data class ResultEntity(
     val timestamp: Long = System.currentTimeMillis(),
     val patientName: String,
     val age: String,
-    val testResults: String,
+    val testResults: String?,
     val pdfFilePath: String?,
     val imagePath: String?,
     val collectionDate: String? = null,

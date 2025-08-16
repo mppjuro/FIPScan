@@ -6,7 +6,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import com.example.fipscan.ElectrophoresisAnalyzer
-import com.example.fipscan.ExtractData
 import com.example.fipscan.LabResultAnalyzer
 import com.example.fipscan.databinding.FragmentDiagnosisBinding
 import com.google.gson.Gson
@@ -27,35 +26,60 @@ class DiagnosisFragment : Fragment() {
 
         arguments?.let {
             result = DiagnosisFragmentArgs.fromBundle(it).result
-            result?.rawDataJson?.let { json ->
-                ExtractData.lastExtracted = Gson().fromJson(json, Map::class.java) as? Map<String, Any> ?: emptyMap()
-            }
         }
-        Log.d("NavigateToDiagnosis", "Przekazywana diagnoza z wykresu: ${result?.diagnosis}")
+
         setupUI()
         return binding.root
     }
 
     private fun setupUI() {
-        val extractedMap = ExtractData.lastExtracted ?: emptyMap()
-        val patient = result?.patientName ?: "Nieznany"
-        val date = result?.collectionDate ?: ""
+        result?.let { res ->
+            // Wyświetl informacje o pacjencie
+            val patientInfo = """
+                🐱 Pacjent: ${res.patientName}
+                📅 Wiek: ${res.age}
+                🐾 Gatunek: ${res.species ?: "nie podano"}
+                🏷️ Rasa: ${res.breed ?: "nie podano"}
+                ⚥ Płeć: ${res.gender ?: "nie podano"}
+                📆 Data badania: ${res.collectionDate ?: "brak daty"}
+            """.trimIndent()
 
-        with(binding) {
-            binding.textHeader.text = "📄 Diagnoza: $patient  ${if (date.isNotBlank()) "📅 $date" else ""}"
+            binding.textPatientInfo.text = patientInfo
+            binding.textPatientInfo.visibility = View.VISIBLE
 
-            // Analizy
+            // Przygotuj dane do analizy
+            val extractedMap = if (res.rawDataJson != null) {
+                Gson().fromJson(res.rawDataJson, Map::class.java) as? Map<String, Any> ?: emptyMap()
+            } else {
+                emptyMap()
+            }
+
+            // Przeprowadź analizy
             val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
-            val rivaltaStatus = result?.rivaltaStatus ?: "nie wykonano"
+            val rivaltaStatus = res.rivaltaStatus ?: "nie wykonano"
             val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap, rivaltaStatus)
 
-            textDiagnosticComment.text = labResult.diagnosticComment
-            textSupplements.text = "Suplementy: ${labResult.supplementAdvice}"
-            textVetConsult.text = "Konsultacja: ${labResult.vetConsultationAdvice}"
+            // Ustaw wyniki analiz
+            binding.textDiagnosticComment.text = labResult.diagnosticComment
+            binding.textSupplements.text = "Suplementy: ${labResult.supplementAdvice}"
+            binding.textVetConsult.text = "Konsultacja: ${labResult.vetConsultationAdvice}"
 
-            textFurtherTests.text = "Dalsze badania:\n${electroResult.furtherTestsAdvice}"
-            textRiskSupplements.text = "Suplementy: ${electroResult.supplementAdvice}"
-            textRiskConsult.text = "Konsultacja: ${electroResult.vetConsultationAdvice}\n\n\n"
+            binding.textFurtherTests.text = "Dalsze badania:\n${electroResult.furtherTestsAdvice}"
+            binding.textRiskSupplements.text = "Suplementy: ${electroResult.supplementAdvice}"
+            binding.textRiskConsult.text = "Konsultacja: ${electroResult.vetConsultationAdvice}"
+        } ?: run {
+            // Brak danych o pacjencie
+            binding.textPatientInfo.visibility = View.GONE
+            binding.textDiagnosticComment.text = "Brak danych pacjenta do analizy"
+
+            // Ukryj pozostałe pola
+            listOf(
+                binding.textSupplements,
+                binding.textVetConsult,
+                binding.textFurtherTests,
+                binding.textRiskSupplements,
+                binding.textRiskConsult
+            ).forEach { it.visibility = View.GONE }
         }
     }
 

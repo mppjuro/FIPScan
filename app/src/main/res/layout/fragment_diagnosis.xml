@@ -36,6 +36,16 @@
                 android:text="Diagnoza" />
 
             <TextView
+                android:id="@+id/textPatientInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:paddingBottom="16dp"
+                android:visibility="gone" />
+
+            <TextView
                 android:id="@+id/textDiagnosticComment"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
