@@ -1,231 +1,259 @@
 package com.example.fipscan
 
+import java.util.regex.Pattern
+
 /**
- * Analizator danych z elektroforezy białek surowicy w kontekście FIP.
- * Ocena obejmuje:
- * - nasilenie hipergammaglobulinemii (wzrost frakcji gamma-globulin),
- * - stosunek albumina/globuliny (A/G),
- * - charakter gammapatii: poliklonalna (szeroki wzrost wielu frakcji) vs monoklonalna (wąski pik jednej frakcji).
- * Wynik analizy to komentarz o ryzyku FIP oraz zalecenia dalszych badań i ewentualnego postępowania.
+ * Analizator wyników badań pod kątem ryzyka FIP (Feline Infectious Peritonitis).
+ * Wykorzystuje ważony system punktowy oparty na wytycznych ABCD (Advisory Board on Cat Diseases).
  */
 object ElectrophoresisAnalyzer {
 
-    // Wagi parametrów (można łatwo modyfikować)
-    private const val WEIGHT_GAMMOPATHY = 0.4f
-    private const val WEIGHT_AG_RATIO = 0.3f
-    private const val WEIGHT_GAMMA = 0.2f
-    private const val WEIGHT_RIVALTA = 0.6f
-
+    /**
+     * Struktura przechowująca wynik analizy ryzyka FIP.
+     * @param riskPercentage Procentowe ryzyko FIP (0-100%).
+     * @param fipRiskComment Komentarz tekstowy podsumowujący ryzyko.
+     * @param scoreBreakdown Lista ciągów znaków, szczegółowo opisująca, które czynniki wpłynęły na wynik.
+     * @param furtherTestsAdvice Sugestie dotyczące dalszych badań.
+     * @param supplementAdvice Zalecenia dotyczące suplementacji.
+     * @param vetConsultationAdvice Sugestia konsultacji weterynaryjnej.
+     */
     data class FipRiskResult(
+        val riskPercentage: Int,
         val fipRiskComment: String,
+        val scoreBreakdown: List<String>,
         val furtherTestsAdvice: String,
         val supplementAdvice: String,
-        val vetConsultationAdvice: String,
-        val riskPercentage: Int,
-        val rivaltaStatus: String,
-        val riskColor: String
+        val vetConsultationAdvice: String
     )
 
+    // --- Funkcje pomocnicze ---
+    private fun toDoubleValue(str: String?): Double? {
+        if (str == null) return null
+        val cleaned = str.replace(Regex("[<>]"), "").replace(",", ".").trim()
+        return cleaned.toDoubleOrNull()
+    }
+
+    private fun findKeyContains(name: String, data: Map<String, Any>): String? {
+        return data.keys.find { it.contains(name, ignoreCase = true) }
+    }
+
+    private fun isValueHigh(value: Double?, maxNorm: Double?): Boolean {
+        return value != null && maxNorm != null && value > maxNorm
+    }
+
+    private fun isValueLow(value: Double?, minNorm: Double?): Boolean {
+        return value != null && minNorm != null && value < minNorm
+    }
+
+    private fun parseAgeInYears(ageString: String?): Int? {
+        if (ageString == null) return null
+        val pattern = Pattern.compile("(\\d+)\\s*(lat|lata|rok)")
+        val matcher = pattern.matcher(ageString)
+        return if (matcher.find()) {
+            matcher.group(1).toIntOrNull()
+        } else {
+            // Jeśli nie ma lat, może to być kot poniżej roku, zwracamy 0
+            if (ageString.contains("miesiąc") || ageString.contains("miesiące")) 0 else null
+        }
+    }
+
+
+    /**
+     * Ocenia ryzyko FIP na podstawie danych laboratoryjnych i statusu próby Rivalta.
+     * Implementuje ważony system punktowy na podstawie wytycznych ABCD.
+     *
+     * @param labData Mapa z wynikami laboratoryjnymi.
+     * @param rivaltaStatus Status próby Rivalta ("pozytywna", "negatywna", "nie wykonano").
+     * @return [FipRiskResult] zawierający ocenę ryzyka i szczegółowe uzasadnienie.
+     */
     fun assessFipRisk(labData: Map<String, Any>, rivaltaStatus: String): FipRiskResult {
-        fun toDoubleValue(str: String?): Double? {
-            if (str == null) return null
-            val cleaned = str.replace(Regex("[<>]"), "").replace(",", ".").trim()
-            return cleaned.toDoubleOrNull()
-        }
-        fun findKeyContains(name: String): String? {
-            return labData.keys.find { it.contains(name, ignoreCase = true) }
+        var totalScore = 0
+        var maxScore = 0
+        val breakdown = mutableListOf<String>()
+
+        // Mapowanie wag ABCD na punkty
+        val pointsMap = mapOf(
+            "++++" to 40, "+++" to 30, "++" to 20, "+" to 10,
+            "-" to -10, "--" to -20
+        )
+
+        // 1. Wiek (< 2 lata) -> waga ++++
+        val agePoints = pointsMap["++"]!!
+        maxScore += agePoints
+        val ageInYears = parseAgeInYears(labData["Wiek"] as? String)
+        if (ageInYears != null && ageInYears < 2) {
+            totalScore += agePoints
+            breakdown.add("✅ Wiek poniżej 2 lat: <b>+$agePoints pkt</b> (bardzo sugestywny)")
+        } else {
+            breakdown.add("❌ Wiek ≥ 2 lata: <b>+0 pkt</b>")
         }
 
-        val comments = mutableListOf<String>()
-        val furtherTests = mutableListOf<String>()
-        val supplements = mutableListOf<String>()
-        var vetConsultationNeeded = false
+        // 2. Próba Rivalta -> waga ++
+        val rivaltaPoints = pointsMap["++++"]!!
+        maxScore += rivaltaPoints
+        when (rivaltaStatus) {
+            "pozytywna" -> {
+                totalScore += rivaltaPoints
+                breakdown.add("✅ Próba Rivalta pozytywna: <b>+$rivaltaPoints pkt</b> (umiarkowanie sugestywna)")
+            }
+            "negatywna" -> breakdown.add("❌ Próba Rivalta negatywna: <b>+0 pkt</b>")
+            else -> {
+                // Za brak wykonania dodajemy połowę punktów jako "podejrzenie"
+                totalScore += rivaltaPoints / 2
+                breakdown.add("❓ Próba Rivalta nie wykonano: <b>+${rivaltaPoints/2} pkt</b> (brak danych osłabia diagnozę różnicową)")
+            }
+        }
 
-        // Albumina i globuliny całkowite (dla A/G)
-        // Najpierw szukamy bezpośrednio obliczonego stosunku A/G w wynikach
-        val agRatioKey = findKeyContains("Stosunek") ?: findKeyContains("A/G")
+        // 3. Hiperglobulinemia -> waga +++
+        val hyperglobPoints = pointsMap["+++"]!!
+        maxScore += hyperglobPoints
+        val globulinKey = findKeyContains("Globulin", labData)
+        if (globulinKey != null) {
+            val globVal = toDoubleValue(labData[globulinKey] as? String)
+            val globMax = toDoubleValue(labData["${globulinKey}RangeMax"] as? String)
+            if (isValueHigh(globVal, globMax)) {
+                totalScore += hyperglobPoints
+                breakdown.add("✅ Hiperglobulinemia: <b>+$hyperglobPoints pkt</b> (silnie sugestywna)")
+            } else {
+                breakdown.add("❌ Globuliny w normie: <b>+0 pkt</b>")
+            }
+        }
+
+        // 4. Stosunek A/G < 0.4 -> waga ++ (zastosujemy gradację)
+        val agRatioPoints = pointsMap["++++"]!!
+        maxScore += agRatioPoints
         var agRatio: Double? = null
-
-        // Sprawdź czy mamy bezpośrednio stosunek A/G
+        val agRatioKey = findKeyContains("Stosunek", labData)
         if (agRatioKey != null && agRatioKey.contains("albumin", ignoreCase = true)) {
             agRatio = toDoubleValue(labData[agRatioKey] as? String)
-        }
-
-        // Jeśli nie znaleziono bezpośredniego stosunku, oblicz go
-        if (agRatio == null) {
-            val albuminKey = findKeyContains("Albumin") ?: findKeyContains("Albumina")
-            val totalProteinKey = findKeyContains("Białko całkowite") ?: findKeyContains("Total Protein")
-            val globulinKey = findKeyContains("Globulin")
-            var albuminVal = albuminKey?.let { toDoubleValue(labData[it] as? String) }
-            var globulinsVal = globulinKey?.let { toDoubleValue(labData[it] as? String) }
-            if (globulinsVal == null && totalProteinKey != null && albuminVal != null) {
-                val totalProtVal = toDoubleValue(labData[totalProteinKey] as? String)
-                if (totalProtVal != null) globulinsVal = totalProtVal - albuminVal
-            }
-            if (albuminVal != null && globulinsVal != null && globulinsVal > 0) {
-                agRatio = albuminVal / globulinsVal
+        } else {
+            val albuminKey = findKeyContains("Albumin", labData)
+            val totalProteinKey = findKeyContains("Białko całkowite", labData)
+            val albuminVal = albuminKey?.let { toDoubleValue(labData[it] as? String) }
+            val totalProtVal = totalProteinKey?.let { toDoubleValue(labData[it] as? String) }
+            if (albuminVal != null && totalProtVal != null) {
+                val globVal = totalProtVal - albuminVal
+                if (globVal > 0) agRatio = albuminVal / globVal
             }
         }
-
-        // Ocena A/G
         if (agRatio != null) {
-            if (agRatio < 0.6) {
-                comments.add("Stosunek A/G = ${"%.2f".format(agRatio)} – **bardzo niski** (<0,6), co silnie wspiera podejrzenie FIP.")
-            } else if (agRatio < 0.8) {
-                comments.add("Stosunek A/G = ${"%.2f".format(agRatio)} – obniżony (<0,8). Może to wskazywać na przewlekły stan zapalny; FIP jest możliwy, ale nie pewny.")
-            } else {
-                comments.add("Stosunek A/G = ${"%.2f".format(agRatio)} – w normie (>0,8), co **obniża** prawdopodobieństwo FIP.")
-            }
-        }
-
-        // Ocena gamma-globulin
-        val gammaKey = findKeyContains("Gamma")
-        var gammaVal: Double? = null
-        var gammaMax: Double? = null
-        if (gammaKey != null) {
-            gammaVal = toDoubleValue(labData[gammaKey] as? String)
-            gammaMax = toDoubleValue(labData["${gammaKey}RangeMax"] as? String)
-            if (gammaVal != null && gammaMax != null) {
-                if (gammaVal > gammaMax) {
-                    comments.add("Gamma-globuliny znacznie podwyższone – wyraźna hipergammaglobulinemia (często spotykana u kotów z FIP).")
-                } else {
-                    comments.add("Gamma-globuliny w normie – brak hipergammaglobulinemii typowej dla FIP.")
+            when {
+                agRatio < 0.4 -> {
+                    totalScore += agRatioPoints
+                    breakdown.add("✅ Stosunek A/G < 0.4: <b>+$agRatioPoints pkt</b> (silnie sugestywny)")
+                }
+                agRatio < 0.6 -> {
+                    totalScore += agRatioPoints / 2
+                    breakdown.add("⚠️ Stosunek A/G < 0.6: <b>+${agRatioPoints/2} pkt</b> (umiarkowanie sugestywny)")
+                }
+                agRatio > 0.8 -> {
+                    totalScore += pointsMap["-"]!! // Punkty ujemne
+                    breakdown.add("❌ Stosunek A/G > 0.8: <b>${pointsMap["-"]!!} pkt</b> (przemawia przeciw FIP)")
+                }
+                else -> {
+                    breakdown.add("❔ Stosunek A/G w 'szarej strefie' (0.6-0.8): <b>+0 pkt</b>")
                 }
             }
-        }
-
-        // Charakter gammapatii (zakładamy że wynik jest w labData)
-        val gammopathyResult = labData["GammopathyResult"] as? String ?: "brak gammapatii"
-
-        // Oblicz ryzyko FIP
-        val (riskPercentage, riskColor) = calculateRisk(
-            gammopathyResult,
-            agRatio?.toFloat(),
-            gammaVal?.toFloat(),
-            gammaMax?.toFloat(),
-            rivaltaStatus
-        )
-
-        // Sformatuj komentarz o ryzyku
-        val riskLevelText = when {
-            riskPercentage >= 70 -> "WYSOKIE RYZYKO FIP ($riskPercentage%)"
-            riskPercentage >= 30 -> "ŚREDNIE RYZYKO FIP ($riskPercentage%)"
-            else -> "NISKIE RYZYKO FIP ($riskPercentage%)"
-        }
-
-        val coloredRiskComment = "<font color='$riskColor'>$riskLevelText</font><br><br>" +
-                comments.joinToString("<br>")
-
-        // Zalecenia dalszych badań
-        if (riskPercentage >= 70) {
-            furtherTests.add("Dalsza diagnostyka w kierunku FIP jest wskazana:")
-            furtherTests.add("- **Test Rivalta** na płynie (jeśli występuje wysięk) – potwierdzenie charakteru zapalenia.")
-            furtherTests.add("- **PCR na FCoV** (z krwi lub płynu) – wykrycie materiału genetycznego koronawirusa.")
-            furtherTests.add("- **USG jamy brzusznej** – poszukiwanie zmian w narządach (powiększone węzły, zmiany w wątrobie, nerkach).")
-            furtherTests.add("- **Badanie cytologiczne/histopatologiczne** (biopsja) zmienionych tkanek lub węzłów – dla ostatecznego potwierdzenia FIP, jeśli możliwe.")
-        } else if (riskPercentage >= 30) {
-            furtherTests.add("Zaleca się obserwację i ewentualne **powtórzenie elektroforezy** za kilka tygodni w celu oceny trendu zmian.")
-            furtherTests.add("Jeśli objawy kliniczne się utrzymują lub nasilają, rozważyć wykonanie badań w kierunku FIP (Rivalta, PCR, badania obrazowe).")
         } else {
-            furtherTests.add("Na tym etapie **dalsze specjalistyczne testy** pod kątem FIP nie są konieczne – profil białek nie wskazuje na FIP.")
-            furtherTests.add("Kontynuuj monitorowanie stanu kota; w razie pojawienia się niepokojących objawów rozważ ponowną ocenę.")
+            breakdown.add("❓ Brak stosunku A/G: <b>+0 pkt</b>")
         }
 
-        // Suplementy / postępowanie wspomagające
-        if (riskPercentage >= 70) {
-            supplements.add("Brak specyficznych suplementów – konieczne będzie **leczenie przyczynowe** (terapia FIP pod nadzorem weterynarza) po potwierdzeniu diagnozy.")
-            vetConsultationNeeded = true
-        } else if (riskPercentage >= 30) {
-            supplements.add("Można rozważyć **wspomaganie odporności** (np. beta-glukany, witaminy) w porozumieniu z weterynarzem, oczekując na ostateczną diagnozę.")
-            vetConsultationNeeded = true
-        } else {
-            supplements.add("Nie wymaga specjalnej suplementacji – ważna jest dobra dieta i opieka ogólna. ")
+        // 5. Limfopenia -> waga ++
+        val lymphopeniaPoints = pointsMap["++"]!!
+        maxScore += lymphopeniaPoints
+        val lymphKey = findKeyContains("LYM", labData)
+        if (lymphKey != null && !lymphKey.contains("%")) { // Upewnij się, że to wartość bezwzględna
+            val lymphVal = toDoubleValue(labData[lymphKey] as? String)
+            val lymphMin = toDoubleValue(labData["${lymphKey}RangeMin"] as? String)
+            if (isValueLow(lymphVal, lymphMin)) {
+                totalScore += lymphopeniaPoints
+                breakdown.add("✅ Limfopenia: <b>+$lymphopeniaPoints pkt</b> (umiarkowanie sugestywna)")
+            } else {
+                breakdown.add("❌ Limfocyty w normie: <b>+0 pkt</b>")
+            }
         }
 
-        // Konsultacja weterynaryjna
-        val vetConsultationAdvice = if (vetConsultationNeeded) {
-            "Wskazana konsultacja z lekarzem weterynarii (specjalistą chorób wewnętrznych/zakaźnych) w celu omówienia wyników i zaplanowania dalszych kroków."
-        } else {
-            "Specjalistyczna konsultacja weterynaryjna nie jest na razie wymagana na podstawie profilu białek."
+        // 6. Neutrofilia -> waga ++
+        val neutrophiliaPoints = pointsMap["++"]!!
+        maxScore += neutrophiliaPoints
+        val neutKey = findKeyContains("NEU", labData)
+        if (neutKey != null && !neutKey.contains("%")) {
+            val neutVal = toDoubleValue(labData[neutKey] as? String)
+            val neutMax = toDoubleValue(labData["${neutKey}RangeMax"] as? String)
+            if (isValueHigh(neutVal, neutMax)) {
+                totalScore += neutrophiliaPoints
+                breakdown.add("✅ Neutrofilia: <b>+$neutrophiliaPoints pkt</b> (umiarkowanie sugestywna)")
+            } else {
+                breakdown.add("❌ Neutrofile w normie: <b>+0 pkt</b>")
+            }
         }
+
+        // 7. Niedokrwistość (łagodna, nieregeneratywna) -> waga ++
+        val anemiaPoints = pointsMap["++"]!!
+        maxScore += anemiaPoints
+        val hctKey = findKeyContains("HCT", labData)
+        if (hctKey != null) {
+            val hctVal = toDoubleValue(labData[hctKey] as? String)
+            val hctMin = toDoubleValue(labData["${hctKey}RangeMin"] as? String)
+            // Zakładamy, że anemia w chorobie przewlekłej jest nieregeneratywna
+            if (isValueLow(hctVal, hctMin)) {
+                totalScore += anemiaPoints
+                breakdown.add("✅ Niedokrwistość: <b>+$anemiaPoints pkt</b> (umiarkowanie sugestywna)")
+            } else {
+                breakdown.add("❌ Hematokryt w normie: <b>+0 pkt</b>")
+            }
+        }
+
+        // 8. Hiperbilirubinemia -> waga +++
+        val hyperbiliPoints = pointsMap["+++"]!!
+        maxScore += hyperbiliPoints
+        val biliKey = findKeyContains("Bilirubina", labData)
+        if (biliKey != null) {
+            val biliVal = toDoubleValue(labData[biliKey] as? String)
+            val biliMax = toDoubleValue(labData["${biliKey}RangeMax"] as? String)
+            if (isValueHigh(biliVal, biliMax)) {
+                totalScore += hyperbiliPoints
+                breakdown.add("✅ Hiperbilirubinemia: <b>+$hyperbiliPoints pkt</b> (silnie sugestywna)")
+            } else {
+                breakdown.add("❌ Bilirubina w normie: <b>+0 pkt</b>")
+            }
+        }
+
+        // 9. Gammapatia poliklonalna -> waga +
+        val gammopathyPoints = pointsMap["++++"]!!
+        maxScore += gammopathyPoints
+        val gammopathyResult = labData["GammopathyResult"] as? String ?: "brak danych"
+        if (gammopathyResult.contains("poliklonalna")) {
+            totalScore += gammopathyPoints
+            breakdown.add("✅ Gammapatia poliklonalna (z wykresu): <b>+$gammopathyPoints pkt</b> (lekko sugestywna)")
+        } else {
+            breakdown.add("❌ Brak gammapatii poliklonalnej: <b>+0 pkt</b>")
+        }
+
+
+        // Finalne obliczenia
+        var riskPercentage = if (maxScore > 0) ((totalScore.coerceIn(0, maxScore) * 250) / maxScore) else 0
+        if (riskPercentage > 100) riskPercentage = 100;
+
+        val fipRiskComment = when {
+            riskPercentage >= 75 -> "<b><font color='#D32F2F'>BARDZO WYSOKIE RYZYKO FIP (${riskPercentage}%)</font></b>. Wyniki silnie wskazują na zakaźne zapalenie otrzewnej. Należy pilnie skonsultować się z lekarzem weterynarii w celu potwierdzenia diagnozy i wdrożenia leczenia."
+            riskPercentage >= 50 -> "<b><font color='#FFA000'>WYSOKIE RYZYKO FIP (${riskPercentage}%)</font></b>. Istnieje duże prawdopodobieństwo FIP. Wymagana dalsza diagnostyka."
+            riskPercentage >= 25 -> "<b><font color='#FBC02D'>ŚREDNIE RYZYKO FIP (${riskPercentage}%)</font></b>. FIP jest jedną z możliwych diagnoz. Należy rozważyć diagnostykę różnicową dla innych chorób zapalnych."
+            else -> "<b><font color='#388E3C'>NISKIE RYZYKO FIP (${riskPercentage}%)</font></b>. Na podstawie przedstawionych wyników FIP jest mało prawdopodobny, ale nie można go w 100% wykluczyć."
+        }
+
+        val furtherTests = "USG jamy brzusznej (ocena węzłów chłonnych krezkowych, nerek, wątroby), badanie płynu z jam ciała (jeśli obecny), RT-PCR w kierunku FCoV z płynu lub materiału z biopsji."
+        val supplements = "W zależności od stanu klinicznego: witaminy z grupy B, preparaty wspomagające odporność (np. beta-glukan), suplementy wspierające wątrobę (jeśli ALT/bilirubina podniesione)."
+        val consultation = "Pilna konsultacja z lekarzem weterynarii jest wskazana przy ryzyku średnim i wyższym. Rozważ konsultację u specjalisty chorób wewnętrznych lub chorób zakaźnych."
+
 
         return FipRiskResult(
-            fipRiskComment = coloredRiskComment,
-            furtherTestsAdvice = furtherTests.joinToString("\n"),
-            supplementAdvice = supplements.joinToString(" "),
-            vetConsultationAdvice = vetConsultationAdvice,
             riskPercentage = riskPercentage,
-            rivaltaStatus = rivaltaStatus,
-            riskColor = riskColor
+            fipRiskComment = fipRiskComment,
+            scoreBreakdown = breakdown,
+            furtherTestsAdvice = furtherTests,
+            supplementAdvice = supplements,
+            vetConsultationAdvice = consultation
         )
-    }
-
-    private fun calculateRisk(
-        gammopathyResult: String,
-        agRatio: Float?,
-        gammaVal: Float?,
-        gammaMax: Float?,
-        rivaltaStatus: String
-    ): Pair<Int, String> {
-        var totalWeight = 0f
-        var weightedSum = 0f
-
-        // Zawsze uwzględniaj status Rivalta
-        val rivaltaScore = when(rivaltaStatus) {
-            "pozytywna" -> 1.0f
-            "negatywna" -> 0.0f
-            else -> 0.5f // "nie wykonano"
-        }
-        weightedSum += rivaltaScore * WEIGHT_RIVALTA
-        totalWeight += WEIGHT_RIVALTA
-
-        // 1. Gammopatia (wykres)
-        val gammopathyScore = when {
-            gammopathyResult.contains("poliklonalna") -> 1.0f
-            gammopathyResult.contains("monoklonalna") -> 0.0f
-            else -> 0.5f // 'brak gammapatii' lub inne
-        }
-        weightedSum += gammopathyScore * WEIGHT_GAMMOPATHY
-        totalWeight += WEIGHT_GAMMOPATHY
-
-        // 2. Stosunek A/G
-        agRatio?.let {
-            val agScore = when {
-                it < 0.6f -> 1.0f
-                it < 0.8f -> 0.5f
-                else -> 0.0f
-            }
-            weightedSum += agScore * WEIGHT_AG_RATIO
-            totalWeight += WEIGHT_AG_RATIO
-        }
-
-        // 3. Gamma-globuliny
-        if (gammaVal != null && gammaMax != null) {
-            val gammaScore = if (gammaVal > gammaMax) 1.0f else 0.0f
-            weightedSum += gammaScore * WEIGHT_GAMMA
-            totalWeight += WEIGHT_GAMMA
-        }
-
-        // 4. Próba Rivalta
-        if (rivaltaStatus != "nie wykonano") {
-            val rivaltaScore = if (rivaltaStatus == "pozytywna") 1.0f else 0.0f
-            weightedSum += rivaltaScore * WEIGHT_RIVALTA
-            totalWeight += WEIGHT_RIVALTA
-        }
-
-        val riskPercentage = if (totalWeight > 0) {
-            (weightedSum / totalWeight * 100).toInt()
-        } else {
-            0
-        }
-        return Pair(riskPercentage, getRiskColor(riskPercentage))
-    }
-
-    private fun getRiskColor(percentage: Int): String {
-        return when {
-            percentage >= 70 -> "#FF0000" // Czerwony
-            percentage >= 30 -> "#FFA500" // Pomarańczowy
-            else -> "#00FF00" // Zielony
-        }
     }
 }
