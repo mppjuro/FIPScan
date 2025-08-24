@@ -1,0 +1,2 @@
+ninja: Entering directory `C:\Users\PJURO\Desktop\FIPScan\opencv\.cxx\Debug\33176h3r\x86_64'
+ninja: no work to do.

@@ -1,16 +1,22 @@
 package com.example.fipscan.ui.diagnosis
 
 import android.os.Bundle
+import android.text.Html
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
+import com.example.fipscan.AppDatabase
 import com.example.fipscan.ElectrophoresisAnalyzer
 import com.example.fipscan.LabResultAnalyzer
 import com.example.fipscan.databinding.FragmentDiagnosisBinding
 import com.google.gson.Gson
 import com.example.fipscan.ResultEntity
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class DiagnosisFragment : Fragment() {
     private var _binding: FragmentDiagnosisBinding? = null
@@ -24,16 +30,68 @@ class DiagnosisFragment : Fragment() {
     ): View {
         _binding = FragmentDiagnosisBinding.inflate(inflater, container, false)
 
+        // Sprawdź czy mamy dane z argumentów
         arguments?.let {
             result = DiagnosisFragmentArgs.fromBundle(it).result
+            Log.d("DiagnosisFragment", "Otrzymano wynik z argumentów: ${result?.patientName}")
         }
 
-        setupUI()
+        // Jeśli nie mamy danych z argumentów, pobierz najnowszy wynik z bazy
+        if (result == null) {
+            loadLatestResult()
+        } else {
+            setupUI()
+        }
+
         return binding.root
+    }
+
+    private fun loadLatestResult() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val db = AppDatabase.getDatabase(requireContext())
+                val latestResults = db.resultDao().getAllResults()
+                val latestResult = latestResults.maxByOrNull { it.timestamp }
+
+                withContext(Dispatchers.Main) {
+                    if (latestResult != null) {
+                        result = latestResult
+                        Log.d("DiagnosisFragment", "Załadowano najnowszy wynik: ${latestResult.patientName}")
+                        setupUI()
+                    } else {
+                        Log.d("DiagnosisFragment", "Brak wyników w bazie danych")
+                        showNoDataMessage()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("DiagnosisFragment", "Błąd ładowania danych", e)
+                withContext(Dispatchers.Main) {
+                    showNoDataMessage()
+                }
+            }
+        }
+    }
+
+    private fun showNoDataMessage() {
+        binding.textPatientInfo.text = "Brak danych pacjenta do analizy"
+        binding.textPatientInfo.visibility = View.VISIBLE
+
+        // Ukryj pozostałe pola
+        listOf(
+            binding.textDiagnosticComment,
+            binding.textSupplements,
+            binding.textVetConsult,
+            binding.textFurtherTests,
+            binding.textRiskSupplements,
+            binding.textRiskConsult,
+            binding.textRiskBreakdown
+        ).forEach { it.visibility = View.GONE }
     }
 
     private fun setupUI() {
         result?.let { res ->
+            Log.d("DiagnosisFragment", "Konfigurowanie UI dla: ${res.patientName}")
+
             // Wyświetl informacje o pacjencie
             val patientInfo = """
                 🐱 Pacjent: ${res.patientName}
@@ -41,6 +99,7 @@ class DiagnosisFragment : Fragment() {
                 🐾 Gatunek: ${res.species ?: "nie podano"}
                 🏷️ Rasa: ${res.breed ?: "nie podano"}
                 ⚥ Płeć: ${res.gender ?: "nie podano"}
+                🎨 Umaszczenie: ${res.coat ?: "nie podano"}
                 📆 Data badania: ${res.collectionDate ?: "brak daty"}
             """.trimIndent()
 
@@ -49,38 +108,181 @@ class DiagnosisFragment : Fragment() {
 
             // Przygotuj dane do analizy
             val extractedMap = if (res.rawDataJson != null) {
-                Gson().fromJson(res.rawDataJson, Map::class.java) as? Map<String, Any> ?: emptyMap()
+                try {
+                    Gson().fromJson(res.rawDataJson, Map::class.java) as? Map<String, Any> ?: emptyMap()
+                } catch (e: Exception) {
+                    Log.e("DiagnosisFragment", "Błąd parsowania JSON", e)
+                    emptyMap()
+                }
             } else {
                 emptyMap()
             }
+
+            Log.d("DiagnosisFragment", "Dane do analizy: ${extractedMap.keys}")
 
             // Przeprowadź analizy
             val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
             val rivaltaStatus = res.rivaltaStatus ?: "nie wykonano"
             val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap, rivaltaStatus)
 
-            // Ustaw wyniki analiz
-            binding.textDiagnosticComment.text = labResult.diagnosticComment
-            binding.textSupplements.text = "Suplementy: ${labResult.supplementAdvice}"
-            binding.textVetConsult.text = "Konsultacja: ${labResult.vetConsultationAdvice}"
+            // Wyświetl ryzyko FIP z kolorami
+            val riskText = Html.fromHtml(electroResult.fipRiskComment, Html.FROM_HTML_MODE_COMPACT)
+            binding.textDiagnosticComment.text = riskText
 
-            binding.textFurtherTests.text = "Dalsze badania:\n${electroResult.furtherTestsAdvice}"
-            binding.textRiskSupplements.text = "Suplementy: ${electroResult.supplementAdvice}"
-            binding.textRiskConsult.text = "Konsultacja: ${electroResult.vetConsultationAdvice}"
-        } ?: run {
-            // Brak danych o pacjencie
-            binding.textPatientInfo.visibility = View.GONE
-            binding.textDiagnosticComment.text = "Brak danych pacjenta do analizy"
+            // Wyświetl szczegółowe uzasadnienie ryzyka
+            val riskBreakdown = generateRiskBreakdown(extractedMap, rivaltaStatus, electroResult)
+            binding.textRiskBreakdown.text = riskBreakdown
+            binding.textRiskBreakdown.visibility = View.VISIBLE
 
-            // Ukryj pozostałe pola
+            // Ustaw pozostałe wyniki analiz
+            binding.textSupplements.text = "💊 Suplementy (wyniki krwi): ${labResult.supplementAdvice}"
+            binding.textVetConsult.text = "🏥 Konsultacja (wyniki krwi): ${labResult.vetConsultationAdvice}"
+
+            binding.textFurtherTests.text = "🔬 Zalecane dalsze badania:\n${electroResult.furtherTestsAdvice}"
+            binding.textRiskSupplements.text = "💊 Suplementy (ryzyko FIP): ${electroResult.supplementAdvice}"
+            binding.textRiskConsult.text = "🏥 Konsultacja (ryzyko FIP): ${electroResult.vetConsultationAdvice}"
+
+            // Pokaż wszystkie pola
             listOf(
+                binding.textDiagnosticComment,
                 binding.textSupplements,
                 binding.textVetConsult,
                 binding.textFurtherTests,
                 binding.textRiskSupplements,
-                binding.textRiskConsult
-            ).forEach { it.visibility = View.GONE }
+                binding.textRiskConsult,
+                binding.textRiskBreakdown
+            ).forEach { it.visibility = View.VISIBLE }
+
+        } ?: run {
+            Log.d("DiagnosisFragment", "Brak danych o wyniku")
+            showNoDataMessage()
         }
+    }
+
+    private fun generateRiskBreakdown(
+        extractedMap: Map<String, Any>,
+        rivaltaStatus: String,
+        electroResult: ElectrophoresisAnalyzer.FipRiskResult
+    ): String {
+        val breakdown = StringBuilder()
+        breakdown.append("📊 Szczegółowa analiza składowych ryzyka FIP:\n\n")
+
+        // Funkcje pomocnicze
+        fun toDoubleValue(str: String?): Double? {
+            if (str == null) return null
+            val cleaned = str.replace(Regex("[<>]"), "").replace(",", ".").trim()
+            return cleaned.toDoubleOrNull()
+        }
+
+        fun findKeyContains(name: String): String? {
+            return extractedMap.keys.find { it.contains(name, ignoreCase = true) }
+        }
+
+        // 1. Status próby Rivalta
+        breakdown.append("🧪 Próba Rivalta: ")
+        when(rivaltaStatus) {
+            "pozytywna" -> breakdown.append("✅ POZYTYWNA - silnie wspiera FIP (+25 pkt)\n")
+            "negatywna" -> breakdown.append("❌ NEGATYWNA - przeciw FIP (0 pkt)\n")
+            else -> breakdown.append("❓ NIE WYKONANO - brak informacji (+12.5 pkt)\n")
+        }
+
+        // 2. Analiza gammapatii z wykresu
+        val gammopathyResult = extractedMap["GammopathyResult"] as? String ?: "brak gammapatii"
+        breakdown.append("\n📈 Elektroforeza (wykres): ")
+        when {
+            gammopathyResult.contains("poliklonalna") ->
+                breakdown.append("✅ GAMMAPATIA POLIKLONALNA - typowa dla FIP (+20 pkt)\n")
+            gammopathyResult.contains("monoklonalna") ->
+                breakdown.append("❌ GAMMAPATIA MONOKLONALNA - nietypowa dla FIP (0 pkt)\n")
+            else ->
+                breakdown.append("❓ BRAK GAMMAPATII - słabiej wspiera FIP (+10 pkt)\n")
+        }
+
+        // 3. Stosunek albumina/globuliny (A/G)
+        val albuminKey = findKeyContains("Albumin") ?: findKeyContains("Albumina")
+        val totalProteinKey = findKeyContains("Białko całkowite") ?: findKeyContains("Total Protein")
+        val globulinKey = findKeyContains("Globulin")
+
+        var albuminVal = albuminKey?.let { toDoubleValue(extractedMap[it] as? String) }
+        var globulinsVal = globulinKey?.let { toDoubleValue(extractedMap[it] as? String) }
+
+        if (globulinsVal == null && totalProteinKey != null && albuminVal != null) {
+            val totalProtVal = toDoubleValue(extractedMap[totalProteinKey] as? String)
+            if (totalProtVal != null) globulinsVal = totalProtVal - albuminVal
+        }
+
+        val agRatio = if (albuminVal != null && globulinsVal != null && globulinsVal > 0)
+            albuminVal / globulinsVal else null
+
+        breakdown.append("\n⚖️ Stosunek A/G: ")
+        if (agRatio != null) {
+            val formattedRatio = "%.2f".format(agRatio)
+            when {
+                agRatio < 0.6 -> breakdown.append("✅ $formattedRatio - BARDZO NISKI, silnie wspiera FIP (+15 pkt)\n")
+                agRatio < 0.8 -> breakdown.append("⚠️ $formattedRatio - OBNIŻONY, umiarkowanie wspiera FIP (+7.5 pkt)\n")
+                else -> breakdown.append("❌ $formattedRatio - NORMALNY, przeciw FIP (0 pkt)\n")
+            }
+        } else {
+            breakdown.append("❓ BRAK DANYCH - nie można ocenić (0 pkt)\n")
+        }
+
+        // 4. Gamma-globuliny
+        val gammaKey = findKeyContains("Gamma")
+        val gammaVal = gammaKey?.let { toDoubleValue(extractedMap[it] as? String) }
+        val gammaMax = gammaKey?.let { toDoubleValue(extractedMap["${it}RangeMax"] as? String) }
+
+        breakdown.append("\n🔵 Gamma-globuliny: ")
+        if (gammaVal != null && gammaMax != null) {
+            when {
+                gammaVal > gammaMax -> breakdown.append("✅ PODWYŻSZONE ($gammaVal > $gammaMax) - hipergammaglobulinemia wspiera FIP (+10 pkt)\n")
+                else -> breakdown.append("❌ W NORMIE ($gammaVal ≤ $gammaMax) - przeciw FIP (0 pkt)\n")
+            }
+        } else {
+            breakdown.append("❓ BRAK DANYCH - nie można ocenić (0 pkt)\n")
+        }
+
+        // 5. Test FCoV ELISA (jeśli dostępny)
+        val fcovKey = extractedMap.keys.find { it.contains("FCoV", ignoreCase = true) && it.contains("ELISA", ignoreCase = true) }
+        if (fcovKey != null) {
+            val fcovValue = extractedMap[fcovKey] as? String
+            val fcovResultText = extractedMap["${fcovKey}Range"] as? String
+
+            breakdown.append("\n🦠 Test FCoV ELISA: ")
+            if (!fcovValue.isNullOrBlank()) {
+                val resultText = (fcovResultText ?: fcovValue).lowercase()
+                when {
+                    resultText.contains("dodatni") || resultText.contains("pozytywny") ->
+                        breakdown.append("⚠️ DODATNI - zwiększa podejrzenie FIP (dodatkowy wskaźnik)\n")
+                    resultText.contains("ujemny") || resultText.contains("negatywny") ->
+                        breakdown.append("❌ UJEMNY - FIP mało prawdopodobny (dodatkowy wskaźnik)\n")
+                    fcovValue.contains(":") -> {
+                        val titerValue = runCatching { fcovValue.split(":").last().replace(",", ".").toDouble() }.getOrNull()
+                        when {
+                            titerValue != null && titerValue >= 400 ->
+                                breakdown.append("⚠️ WYSOKIE MIANO ($fcovValue) - często przy FIP (dodatkowy wskaźnik)\n")
+                            titerValue != null && titerValue >= 100 ->
+                                breakdown.append("❓ UMIARKOWANE MIANO ($fcovValue) - wymaga kontekstu (dodatkowy wskaźnik)\n")
+                            else ->
+                                breakdown.append("❌ NISKIE MIANO ($fcovValue) - FIP mniej prawdopodobny (dodatkowy wskaźnik)\n")
+                        }
+                    }
+                }
+            }
+        }
+
+        // 6. Podsumowanie
+        breakdown.append("\n" + "=".repeat(50))
+        breakdown.append("\n🎯 KOŃCOWE RYZYKO FIP: ${electroResult.riskPercentage}%")
+        breakdown.append("\n📝 Status: ${electroResult.rivaltaStatus}")
+
+        val riskLevel = when {
+            electroResult.riskPercentage >= 70 -> "🔴 WYSOKIE"
+            electroResult.riskPercentage >= 30 -> "🟡 ŚREDNIE"
+            else -> "🟢 NISKIE"
+        }
+        breakdown.append("\n📊 Poziom ryzyka: $riskLevel")
+
+        return breakdown.toString()
     }
 
     override fun onDestroyView() {

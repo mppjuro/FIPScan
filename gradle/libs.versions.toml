@@ -1,5 +1,5 @@
 [versions]
-agp = "8.12.0"
+agp = "8.12.1"
 androidPdfViewer = "2.8.2"
 annotations = "23.0.0"
 coreKtxVersion = "1.15.0"
