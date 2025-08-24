@@ -17,11 +17,14 @@ import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.fragment.app.activityViewModels
+import com.example.fipscan.SharedResultViewModel
 
 class DiagnosisFragment : Fragment() {
     private var _binding: FragmentDiagnosisBinding? = null
     private val binding get() = _binding!!
     private var result: ResultEntity? = null
+    private val sharedViewModel: SharedResultViewModel by activityViewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -36,9 +39,17 @@ class DiagnosisFragment : Fragment() {
             Log.d("DiagnosisFragment", "Otrzymano wynik z argumentów: ${result?.patientName}")
         }
 
-        // Jeśli nie mamy danych z argumentów, pobierz najnowszy wynik z bazy
+        // Jeśli nie mamy danych z argumentów, sprawdź SharedViewModel
         if (result == null) {
-            loadLatestResult()
+            sharedViewModel.selectedResult.observe(viewLifecycleOwner) { selectedResult ->
+                if (selectedResult != null) {
+                    result = selectedResult
+                    Log.d("DiagnosisFragment", "Otrzymano wynik z SharedViewModel: ${result?.patientName}")
+                    setupUI()
+                } else {
+                    loadLatestResult()
+                }
+            }
         } else {
             setupUI()
         }
@@ -47,34 +58,13 @@ class DiagnosisFragment : Fragment() {
     }
 
     private fun loadLatestResult() {
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val db = AppDatabase.getDatabase(requireContext())
-                val latestResults = db.resultDao().getAllResults()
-                val latestResult = latestResults.maxByOrNull { it.timestamp }
-
-                withContext(Dispatchers.Main) {
-                    if (latestResult != null && !latestResult.patientName.equals("Nieznany", ignoreCase = true)) {
-                        result = latestResult
-                        Log.d("DiagnosisFragment", "Załadowano najnowszy wynik: ${latestResult.patientName}")
-                        setupUI()
-                    } else {
-                        Log.d("DiagnosisFragment", "Brak prawidłowych wyników w bazie danych")
-                        showNoDataMessage()
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("DiagnosisFragment", "Błąd ładowania danych", e)
-                withContext(Dispatchers.Main) {
-                    showNoDataMessage()
-                }
-            }
-        }
+        // Nie ładuj automatycznie danych z bazy - pokaż tylko komunikat
+        showNoDataMessage()
     }
 
     private fun showNoDataMessage() {
         binding.textDiagnosis.text = "Diagnoza"
-        binding.textPatientInfo.text = "Brak danych pacjenta do analizy.\n\nAby zobaczyć diagnozę:\n1. Przejdź do zakładki 'Skanuj' i wgraj plik PDF z wynikami\n2. Lub wybierz rekord z 'Historii' badań"
+        binding.textPatientInfo.text = "Wprowadź dane do analizy\n\nAby zobaczyć diagnozę:\n• Przejdź do zakładki 'Skanuj' i wgraj plik PDF z wynikami\n• Lub wybierz rekord z 'Historii' badań"
         binding.textPatientInfo.visibility = View.VISIBLE
 
         // Ukryj pozostałe pola - ustaw ich tekst na pusty i ukryj
@@ -214,20 +204,32 @@ class DiagnosisFragment : Fragment() {
         }
 
         // 3. Stosunek albumina/globuliny (A/G)
-        val albuminKey = findKeyContains("Albumin") ?: findKeyContains("Albumina")
-        val totalProteinKey = findKeyContains("Białko całkowite") ?: findKeyContains("Total Protein")
-        val globulinKey = findKeyContains("Globulin")
+        // Najpierw szukamy bezpośrednio obliczonego stosunku A/G w wynikach
+        val agRatioKey = findKeyContains("Stosunek")
+        var agRatio: Double? = null
 
-        var albuminVal = albuminKey?.let { toDoubleValue(extractedMap[it] as? String) }
-        var globulinsVal = globulinKey?.let { toDoubleValue(extractedMap[it] as? String) }
-
-        if (globulinsVal == null && totalProteinKey != null && albuminVal != null) {
-            val totalProtVal = toDoubleValue(extractedMap[totalProteinKey] as? String)
-            if (totalProtVal != null) globulinsVal = totalProtVal - albuminVal
+        // Sprawdź czy mamy bezpośrednio stosunek A/G
+        if (agRatioKey != null && agRatioKey.contains("albumin", ignoreCase = true)) {
+            agRatio = toDoubleValue(extractedMap[agRatioKey] as? String)
         }
 
-        val agRatio = if (albuminVal != null && globulinsVal != null && globulinsVal > 0)
-            albuminVal / globulinsVal else null
+        // Jeśli nie znaleziono bezpośredniego stosunku, oblicz go
+        if (agRatio == null) {
+            val albuminKey = findKeyContains("Albumin") ?: findKeyContains("Albumina")
+            val totalProteinKey = findKeyContains("Białko całkowite") ?: findKeyContains("Total Protein")
+            val globulinKey = findKeyContains("Globulin")
+
+            var albuminVal = albuminKey?.let { toDoubleValue(extractedMap[it] as? String) }
+            var globulinsVal = globulinKey?.let { toDoubleValue(extractedMap[it] as? String) }
+
+            if (globulinsVal == null && totalProteinKey != null && albuminVal != null) {
+                val totalProtVal = toDoubleValue(extractedMap[totalProteinKey] as? String)
+                if (totalProtVal != null) globulinsVal = totalProtVal - albuminVal
+            }
+
+            if (albuminVal != null && globulinsVal != null && globulinsVal > 0)
+                agRatio = albuminVal / globulinsVal
+        }
 
         breakdown.append("\n⚖️ Stosunek A/G: ")
         if (agRatio != null) {

@@ -42,16 +42,30 @@ object ElectrophoresisAnalyzer {
         var vetConsultationNeeded = false
 
         // Albumina i globuliny całkowite (dla A/G)
-        val albuminKey = findKeyContains("Albumin") ?: findKeyContains("Albumina")
-        val totalProteinKey = findKeyContains("Białko całkowite") ?: findKeyContains("Total Protein")
-        val globulinKey = findKeyContains("Globulin")
-        var albuminVal = albuminKey?.let { toDoubleValue(labData[it] as? String) }
-        var globulinsVal = globulinKey?.let { toDoubleValue(labData[it] as? String) }
-        if (globulinsVal == null && totalProteinKey != null && albuminVal != null) {
-            val totalProtVal = toDoubleValue(labData[totalProteinKey] as? String)
-            if (totalProtVal != null) globulinsVal = totalProtVal - albuminVal
+        // Najpierw szukamy bezpośrednio obliczonego stosunku A/G w wynikach
+        val agRatioKey = findKeyContains("Stosunek") ?: findKeyContains("A/G")
+        var agRatio: Double? = null
+
+        // Sprawdź czy mamy bezpośrednio stosunek A/G
+        if (agRatioKey != null && agRatioKey.contains("albumin", ignoreCase = true)) {
+            agRatio = toDoubleValue(labData[agRatioKey] as? String)
         }
-        val agRatio = if (albuminVal != null && globulinsVal != null && globulinsVal > 0) albuminVal / globulinsVal else null
+
+        // Jeśli nie znaleziono bezpośredniego stosunku, oblicz go
+        if (agRatio == null) {
+            val albuminKey = findKeyContains("Albumin") ?: findKeyContains("Albumina")
+            val totalProteinKey = findKeyContains("Białko całkowite") ?: findKeyContains("Total Protein")
+            val globulinKey = findKeyContains("Globulin")
+            var albuminVal = albuminKey?.let { toDoubleValue(labData[it] as? String) }
+            var globulinsVal = globulinKey?.let { toDoubleValue(labData[it] as? String) }
+            if (globulinsVal == null && totalProteinKey != null && albuminVal != null) {
+                val totalProtVal = toDoubleValue(labData[totalProteinKey] as? String)
+                if (totalProtVal != null) globulinsVal = totalProtVal - albuminVal
+            }
+            if (albuminVal != null && globulinsVal != null && globulinsVal > 0) {
+                agRatio = albuminVal / globulinsVal
+            }
+        }
 
         // Ocena A/G
         if (agRatio != null) {

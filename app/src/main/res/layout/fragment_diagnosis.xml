@@ -53,7 +53,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:padding="16dp"
-                    android:text="Ładowanie danych pacjenta..."
+                    android:text="Wgraj plik PDF w ekranie Skanuj lub wybierz pacjenta z historii..."
                     android:textSize="14sp"
                     android:fontFamily="monospace"
                     android:textColor="?android:attr/textColorPrimary" />
@@ -87,7 +87,7 @@
                         android:id="@+id/textDiagnosticComment"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Analiza ryzyka FIP..."
+                        android:text="Tu pojawi się analiza ryzyka FIP"
                         android:textSize="16sp"
                         android:layout_marginBottom="12dp"
                         android:textColor="?android:attr/textColorPrimary" />
@@ -96,7 +96,7 @@
                         android:id="@+id/textRiskBreakdown"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Szczegółowa analiza składowych..."
+                        android:text="W tym miejscu znajdzie się szczegółowa analiza składowych oceny"
                         android:textSize="14sp"
                         android:fontFamily="monospace"
                         android:background="?android:attr/colorBackground"

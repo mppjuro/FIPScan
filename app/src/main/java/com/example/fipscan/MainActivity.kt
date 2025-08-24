@@ -10,10 +10,12 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import androidx.activity.viewModels
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    val sharedViewModel: SharedResultViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Odczytaj preferencje trybu ciemnego przed wywołaniem super.onCreate()
