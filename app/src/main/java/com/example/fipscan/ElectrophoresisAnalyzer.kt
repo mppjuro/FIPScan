@@ -1,6 +1,7 @@
 package com.example.fipscan
 
 import java.util.regex.Pattern
+import android.util.Log
 
 /**
  * Analizator wyników badań pod kątem ryzyka FIP (Feline Infectious Peritonitis).
@@ -96,7 +97,7 @@ object ElectrophoresisAnalyzer {
                 totalScore += rivaltaPoints
                 breakdown.add("✅ Próba Rivalta pozytywna: <b>+$rivaltaPoints pkt</b> (umiarkowanie sugestywna)")
             }
-            "negatywna" -> breakdown.add("❌ Próba Rivalta negatywna: <b>+0 pkt</b>")
+            "negatywna / brak płynu" -> breakdown.add("❌ Próba Rivalta negatywna: <b>+0 pkt</b>")
             else -> {
                 // Za brak wykonania dodajemy połowę punktów jako "podejrzenie"
                 totalScore += rivaltaPoints / 2
@@ -219,20 +220,32 @@ object ElectrophoresisAnalyzer {
             }
         }
 
-        // 9. Gammapatia poliklonalna -> waga +
+        // 9. Gammapatia poliklonalna -> waga ++++
         val gammopathyPoints = pointsMap["++++"]!!
         maxScore += gammopathyPoints
         val gammopathyResult = labData["GammopathyResult"] as? String ?: "brak danych"
-        if (gammopathyResult.contains("poliklonalna")) {
-            totalScore += gammopathyPoints
-            breakdown.add("✅ Gammapatia poliklonalna (z wykresu): <b>+$gammopathyPoints pkt</b> (lekko sugestywna)")
-        } else {
-            breakdown.add("❌ Brak gammapatii poliklonalnej: <b>+0 pkt</b>")
+
+        Log.d("FIP_ANALYSIS", "Wynik gammapatii: $gammopathyResult")
+
+        when {
+            gammopathyResult.contains("poliklonalna", ignoreCase = true) -> {
+                totalScore += gammopathyPoints
+                breakdown.add("✅ Gammapatia poliklonalna: <b>+$gammopathyPoints pkt</b> (bardzo sugestywna dla FIP)")
+            }
+            gammopathyResult.contains("monoklonalna", ignoreCase = true) -> {
+                // Gammapatia monoklonalna jest mniej typowa dla FIP
+                totalScore += gammopathyPoints / 2
+                breakdown.add("⚠️ Gammapatia monoklonalna: <b>+${gammopathyPoints/2} pkt</b> (może występować przy FIP, ale mniej typowa)")
+            }
+            else -> {
+                breakdown.add("❌ Brak gammapatii: <b>+0 pkt</b>")
+            }
         }
 
 
-        // Finalne obliczenia
-        var riskPercentage = if (maxScore > 0) ((totalScore.coerceIn(0, maxScore) * 250) / maxScore) else 0
+        // Finalne obliczenia - wystarczy 2/3 objawów, żeby uznać FIP za pewny -
+        // - nigdy nie ma całkiem wszystkich objawów
+        var riskPercentage = if (maxScore > 0) ((totalScore.coerceIn(0, maxScore) * 150) / maxScore) else 0
         if (riskPercentage > 100) riskPercentage = 100;
 
         val fipRiskComment = when {
