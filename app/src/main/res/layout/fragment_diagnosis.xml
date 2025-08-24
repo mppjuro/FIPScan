@@ -1,113 +1,172 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:padding="16dp"
-    android:fitsSystemWindows="true">
+    tools:context=".ui.diagnosis.DiagnosisFragment">
 
-    <ScrollView
-        android:id="@+id/scrollViewDiagnosis"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:fillViewport="true"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
 
-        <LinearLayout
-            android:id="@+id/linearDiagnosis"
+        <!-- Informacje o pacjencie -->
+        <androidx.cardview.widget.CardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingBottom="32dp">
-
-            <TextView
-                android:id="@+id/textHeader"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:textSize="22sp"
-                android:padding="8dp"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:text="Diagnoza" />
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
 
             <TextView
                 android:id="@+id/textPatientInfo"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="16sp"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:paddingBottom="16dp"
-                android:visibility="gone" />
+                android:padding="16dp"
+                android:text="Ładowanie danych pacjenta..."
+                android:textSize="14sp"
+                android:fontFamily="monospace"
+                android:background="@color/cardview_light_background" />
 
-            <TextView
-                android:id="@+id/textDiagnosticComment"
+        </androidx.cardview.widget.CardView>
+
+        <!-- Ryzyko FIP -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textStyle="bold"
-                android:textSize="18sp"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:paddingBottom="16dp"
-                android:text="Komentarz diagnostyczny" />
+                android:orientation="vertical"
+                android:padding="16dp">
 
-            <TextView
-                android:id="@+id/textSupplements"
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="🎯 OCENA RYZYKA FIP"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/textDiagnosticComment"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Analiza ryzyka FIP..."
+                    android:textSize="16sp"
+                    android:layout_marginBottom="12dp" />
+
+                <TextView
+                    android:id="@+id/textRiskBreakdown"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Szczegółowa analiza składowych..."
+                    android:textSize="14sp"
+                    android:fontFamily="monospace"
+                    android:background="#f5f5f5"
+                    android:padding="12dp"
+                    android:visibility="visible" />
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- Zalecenia związane z ryzykiem FIP -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="18sp"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:paddingBottom="12dp"
-                android:text="Suplementy" />
+                android:orientation="vertical"
+                android:padding="16dp">
 
-            <TextView
-                android:id="@+id/textVetConsult"
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="📋 ZALECENIA (na podstawie ryzyka FIP)"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/textFurtherTests"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Dalsze badania..."
+                    android:textSize="14sp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/textRiskSupplements"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Suplementy..."
+                    android:textSize="14sp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/textRiskConsult"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Konsultacja..."
+                    android:textSize="14sp" />
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
+
+        <!-- Analiza wyników krwi -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textSize="18sp"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:paddingBottom="24dp"
-                android:text="Konsultacja weterynaryjna" />
+                android:orientation="vertical"
+                android:padding="16dp">
 
-            <TextView
-                android:id="@+id/textFurtherTests"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="18sp"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:paddingBottom="12dp"
-                android:text="Dalsze badania" />
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="🩸 ANALIZA WYNIKÓW KRWI"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="8dp" />
 
-            <TextView
-                android:id="@+id/textRiskSupplements"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="18sp"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:paddingBottom="12dp"
-                android:text="Suplementy na podstawie elektroforezy" />
+                <TextView
+                    android:id="@+id/textSupplements"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Suplementy..."
+                    android:textSize="14sp"
+                    android:layout_marginBottom="8dp" />
 
-            <TextView
-                android:id="@+id/textRiskConsult"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="18sp"
-                android:layout_marginStart="8dp"
-                android:layout_marginEnd="8dp"
-                android:paddingBottom="16dp"
-                android:text="Konsultacja specjalistyczna" />
+                <TextView
+                    android:id="@+id/textVetConsult"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Konsultacja..."
+                    android:textSize="14sp" />
 
+            </LinearLayout>
 
-        </LinearLayout>
-    </ScrollView>
+        </androidx.cardview.widget.CardView>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    </LinearLayout>
+
+</ScrollView>
