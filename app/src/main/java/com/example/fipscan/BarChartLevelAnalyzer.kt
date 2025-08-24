@@ -89,6 +89,7 @@ object BarChartLevelAnalyzer {
         val ratioThreshold = sum1 * 9f / 7f
 
         if (sum4 <= ratioThreshold) {
+            Log.d("GAMMOPATHY_ANALYSIS", "Suma gamma ($sum4) <= próg ($ratioThreshold) - brak gammapatii")
             return "brak gammapatii"
         }
 
@@ -102,6 +103,7 @@ object BarChartLevelAnalyzer {
             val rightDiff = if (right > 0f) current / right else Float.MAX_VALUE
 
             if (leftDiff > 2f && rightDiff > 2f) {
+                Log.d("GAMMOPATHY_ANALYSIS", "Wykryto ostry pik - gammapatia monoklonalna")
                 return "gammapatia monoklonalna"
             }
 
@@ -115,12 +117,14 @@ object BarChartLevelAnalyzer {
                 val peakAvg = (current + next) / 2f
 
                 if (avgSurrounding > 0f && peakAvg > avgSurrounding * 2f) {
+                    Log.d("GAMMOPATHY_ANALYSIS", "Wykryto lokalny pik - gammapatia monoklonalna")
                     return "gammapatia monoklonalna"
                 }
             }
         }
 
         // Jeśli nie ma ostrych pików, ale jest szerokie podniesienie – poliklonalna
+        Log.d("GAMMOPATHY_ANALYSIS", "Szerokie podniesienie bez ostrych pików - gammapatia poliklonalna")
         return "gammapatia poliklonalna"
     }
 

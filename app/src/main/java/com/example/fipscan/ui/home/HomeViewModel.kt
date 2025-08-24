@@ -18,5 +18,5 @@ class HomeViewModel : ViewModel() {
     var results: String? = null
     var rawDataJson: String? = null
     var pdfFile: File? = null
-    var currentRivaltaStatus: String = "nie wykonano"
+    var currentRivaltaStatus: String = "nie wykonano, płyn obecny"
 }

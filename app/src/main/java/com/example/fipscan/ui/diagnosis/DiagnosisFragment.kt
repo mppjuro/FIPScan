@@ -110,7 +110,7 @@ class DiagnosisFragment : Fragment() {
 
             // --- Analizy ---
             val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
-            val rivaltaStatus = res.rivaltaStatus ?: "nie wykonano"
+            val rivaltaStatus = res.rivaltaStatus ?: "nie wykonano, płyn obecny"
             val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap, rivaltaStatus)
 
             // --- Aktualizacja UI ---

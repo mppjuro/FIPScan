@@ -53,7 +53,7 @@ class HomeFragment : Fragment() {
         // Initialize the binding object first
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
 
-        val rivaltaOptions = arrayOf("nie wykonano", "negatywna", "pozytywna")
+        val rivaltaOptions = arrayOf("nie wykonano, płyn obecny", "negatywna / brak płynu", "pozytywna")
         val adapter = ArrayAdapter(
             requireContext(),
             android.R.layout.simple_spinner_item,
@@ -68,14 +68,12 @@ class HomeFragment : Fragment() {
 
         pdfChartExtractor = PdfChartExtractor(requireContext())
 
+        // Domyślnie ukryj kontrolki Rivalta (będą pokazane gdy są dane)
         binding.rivaltaLabel.visibility = View.GONE
         binding.rivaltaSpinner.visibility = View.GONE
+        binding.riskSaveContainer.visibility = View.GONE
 
-        binding.riskSaveContainer.visibility =
-            if (viewModel.pdfFile != null || viewModel.pdfFilePath != null) View.VISIBLE
-            else View.GONE
-
-        // Listener dla spinnera Rivalta
+        // Listener dla spinnera Rivalta - ustaw PRZED przywracaniem stanu
         binding.rivaltaSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 val newStatus = parent?.getItemAtPosition(position).toString()
@@ -91,20 +89,30 @@ class HomeFragment : Fragment() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
+        // Sprawdź argumenty z nawigacji
+        var dataRestored = false
         arguments?.let {
             val args = HomeFragmentArgs.fromBundle(it)
             args.result?.let { result ->
                 viewModel.apply {
                     patientName = result.patientName
                     rawDataJson = result.rawDataJson
-                    currentRivaltaStatus = result.rivaltaStatus ?: "nie wykonano"
+                    currentRivaltaStatus = result.rivaltaStatus ?: "nie wykonano, płyn obecny"
                 }
 
                 sharedViewModel.setSelectedResult(result)
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     displayExistingResult(result)
+                    dataRestored = true
                 }
+            }
+        }
+
+        // Jeśli nie przywrócono danych z argumentów, sprawdź SharedViewModel
+        if (!dataRestored) {
+            sharedViewModel.selectedResult.value?.let { result ->
+                restoreUIFromResult(result)
             }
         }
 
@@ -186,10 +194,18 @@ class HomeFragment : Fragment() {
                             finalChartFileToSave = File(chartToDisplayAndSavePath)
 
                             extractionResult.barSections?.let { sections ->
-                                viewModel.diagnosisText = BarChartLevelAnalyzer.analyzeGammapathy(sections.section1, sections.section4)
-                            } ?: run { viewModel.diagnosisText = "Brak danych z sekcji wykresu" }
+                                viewModel.diagnosisText = BarChartLevelAnalyzer.analyzeGammapathy(
+                                    sections.section1,
+                                    sections.section4
+                                )
+                                Log.d("GAMMOPATHY", "Wynik analizy gammapatii: ${viewModel.diagnosisText}")
+                            } ?: run {
+                                viewModel.diagnosisText = "brak gammapatii"
+                                Log.d("GAMMOPATHY", "Brak danych z sekcji wykresu")
+                            }
                         } else {
-                            viewModel.diagnosisText = "Brak wykresu"
+                            viewModel.diagnosisText = "brak gammapatii"
+                            Log.d("GAMMOPATHY", "Brak wykresu")
                         }
 
                         if (finalChartFileToSave?.exists() == true) {
@@ -249,7 +265,10 @@ class HomeFragment : Fragment() {
     private fun analyzeCSVFile(csvFile: File, chartImagePath: String?, pdfFile: File?) {
         val rivaltaStatus = viewModel.currentRivaltaStatus
         val csvLines = csvFile.readLines()
-        val extractedData = ExtractData.parseLabResults(csvLines)
+        val extractedData = ExtractData.parseLabResults(csvLines).toMutableMap() // Zmiana na mutableMap
+
+        // Dodaj wynik gammapatii do extractedData PRZED analizą FIP
+        extractedData["GammopathyResult"] = viewModel.diagnosisText ?: "brak danych"
 
         // Analiza wyników elektroforezy z uwzględnieniem próby Rivalta
         val electroResult = ElectrophoresisAnalyzer.assessFipRisk(
@@ -267,7 +286,7 @@ class HomeFragment : Fragment() {
         viewModel.rawDataJson = Gson().toJson(extractedData)
 
         val abnormalResults = mutableListOf<String>()
-        val metadataKeys = setOf("Data", "Właściciel", "Pacjent", "Gatunek", "Rasa", "Płeć", "Wiek", "Lecznica", "Lekarz", "Rodzaj próbki", "Umaszczenie", "Mikrochip", "results")
+        val metadataKeys = setOf("Data", "Właściciel", "Pacjent", "Gatunek", "Rasa", "Płeć", "Wiek", "Lecznica", "Lekarz", "Rodzaj próbki", "Umaszczenie", "Mikrochip", "results", "GammopathyResult")
 
         for (key in extractedData.keys) {
             if (key.endsWith("Unit") || key.endsWith("RangeMin") || key.endsWith("RangeMax") || key.endsWith("Flag") || key in metadataKeys) {
@@ -665,7 +684,7 @@ class HomeFragment : Fragment() {
             viewModel.patientBreed = result.breed
             viewModel.patientGender = result.gender
             viewModel.patientCoat = result.coat
-            viewModel.currentRivaltaStatus = result.rivaltaStatus ?: "nie wykonano"
+            viewModel.currentRivaltaStatus = result.rivaltaStatus ?: "nie wykonano, płyn obecny"
             viewModel.diagnosisText = result.diagnosis ?: ""
             viewModel.chartImagePath = result.imagePath
             viewModel.pdfFilePath = result.pdfFilePath
@@ -691,7 +710,7 @@ class HomeFragment : Fragment() {
             }
 
             // Ustaw spinner
-            val rivaltaOptions = listOf("nie wykonano", "negatywna", "pozytywna")
+            val rivaltaOptions = listOf("nie wykonano, płyn obecny", "negatywna / brak płynu", "pozytywna")
             val position = rivaltaOptions.indexOf(viewModel.currentRivaltaStatus)
             if (position >= 0) {
                 binding.rivaltaSpinner.setSelection(position)
@@ -722,13 +741,97 @@ class HomeFragment : Fragment() {
     private fun recalculateRiskAndUpdateUI() {
         val rawDataJson = viewModel.rawDataJson
         if (rawDataJson != null) {
-            val extractedData = Gson().fromJson(rawDataJson, Map::class.java) as? Map<String, Any>
+            val extractedData = Gson().fromJson(rawDataJson, Map::class.java) as? MutableMap<String, Any>
             if (extractedData != null) {
+                extractedData["GammopathyResult"] = viewModel.diagnosisText ?: "brak danych"
+
                 val electroResult = ElectrophoresisAnalyzer.assessFipRisk(
                     extractedData,
                     viewModel.currentRivaltaStatus
                 )
                 updateRiskIndicator(electroResult.riskPercentage)
+
+                viewModel.rawDataJson = Gson().toJson(extractedData)
+            }
+        }
+    }
+
+    private fun restoreUIFromResult(result: ResultEntity) {
+        // Przywróć dane do ViewModelu
+        viewModel.apply {
+            patientName = result.patientName
+            patientAge = result.age
+            collectionDate = result.collectionDate
+            patientSpecies = result.species
+            patientBreed = result.breed
+            patientGender = result.gender
+            patientCoat = result.coat
+            currentRivaltaStatus = result.rivaltaStatus ?: "nie wykonano, płyn obecny"
+            diagnosisText = result.diagnosis
+            chartImagePath = result.imagePath
+            pdfFilePath = result.pdfFilePath
+            rawDataJson = result.rawDataJson
+            results = result.testResults
+
+            // Przywróć plik PDF jeśli istnieje
+            pdfFilePath?.let { path ->
+                pdfFile = File(path)
+            }
+        }
+
+        // Przywróć UI
+        val patientInfo = """
+        📆 Data: ${viewModel.collectionDate}
+        🐱 Pacjent: ${viewModel.patientName}
+        🐾 Gatunek: ${viewModel.patientSpecies ?: "nie podano"}
+        🏷️ Rasa: ${viewModel.patientBreed ?: "nie podano"}
+        ⚥ Płeć: ${viewModel.patientGender ?: "nie podano"}
+        📅 Wiek: ${viewModel.patientAge}
+        🎨 Umaszczenie: ${viewModel.patientCoat ?: "nie podano"}
+    """.trimIndent()
+
+        val resultsText = if (!viewModel.results.isNullOrEmpty()) {
+            "\n\n📊 Wyniki poza normą:\nBadanie: wynik (norma) jednostka\n${viewModel.results}\n\n"
+        } else {
+            "\n\n✅ Wszystkie wyniki w normie"
+        }
+
+        binding.resultsTextView.text = patientInfo + resultsText
+        binding.textHome.text = "Wyniki: ${viewModel.patientName}"
+
+        // Pokaż kontrolki - WAŻNE: najpierw pokaż, potem ustaw wartości
+        binding.rivaltaLabel.visibility = View.VISIBLE
+        binding.rivaltaSpinner.visibility = View.VISIBLE
+        binding.rivaltaContainer.visibility = View.VISIBLE
+        binding.riskIndicator.visibility = View.VISIBLE
+        binding.riskSaveContainer.visibility = View.VISIBLE
+
+        // Ustaw spinner Rivalta PO pokazaniu go
+        binding.rivaltaSpinner.post {
+            val rivaltaOptions = listOf("nie wykonano, płyn obecny", "negatywna / brak płynu", "pozytywna")
+            val position = rivaltaOptions.indexOf(viewModel.currentRivaltaStatus)
+            if (position >= 0) {
+                binding.rivaltaSpinner.setSelection(position)
+            }
+        }
+
+        binding.buttonSaveOriginal.visibility =
+            if (viewModel.pdfFile != null || viewModel.pdfFilePath != null) View.VISIBLE else View.GONE
+
+        // Wyświetl wykres
+        viewModel.chartImagePath?.let {
+            displayImage(it)
+        }
+
+        // Przelicz i wyświetl ryzyko
+        recalculateRiskAndUpdateUI()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (binding.resultsTextView.text.isNullOrEmpty() && sharedViewModel.selectedResult.value != null) {
+            sharedViewModel.selectedResult.value?.let { result ->
+                restoreUIFromResult(result)
             }
         }
     }
