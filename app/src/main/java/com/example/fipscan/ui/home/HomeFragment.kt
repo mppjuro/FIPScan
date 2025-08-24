@@ -35,8 +35,12 @@ import java.text.SimpleDateFormat
 import java.util.*
 import android.widget.AdapterView
 import kotlin.math.min
+import androidx.fragment.app.viewModels
+import androidx.fragment.app.activityViewModels
+import kotlinx.coroutines.withContext
 
 class HomeFragment : Fragment() {
+    private val sharedViewModel: SharedResultViewModel by activityViewModels()
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private var pdfUri: Uri? = null
@@ -76,23 +80,27 @@ class HomeFragment : Fragment() {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 val newStatus = parent?.getItemAtPosition(position).toString()
                 viewModel.currentRivaltaStatus = newStatus
-                //updateRiskIndicator()
                 recalculateRiskAndUpdateUI()
                 saveCurrentResult()
-            }
 
+                sharedViewModel.selectedResult.value?.let { currentResult ->
+                    val updatedResult = currentResult.copy(rivaltaStatus = newStatus)
+                    sharedViewModel.setSelectedResult(updatedResult)
+                }
+            }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
         arguments?.let {
             val args = HomeFragmentArgs.fromBundle(it)
             args.result?.let { result ->
-                // Inicjalizuj ViewModel danymi z historii
                 viewModel.apply {
                     patientName = result.patientName
                     rawDataJson = result.rawDataJson
                     currentRivaltaStatus = result.rivaltaStatus ?: "nie wykonano"
                 }
+
+                sharedViewModel.setSelectedResult(result)
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     displayExistingResult(result)
@@ -325,12 +333,29 @@ class HomeFragment : Fragment() {
             binding.riskIndicator.visibility = View.VISIBLE
             binding.rivaltaContainer.visibility = View.VISIBLE
             recalculateRiskAndUpdateUI()
+
+            // Utwórz tymczasowy ResultEntity i ustaw go w SharedViewModel
+            val tempResult = ResultEntity(
+                patientName = viewModel.patientName ?: "Nieznany",
+                age = viewModel.patientAge ?: "Nieznany",
+                testResults = abnormalResults.joinToString("\n"),
+                pdfFilePath = pdfFile?.absolutePath,
+                imagePath = chartImagePath,
+                collectionDate = viewModel.collectionDate,
+                rawDataJson = viewModel.rawDataJson,
+                diagnosis = viewModel.diagnosisText,
+                rivaltaStatus = viewModel.currentRivaltaStatus,
+                species = viewModel.patientSpecies,
+                breed = viewModel.patientBreed,
+                gender = viewModel.patientGender,
+                coat = viewModel.patientCoat
+            )
+            sharedViewModel.setSelectedResult(tempResult)
         }
 
         displayImage(chartImagePath)
         saveCurrentResult()
     }
-
 
     private fun extractTablesFromPDF(pdfDocument: PDDocument): Pair<List<List<String>>, String?> {
         val outputData = mutableListOf<List<String>>()
@@ -531,6 +556,10 @@ class HomeFragment : Fragment() {
 
                 db.resultDao().deleteDuplicates(patient, age)
                 db.resultDao().insertResult(result)
+
+                withContext(Dispatchers.Main) {
+                    sharedViewModel.setSelectedResult(result)
+                }
             } catch (e: Exception) {
                 Log.e("SaveEntity", "Błąd zapisu do bazy danych", e)
                 activity?.runOnUiThread {

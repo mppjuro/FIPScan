@@ -52,21 +52,35 @@ object LabResultAnalyzer {
         var specialistType: String? = null  // np. "hepatologiem" gdy wskazana konsultacja u hepatologa
 
         // 1. Stosunek albumina/globuliny (A/G)
-        var albuminVal: Double? = null
-        var globulinsVal: Double? = null
+        // Najpierw szukamy bezpośrednio obliczonego stosunku A/G w wynikach
+        val agRatioKey = findKeyContains("Stosunek") // np. "Stosunek: albuminy / globuliny"
         var agRatio: Double? = null
-        val albuminKey = findKeyContains("Albumin") ?: findKeyContains("Albumina")
-        val totalProteinKey = findKeyContains("Białko całkowite") ?: findKeyContains("Total Protein")
-        val globulinKey = findKeyContains("Globulin")  // np. "Globuliny" całkowite
-        if (albuminKey != null) albuminVal = toDoubleValue(labData[albuminKey] as? String)
-        if (globulinKey != null) {
-            globulinsVal = toDoubleValue(labData[globulinKey] as? String)
-        } else if (totalProteinKey != null && albuminVal != null) {
-            val totalProtVal = toDoubleValue(labData[totalProteinKey] as? String)
-            if (totalProtVal != null) globulinsVal = totalProtVal - albuminVal
+
+        // Sprawdź czy mamy bezpośrednio stosunek A/G
+        if (agRatioKey != null && agRatioKey.contains("albumin", ignoreCase = true)) {
+            agRatio = toDoubleValue(labData[agRatioKey] as? String)
         }
-        if (albuminVal != null && globulinsVal != null && globulinsVal > 0) {
-            agRatio = albuminVal / globulinsVal
+
+        // Jeśli nie znaleziono bezpośredniego stosunku, oblicz go
+        if (agRatio == null) {
+            var albuminVal: Double? = null
+            var globulinsVal: Double? = null
+            val albuminKey = findKeyContains("Albumin") ?: findKeyContains("Albumina")
+            val totalProteinKey = findKeyContains("Białko całkowite") ?: findKeyContains("Total Protein")
+            val globulinKey = findKeyContains("Globulin")
+            if (albuminKey != null) albuminVal = toDoubleValue(labData[albuminKey] as? String)
+            if (globulinKey != null) {
+                globulinsVal = toDoubleValue(labData[globulinKey] as? String)
+            } else if (totalProteinKey != null && albuminVal != null) {
+                val totalProtVal = toDoubleValue(labData[totalProteinKey] as? String)
+                if (totalProtVal != null) globulinsVal = totalProtVal - albuminVal
+            }
+            if (albuminVal != null && globulinsVal != null && globulinsVal > 0) {
+                agRatio = albuminVal / globulinsVal
+            }
+        }
+
+        if (agRatio != null) {
             if (agRatio < 0.6) {
                 diagnosticComments.add("Niski stosunek albumina/globuliny (A/G = ${"%.2f".format(agRatio)}) – wynik silnie podejrzany w kierunku FIP.")
             } else if (agRatio < 0.8) {

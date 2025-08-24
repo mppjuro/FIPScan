@@ -15,8 +15,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.example.fipscan.ExtractData
 import com.google.gson.Gson
+import androidx.fragment.app.activityViewModels
+import com.example.fipscan.SharedResultViewModel
 
 class HistoryFragment : Fragment() {
+    private val sharedViewModel: SharedResultViewModel by activityViewModels()
     private var _binding: FragmentHistoryBinding? = null
     private val binding get() = _binding!!
 
