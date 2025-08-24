@@ -54,12 +54,12 @@ class DiagnosisFragment : Fragment() {
                 val latestResult = latestResults.maxByOrNull { it.timestamp }
 
                 withContext(Dispatchers.Main) {
-                    if (latestResult != null) {
+                    if (latestResult != null && !latestResult.patientName.equals("Nieznany", ignoreCase = true)) {
                         result = latestResult
                         Log.d("DiagnosisFragment", "Załadowano najnowszy wynik: ${latestResult.patientName}")
                         setupUI()
                     } else {
-                        Log.d("DiagnosisFragment", "Brak wyników w bazie danych")
+                        Log.d("DiagnosisFragment", "Brak prawidłowych wyników w bazie danych")
                         showNoDataMessage()
                     }
                 }
@@ -73,24 +73,39 @@ class DiagnosisFragment : Fragment() {
     }
 
     private fun showNoDataMessage() {
-        binding.textPatientInfo.text = "Brak danych pacjenta do analizy"
+        binding.textDiagnosis.text = "Diagnoza"
+        binding.textPatientInfo.text = "Brak danych pacjenta do analizy.\n\nAby zobaczyć diagnozę:\n1. Przejdź do zakładki 'Skanuj' i wgraj plik PDF z wynikami\n2. Lub wybierz rekord z 'Historii' badań"
         binding.textPatientInfo.visibility = View.VISIBLE
 
-        // Ukryj pozostałe pola
-        listOf(
-            binding.textDiagnosticComment,
-            binding.textSupplements,
-            binding.textVetConsult,
-            binding.textFurtherTests,
-            binding.textRiskSupplements,
-            binding.textRiskConsult,
-            binding.textRiskBreakdown
-        ).forEach { it.visibility = View.GONE }
+        // Ukryj pozostałe pola - ustaw ich tekst na pusty i ukryj
+        binding.textDiagnosticComment.text = ""
+        binding.textDiagnosticComment.visibility = View.GONE
+
+        binding.textSupplements.text = ""
+        binding.textSupplements.visibility = View.GONE
+
+        binding.textVetConsult.text = ""
+        binding.textVetConsult.visibility = View.GONE
+
+        binding.textFurtherTests.text = ""
+        binding.textFurtherTests.visibility = View.GONE
+
+        binding.textRiskSupplements.text = ""
+        binding.textRiskSupplements.visibility = View.GONE
+
+        binding.textRiskConsult.text = ""
+        binding.textRiskConsult.visibility = View.GONE
+
+        binding.textRiskBreakdown.text = ""
+        binding.textRiskBreakdown.visibility = View.GONE
     }
 
     private fun setupUI() {
         result?.let { res ->
             Log.d("DiagnosisFragment", "Konfigurowanie UI dla: ${res.patientName}")
+
+            // Ustaw tytuł ekranu z nazwą pacjenta
+            binding.textDiagnosis.text = "Diagnoza: ${res.patientName}"
 
             // Wyświetl informacje o pacjencie
             val patientInfo = """
