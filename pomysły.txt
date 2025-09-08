@@ -1,0 +1,10 @@
+Generator Raportów Diagnostycznych -  w pdf
+
+Analiza Wzorców Hematologicznych - Identyfikacja charakterystycznych wzorców morfologii typowych dla FIP (neutrofilia + limfopenia). Stworzyć dedykowany moduł analizujący stosunek neutrofili do limfocytów oraz identyfikujący "stress leukogram" charakterystyczny dla FIP.
+
+języki - angielski i polski
+
+
+kalkulator dawki
+
+kontakt - pięcioklik na ustawienia
