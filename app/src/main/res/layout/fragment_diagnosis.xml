@@ -17,11 +17,49 @@
         android:textSize="24sp"
         android:textStyle="bold"
         android:gravity="center"
-        android:layout_marginBottom="16dp"
+        android:layout_marginBottom="8dp"
         android:textColor="?android:attr/textColorPrimary"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Kontener na przyciski raportu -->
+    <LinearLayout
+        android:id="@+id/reportButtonsContainer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/textDiagnosis"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <Button
+            android:id="@+id/buttonDownloadReport"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:text="📥 POBIERZ RAPORT"
+            android:textSize="12sp"
+            android:textColor="@color/white"
+            android:backgroundTint="@color/teal_700"
+            android:minHeight="48dp"/>
+
+        <Button
+            android:id="@+id/buttonPrintReport"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="🖨️ DRUKUJ RAPORT"
+            android:textSize="12sp"
+            android:textColor="@color/white"
+            android:backgroundTint="@color/teal_700"
+            android:minHeight="48dp"/>
+
+    </LinearLayout>
 
     <ScrollView
         android:id="@+id/scrollView"
@@ -29,7 +67,7 @@
         android:layout_height="0dp"
         android:fillViewport="true"
         android:scrollbars="vertical"
-        app:layout_constraintTop_toBottomOf="@id/textDiagnosis"
+        app:layout_constraintTop_toBottomOf="@id/reportButtonsContainer"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
