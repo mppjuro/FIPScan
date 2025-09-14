@@ -13,6 +13,7 @@ import android.text.TextPaint
 import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
+import java.io.FileInputStream
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -47,7 +48,7 @@ class PdfReportGenerator(private val context: Context) {
         furtherTestsAdvice: String,
         abnormalResults: List<String>,
         gammopathyResult: String?
-    ): String? {
+    ): Pair<String?, String?> {
 
         val pdfDocument = PdfDocument()
         var currentPage: PdfDocument.Page? = null
@@ -136,7 +137,7 @@ class PdfReportGenerator(private val context: Context) {
         } catch (e: Exception) {
             Log.e("PdfReportGenerator", "Błąd generowania PDF", e)
             currentPage?.let { pdfDocument.finishPage(it) }
-            return null
+            return Pair(null, null)
         } finally {
             pdfDocument.close()
         }
@@ -174,14 +175,20 @@ class PdfReportGenerator(private val context: Context) {
         val subtitleWidth = subtitlePaint.measureText(subtitle)
         canvas.drawText(subtitle, (pageWidth - subtitleWidth) / 2, 70f, subtitlePaint)
 
-        // Data generowania
+        // Data generowania z GMT+2
         val datePaint = TextPaint().apply {
             color = Color.WHITE
             textSize = 10f
             isAntiAlias = true
         }
-        val date = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault()).format(Date())
-        canvas.drawText("Wygenerowano: $date", margin, 90f, datePaint)
+
+        // Dodaj 2 godziny do aktualnego czasu
+        val calendar = Calendar.getInstance()
+        calendar.add(Calendar.HOUR_OF_DAY, 2)
+        val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+        val date = dateFormat.format(calendar.time)
+
+        canvas.drawText("Wygenerowano: $date (GMT+2)", margin, 90f, datePaint)
     }
 
     private fun drawPatientInfo(
@@ -560,8 +567,18 @@ class PdfReportGenerator(private val context: Context) {
         )
     }
 
-    private fun savePdfToDownloads(pdfDocument: PdfDocument, fileName: String): String? {
+    fun savePdfToDownloads(pdfDocument: PdfDocument, fileName: String): Pair<String?, String?> {
         return try {
+            // Najpierw zapisz lokalnie dla FTP
+            val localDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
+            localDir?.mkdirs()
+            val localFile = File(localDir, "$fileName.pdf")
+
+            FileOutputStream(localFile).use { output ->
+                pdfDocument.writeTo(output)
+            }
+
+            // Teraz zapisz do Downloads dla użytkownika
             val resolver = context.contentResolver
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, "$fileName.pdf")
@@ -574,14 +591,17 @@ class PdfReportGenerator(private val context: Context) {
             val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
                 ?: throw Exception("Nie można utworzyć pliku w MediaStore")
 
-            resolver.openOutputStream(uri)?.use { output ->
-                pdfDocument.writeTo(output)
+            // Zapisz ponownie do Downloads
+            FileInputStream(localFile).use { input ->
+                resolver.openOutputStream(uri)?.use { output ->
+                    input.copyTo(output)
+                }
             }
 
-            "$fileName.pdf"
+            Pair("$fileName.pdf", localFile.absolutePath)
         } catch (e: Exception) {
             Log.e("PdfReportGenerator", "Błąd zapisu PDF", e)
-            null
+            Pair(null, null)
         }
     }
 }
