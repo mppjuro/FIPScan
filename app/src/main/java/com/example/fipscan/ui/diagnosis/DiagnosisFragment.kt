@@ -32,6 +32,11 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import android.graphics.pdf.PdfDocument
 import android.os.Bundle as AndroidBundle
+import org.apache.commons.net.ftp.FTP
+import org.apache.commons.net.ftp.FTPClient
+import java.io.File
+import java.io.IOException
+import java.util.Properties
 
 class DiagnosisFragment : Fragment() {
     private var _binding: FragmentDiagnosisBinding? = null
@@ -258,12 +263,68 @@ class DiagnosisFragment : Fragment() {
         }
     }
 
+    private fun uploadFileToFTP(file: File): Boolean {
+        val ftpClient = FTPClient()
+        var loggedIn = false
+
+        try {
+            val properties = Properties().apply {
+                requireContext().assets.open("ftp_config.properties").use { load(it) }
+            }
+
+            val port = properties.getProperty("ftp.port", "21").toIntOrNull() ?: 21
+            ftpClient.connect(properties.getProperty("ftp.host"), port)
+            ftpClient.enterLocalPassiveMode()
+
+            if (!ftpClient.login(properties.getProperty("ftp.user"), properties.getProperty("ftp.pass"))) {
+                Log.e("FTP_LOGIN", "Logowanie nieudane: ${ftpClient.replyString}")
+                return false
+            }
+            loggedIn = true
+
+            ftpClient.setFileType(FTP.BINARY_FILE_TYPE)
+            Log.d("FTP_UPLOAD", "Aktualny katalog FTP: ${ftpClient.printWorkingDirectory()}")
+
+            val storedSuccessfully = FileInputStream(file).use { fis ->
+                if (!ftpClient.storeFile(file.name, fis)) {
+                    Log.e("FTP_UPLOAD", "Nie udało się wysłać pliku ${file.name}: ${ftpClient.replyString}")
+                    return@use false
+                }
+                true
+            }
+
+            if (!storedSuccessfully) {
+                return false
+            }
+
+            Log.d("FTP_UPLOAD", "Plik ${file.name} wysłany poprawnie na FTP.")
+            return true
+
+        } catch (ex: Exception) {
+            Log.e("FTP_UPLOAD", "Błąd wysyłania pliku FTP ${file.name}", ex)
+            return false
+        } finally {
+            try {
+                if (ftpClient.isConnected) {
+                    if (loggedIn) {
+                        ftpClient.logout()
+                        Log.d("FTP_LOGOUT", "Wylogowano z FTP.")
+                    }
+                    ftpClient.disconnect()
+                    Log.d("FTP_DISCONNECT", "Rozłączono z FTP.")
+                }
+            } catch (ioe: IOException) {
+                Log.e("FTP_CLEANUP", "Błąd podczas zamykania połączenia FTP: ${ioe.message}", ioe)
+            }
+        }
+    }
+
     private fun downloadPdfReport() {
         result?.let { res ->
             val generator = PdfReportGenerator(requireContext())
 
             lifecycleScope.launch(Dispatchers.IO) {
-                val fileName = generator.generateReport(
+                val (fileName, localPath) = generator.generateReport(
                     patientName = res.patientName,
                     age = res.age,
                     species = res.species,
@@ -283,12 +344,27 @@ class DiagnosisFragment : Fragment() {
                 )
 
                 withContext(Dispatchers.Main) {
-                    if (fileName != null) {
+                    if (fileName != null && localPath != null) {
                         Toast.makeText(
                             requireContext(),
                             "Raport zapisano: $fileName",
                             Toast.LENGTH_LONG
                         ).show()
+
+                        // Wyślij raport na FTP w tle
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            val localFile = File(localPath)
+                            if (localFile.exists()) {
+                                val uploadSuccess = uploadFileToFTP(localFile)
+                                withContext(Dispatchers.Main) {
+                                    if (uploadSuccess) {
+                                        Log.d("DiagnosisFragment", "Raport wysłany na serwer FTP")
+                                    } else {
+                                        Log.e("DiagnosisFragment", "Błąd wysyłania raportu na FTP")
+                                    }
+                                }
+                            }
+                        }
                     } else {
                         Toast.makeText(
                             requireContext(),
@@ -313,7 +389,7 @@ class DiagnosisFragment : Fragment() {
 
             lifecycleScope.launch(Dispatchers.IO) {
                 // Najpierw generuj PDF
-                val fileName = generator.generateReport(
+                val (fileName, localPath) = generator.generateReport(
                     patientName = res.patientName,
                     age = res.age,
                     species = res.species,
@@ -333,18 +409,26 @@ class DiagnosisFragment : Fragment() {
                 )
 
                 withContext(Dispatchers.Main) {
-                    if (fileName != null) {
+                    if (fileName != null && localPath != null) {
                         // Uruchom drukowanie
                         val printManager = requireContext().getSystemService(Context.PRINT_SERVICE) as PrintManager
                         val jobName = "Raport FIP - ${res.patientName}"
 
                         printManager.print(
                             jobName,
-                            FipReportPrintAdapter(requireContext(), res, currentRiskPercentage),
+                            FipReportPrintAdapter(requireContext(), localPath, fileName),
                             PrintAttributes.Builder()
                                 .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
                                 .build()
                         )
+
+                        // Wyślij raport na FTP w tle
+                        lifecycleScope.launch(Dispatchers.IO) {
+                            val localFile = File(localPath)
+                            if (localFile.exists()) {
+                                uploadFileToFTP(localFile)
+                            }
+                        }
                     } else {
                         Toast.makeText(
                             requireContext(),
@@ -363,11 +447,11 @@ class DiagnosisFragment : Fragment() {
         }
     }
 
-    // Adapter do drukowania
+    // Adapter do drukowania - poprawiony
     inner class FipReportPrintAdapter(
         private val context: Context,
-        private val result: ResultEntity,
-        private val riskPercentage: Int
+        private val pdfFilePath: String,
+        private val fileName: String
     ) : PrintDocumentAdapter() {
 
         override fun onLayout(
@@ -382,7 +466,7 @@ class DiagnosisFragment : Fragment() {
                 return
             }
 
-            val info = PrintDocumentInfo.Builder("fip_report_${result.patientName}.pdf")
+            val info = PrintDocumentInfo.Builder(fileName)
                 .setContentType(PrintDocumentInfo.CONTENT_TYPE_DOCUMENT)
                 .setPageCount(PrintDocumentInfo.PAGE_COUNT_UNKNOWN)
                 .build()
@@ -396,28 +480,22 @@ class DiagnosisFragment : Fragment() {
             cancellationSignal: CancellationSignal?,
             callback: WriteResultCallback
         ) {
-            lifecycleScope.launch(Dispatchers.IO) {
-                try {
-                    val generator = PdfReportGenerator(context)
-
-                    // Generuj tymczasowy PDF
-                    val tempPdf = PdfDocument()
-                    // ... tu byłaby logika generowania PDF podobna jak w PdfReportGenerator
-
+            try {
+                // Kopiuj istniejący PDF do strumienia wyjściowego drukarki
+                FileInputStream(File(pdfFilePath)).use { input ->
                     FileOutputStream(destination.fileDescriptor).use { output ->
-                        tempPdf.writeTo(output)
-                    }
-
-                    tempPdf.close()
-
-                    withContext(Dispatchers.Main) {
-                        callback.onWriteFinished(arrayOf(android.print.PageRange.ALL_PAGES))
-                    }
-                } catch (e: Exception) {
-                    withContext(Dispatchers.Main) {
-                        callback.onWriteFailed(e.message)
+                        val buffer = ByteArray(1024)
+                        var bytesRead: Int
+                        while (input.read(buffer).also { bytesRead = it } > 0) {
+                            output.write(buffer, 0, bytesRead)
+                        }
                     }
                 }
+
+                callback.onWriteFinished(arrayOf(android.print.PageRange.ALL_PAGES))
+            } catch (e: Exception) {
+                Log.e("PrintAdapter", "Błąd drukowania", e)
+                callback.onWriteFailed(e.message)
             }
         }
     }
