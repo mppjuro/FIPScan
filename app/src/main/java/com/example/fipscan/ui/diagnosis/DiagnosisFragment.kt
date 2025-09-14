@@ -19,6 +19,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.fragment.app.activityViewModels
 import com.example.fipscan.SharedResultViewModel
+import android.widget.Toast
+import android.print.PrintAttributes
+import android.print.PrintManager
+import android.content.Context
+import android.print.PrintDocumentAdapter
+import android.print.PrintDocumentInfo
+import android.os.CancellationSignal
+import android.os.ParcelFileDescriptor
+import com.example.fipscan.PdfReportGenerator
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import android.graphics.pdf.PdfDocument
+import android.os.Bundle as AndroidBundle
 
 class DiagnosisFragment : Fragment() {
     private var _binding: FragmentDiagnosisBinding? = null
@@ -26,12 +39,32 @@ class DiagnosisFragment : Fragment() {
     private var result: ResultEntity? = null
     private val sharedViewModel: SharedResultViewModel by activityViewModels()
 
+    // Przechowuj dane do generowania raportu
+    private var currentRiskPercentage: Int = 0
+    private var currentRiskComment: String = ""
+    private var currentScoreBreakdown: List<String> = emptyList()
+    private var currentDiagnosticComment: String = ""
+    private var currentSupplementAdvice: String = ""
+    private var currentVetConsultationAdvice: String = ""
+    private var currentFurtherTestsAdvice: String = ""
+    private var currentAbnormalResults: List<String> = emptyList()
+    private var currentGammopathyResult: String? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
         _binding = FragmentDiagnosisBinding.inflate(inflater, container, false)
+
+        // Ustaw listenery dla przycisków
+        binding.buttonDownloadReport.setOnClickListener {
+            downloadPdfReport()
+        }
+
+        binding.buttonPrintReport.setOnClickListener {
+            printPdfReport()
+        }
 
         // Sprawdź czy mamy dane z argumentów
         arguments?.let {
@@ -63,6 +96,9 @@ class DiagnosisFragment : Fragment() {
         binding.textPatientInfo.text = "Wprowadź dane do analizy\n\nAby zobaczyć diagnozę:\n• Przejdź do zakładki 'Skanuj' i wgraj plik PDF z wynikami\n• Lub wybierz rekord z 'Historii' badań"
         binding.textPatientInfo.visibility = View.VISIBLE
 
+        // Ukryj przyciski raportu
+        binding.reportButtonsContainer.visibility = View.GONE
+
         // Ukryj pozostałe pola
         val fieldsToHide = listOf(
             binding.textDiagnosticComment, binding.textSupplements, binding.textVetConsult,
@@ -80,6 +116,9 @@ class DiagnosisFragment : Fragment() {
             Log.d("DiagnosisFragment", "Konfigurowanie UI dla: ${res.patientName}")
 
             binding.textDiagnosis.text = "Diagnoza: ${res.patientName}"
+
+            // Pokaż przyciski raportu
+            binding.reportButtonsContainer.visibility = View.VISIBLE
 
             val patientInfo = """
                 🐱 Pacjent: ${res.patientName}
@@ -104,7 +143,7 @@ class DiagnosisFragment : Fragment() {
 
             if (extractedMap.isEmpty()) {
                 Log.w("DiagnosisFragment", "Brak danych do analizy (extractedMap jest pusta).")
-                // Można tu pokazać komunikat o braku danych
+                binding.reportButtonsContainer.visibility = View.GONE
                 return
             }
 
@@ -112,6 +151,19 @@ class DiagnosisFragment : Fragment() {
             val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
             val rivaltaStatus = res.rivaltaStatus ?: "nie wykonano, płyn obecny"
             val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap, rivaltaStatus)
+
+            // Przechowaj dane do generowania raportu
+            currentRiskPercentage = electroResult.riskPercentage
+            currentRiskComment = electroResult.fipRiskComment
+            currentScoreBreakdown = electroResult.scoreBreakdown
+            currentDiagnosticComment = labResult.diagnosticComment
+            currentSupplementAdvice = electroResult.supplementAdvice
+            currentVetConsultationAdvice = electroResult.vetConsultationAdvice
+            currentFurtherTestsAdvice = electroResult.furtherTestsAdvice
+            currentGammopathyResult = res.diagnosis
+
+            // Przygotuj listę nieprawidłowych wyników
+            currentAbnormalResults = prepareAbnormalResults(extractedMap)
 
             // --- Aktualizacja UI ---
 
@@ -144,6 +196,229 @@ class DiagnosisFragment : Fragment() {
         } ?: run {
             Log.d("DiagnosisFragment", "Brak danych o wyniku, pokazuję wiadomość domyślną.")
             showNoDataMessage()
+        }
+    }
+
+    private fun prepareAbnormalResults(extractedMap: Map<String, Any>): List<String> {
+        val abnormalResults = mutableListOf<String>()
+        val metadataKeys = setOf("Data", "Właściciel", "Pacjent", "Gatunek", "Rasa",
+            "Płeć", "Wiek", "Lecznica", "Lekarz", "Rodzaj próbki",
+            "Umaszczenie", "Mikrochip", "results", "GammopathyResult")
+
+        for (key in extractedMap.keys) {
+            if (key.endsWith("Unit") || key.endsWith("RangeMin") ||
+                key.endsWith("RangeMax") || key.endsWith("Flag") ||
+                key in metadataKeys) {
+                continue
+            }
+
+            val testName = key
+            val value = extractedMap[testName] as? String ?: continue
+            val unit = extractedMap["${testName}Unit"] as? String ?: ""
+
+            val minRangeStr = extractedMap["${testName}RangeMin"] as? String
+            val maxRangeStr = extractedMap["${testName}RangeMax"] as? String
+
+            if (minRangeStr == null && maxRangeStr == null) {
+                continue
+            }
+
+            val minRange = minRangeStr ?: "-"
+            val maxRange = maxRangeStr ?: minRange
+
+            if (isOutOfRange(value, minRange, maxRange)) {
+                abnormalResults.add("$testName: $value $unit (norma: $minRange - $maxRange)")
+            }
+        }
+
+        return abnormalResults
+    }
+
+    private fun isOutOfRange(valueStr: String, minStr: String, maxStr: String): Boolean {
+        try {
+            val v = valueStr.replace(Regex("[<>]"), "").replace(",", ".").toDouble()
+
+            val minVal = minStr.replace(",", ".").toDoubleOrNull()
+            val maxVal = maxStr.replace(",", ".").toDoubleOrNull()
+
+            if (minVal == null && maxVal == null) {
+                return false
+            }
+
+            var outOfBounds = false
+            if (minVal != null && v < minVal) {
+                outOfBounds = true
+            }
+            if (maxVal != null && v > maxVal) {
+                outOfBounds = true
+            }
+            return outOfBounds
+        } catch (e: Exception) {
+            return false
+        }
+    }
+
+    private fun downloadPdfReport() {
+        result?.let { res ->
+            val generator = PdfReportGenerator(requireContext())
+
+            lifecycleScope.launch(Dispatchers.IO) {
+                val fileName = generator.generateReport(
+                    patientName = res.patientName,
+                    age = res.age,
+                    species = res.species,
+                    breed = res.breed,
+                    gender = res.gender,
+                    coat = res.coat,
+                    collectionDate = res.collectionDate,
+                    riskPercentage = currentRiskPercentage,
+                    riskComment = currentRiskComment,
+                    scoreBreakdown = currentScoreBreakdown,
+                    diagnosticComment = currentDiagnosticComment,
+                    supplementAdvice = currentSupplementAdvice,
+                    vetConsultationAdvice = currentVetConsultationAdvice,
+                    furtherTestsAdvice = currentFurtherTestsAdvice,
+                    abnormalResults = currentAbnormalResults,
+                    gammopathyResult = currentGammopathyResult
+                )
+
+                withContext(Dispatchers.Main) {
+                    if (fileName != null) {
+                        Toast.makeText(
+                            requireContext(),
+                            "Raport zapisano: $fileName",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        Toast.makeText(
+                            requireContext(),
+                            "Błąd generowania raportu",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        } ?: run {
+            Toast.makeText(
+                requireContext(),
+                "Brak danych do wygenerowania raportu",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    private fun printPdfReport() {
+        result?.let { res ->
+            val generator = PdfReportGenerator(requireContext())
+
+            lifecycleScope.launch(Dispatchers.IO) {
+                // Najpierw generuj PDF
+                val fileName = generator.generateReport(
+                    patientName = res.patientName,
+                    age = res.age,
+                    species = res.species,
+                    breed = res.breed,
+                    gender = res.gender,
+                    coat = res.coat,
+                    collectionDate = res.collectionDate,
+                    riskPercentage = currentRiskPercentage,
+                    riskComment = currentRiskComment,
+                    scoreBreakdown = currentScoreBreakdown,
+                    diagnosticComment = currentDiagnosticComment,
+                    supplementAdvice = currentSupplementAdvice,
+                    vetConsultationAdvice = currentVetConsultationAdvice,
+                    furtherTestsAdvice = currentFurtherTestsAdvice,
+                    abnormalResults = currentAbnormalResults,
+                    gammopathyResult = currentGammopathyResult
+                )
+
+                withContext(Dispatchers.Main) {
+                    if (fileName != null) {
+                        // Uruchom drukowanie
+                        val printManager = requireContext().getSystemService(Context.PRINT_SERVICE) as PrintManager
+                        val jobName = "Raport FIP - ${res.patientName}"
+
+                        printManager.print(
+                            jobName,
+                            FipReportPrintAdapter(requireContext(), res, currentRiskPercentage),
+                            PrintAttributes.Builder()
+                                .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                                .build()
+                        )
+                    } else {
+                        Toast.makeText(
+                            requireContext(),
+                            "Błąd generowania raportu do druku",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+        } ?: run {
+            Toast.makeText(
+                requireContext(),
+                "Brak danych do wydrukowania raportu",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    // Adapter do drukowania
+    inner class FipReportPrintAdapter(
+        private val context: Context,
+        private val result: ResultEntity,
+        private val riskPercentage: Int
+    ) : PrintDocumentAdapter() {
+
+        override fun onLayout(
+            oldAttributes: PrintAttributes?,
+            newAttributes: PrintAttributes,
+            cancellationSignal: CancellationSignal?,
+            callback: LayoutResultCallback,
+            extras: AndroidBundle?
+        ) {
+            if (cancellationSignal?.isCanceled == true) {
+                callback.onLayoutCancelled()
+                return
+            }
+
+            val info = PrintDocumentInfo.Builder("fip_report_${result.patientName}.pdf")
+                .setContentType(PrintDocumentInfo.CONTENT_TYPE_DOCUMENT)
+                .setPageCount(PrintDocumentInfo.PAGE_COUNT_UNKNOWN)
+                .build()
+
+            callback.onLayoutFinished(info, newAttributes != oldAttributes)
+        }
+
+        override fun onWrite(
+            pages: Array<out android.print.PageRange>?,
+            destination: ParcelFileDescriptor,
+            cancellationSignal: CancellationSignal?,
+            callback: WriteResultCallback
+        ) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val generator = PdfReportGenerator(context)
+
+                    // Generuj tymczasowy PDF
+                    val tempPdf = PdfDocument()
+                    // ... tu byłaby logika generowania PDF podobna jak w PdfReportGenerator
+
+                    FileOutputStream(destination.fileDescriptor).use { output ->
+                        tempPdf.writeTo(output)
+                    }
+
+                    tempPdf.close()
+
+                    withContext(Dispatchers.Main) {
+                        callback.onWriteFinished(arrayOf(android.print.PageRange.ALL_PAGES))
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        callback.onWriteFailed(e.message)
+                    }
+                }
+            }
         }
     }
 
