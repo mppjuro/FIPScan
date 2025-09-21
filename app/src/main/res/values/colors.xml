@@ -10,4 +10,10 @@
     <color name="darkred">#950606</color>
     <color name="light_gray">#B0B0B0</color>
     <color name="dark_gray">#707070</color>
+    <color name="divider_light">#E0E0E0</color>
+    <color name="divider_dark">#333333</color>
+    <color name="background_floating_light">#F8F8F8</color>
+    <color name="background_dark">#121212</color>
+    <color name="background_floating_dark">#1E1E1E</color>
+    <color name="surface_dark">#1E1E1E</color>
 </resources>
