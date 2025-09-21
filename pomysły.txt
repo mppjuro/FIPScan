@@ -1,7 +1,10 @@
-Analiza Wzorców Hematologicznych - Identyfikacja charakterystycznych wzorców morfologii typowych dla FIP (neutrofilia + limfopenia). Stworzyć dedykowany moduł analizujący stosunek neutrofili do limfocytów oraz identyfikujący "stress leukogram" charakterystyczny dla FIP.
+ROZBUDOWAĆ:
+- profil wzorców laboratoryjnych
+- analizę kształtu krzywej i pola pod nią - analiza wykresu
+- zapisywać info z powyższych również w raporcie
 
 języki - angielski i polski do wyboru w ustawieniach
 
 kalkulator dawki
 
-kontakt - pięcioklik na ustawienia
+kontakt - np. pięcioklik na ustawienia
