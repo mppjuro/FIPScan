@@ -77,6 +77,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:visibility="visible"
+        android:gravity="center_vertical"
         app:layout_constraintTop_toBottomOf="@id/chartImageView"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
@@ -84,10 +85,11 @@
         <TextView
             android:id="@+id/riskIndicator"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
             android:layout_weight="1"
+            android:layout_marginEnd="2dp"
             android:gravity="center"
-            android:textSize="24sp"
+            android:textSize="20sp"
             android:textStyle="bold"
             android:visibility="visible"
             android:textColor="@color/black" />
@@ -95,11 +97,15 @@
         <Button
             android:id="@+id/buttonSaveOriginal"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
             android:layout_weight="1"
+            android:layout_marginStart="2dp"
             android:visibility="visible"
             android:text="@string/zapisz_oryg"
-            android:textColor="@color/white" />
+            android:textSize="12sp"
+            android:padding="4dp"
+            android:textColor="@color/white"
+            style="?attr/materialButtonStyle" />
     </LinearLayout>
 
     <!-- ScrollView przesunięty pod kontener ryzyka/zapisu -->

@@ -49,6 +49,7 @@ import android.widget.ProgressBar
 import android.graphics.BitmapFactory
 import android.util.TypedValue
 import androidx.core.content.ContextCompat
+import android.view.Gravity
 
 class DiagnosisFragment : Fragment() {
     private var _binding: FragmentDiagnosisBinding? = null
@@ -406,6 +407,15 @@ class DiagnosisFragment : Fragment() {
         val generator = PdfReportGenerator(requireContext())
 
         lifecycleScope.launch(Dispatchers.IO) {
+            // Oblicz punkty dla dodatkowych analiz
+            val shapePoints = currentShapeAnalysis?.let {
+                ((it.fipShapeScore / 100f) * ElectrophoresisAnalyzer.SHAPE_ANALYSIS_MAX_POINTS).toInt()
+            } ?: 0
+
+            val patternPoints = currentPatternAnalysis?.let {
+                ((it.patternStrength / 100f) * ElectrophoresisAnalyzer.PATTERN_ANALYSIS_MAX_POINTS).toInt()
+            } ?: 0
+
             val (fileName, localPath) = generator.generateReport(
                 patientName = currentResult.patientName,
                 age = currentResult.age,
@@ -422,7 +432,14 @@ class DiagnosisFragment : Fragment() {
                 vetConsultationAdvice = currentVetConsultationAdvice,
                 furtherTestsAdvice = currentFurtherTestsAdvice,
                 abnormalResults = currentAbnormalResults,
-                gammopathyResult = currentGammopathyResult
+                gammopathyResult = currentGammopathyResult,
+                // Nowe parametry
+                shapeAnalysis = currentShapeAnalysis,
+                patternAnalysis = currentPatternAnalysis,
+                shapeAnalysisPoints = shapePoints,
+                patternAnalysisPoints = patternPoints,
+                maxShapePoints = ElectrophoresisAnalyzer.SHAPE_ANALYSIS_MAX_POINTS,
+                maxPatternPoints = ElectrophoresisAnalyzer.PATTERN_ANALYSIS_MAX_POINTS
             )
 
             withContext(Dispatchers.Main) {
@@ -612,32 +629,34 @@ class DiagnosisFragment : Fragment() {
         }
         content.addView(pattern)
 
-        // Wynik FIP Shape Score z kolorowym tłem
-        val scoreView = TextView(requireContext()).apply {
-            text = "Wynik kształtu FIP: ${analysis.fipShapeScore.toInt()}/100"
-            textSize = 16f
-            setPadding(8, 8, 8, 8)
-            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
-
-            val bgColor = when {
-                analysis.fipShapeScore >= 70 -> {
-                    // Czerwone tło z przezroczystością
-                    getColorWithAlpha(Color.parseColor("#F44336"), 0.2f)
-                }
-                analysis.fipShapeScore >= 50 -> {
-                    // Żółte tło z przezroczystością
-                    getColorWithAlpha(Color.parseColor("#FF9800"), 0.2f)
-                }
-                analysis.fipShapeScore >= 30 -> {
-                    // Zielone tło z przezroczystością
-                    getColorWithAlpha(Color.parseColor("#4CAF50"), 0.2f)
-                }
-                else -> {
-                    // Szare tło z przezroczystością
-                    getColorWithAlpha(getThemedColor(requireContext(), android.R.attr.textColorSecondary), 0.2f)
-                }
+        // DODAJ KOLOROWY PASEK POSTĘPU
+        val progressBar = ProgressBar(requireContext(), null, android.R.attr.progressBarStyleHorizontal).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                48  // Wysokość paska
+            ).apply {
+                setMargins(0, 8, 0, 8)
             }
-            setBackgroundColor(bgColor)
+            max = 100
+            progress = analysis.fipShapeScore.toInt()
+
+            val tintColor = when {
+                analysis.fipShapeScore >= 70 -> Color.parseColor("#F44336") // Czerwony
+                analysis.fipShapeScore >= 50 -> Color.parseColor("#FF9800") // Pomarańczowy
+                analysis.fipShapeScore >= 30 -> Color.parseColor("#FFC107") // Żółty
+                else -> Color.parseColor("#4CAF50") // Zielony
+            }
+            progressTintList = ColorStateList.valueOf(tintColor)
+        }
+        content.addView(progressBar)
+
+        // Wynik FIP Shape Score
+        val scoreView = TextView(requireContext()).apply {
+            text = "Siła dopasowania: ${analysis.fipShapeScore.toInt()}%"
+            textSize = 14f
+            setPadding(0, 4, 0, 8)
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+            gravity = Gravity.CENTER
         }
         content.addView(scoreView)
 
@@ -812,8 +831,23 @@ class DiagnosisFragment : Fragment() {
 
     private fun getThemedColor(context: Context, attr: Int): Int {
         val typedValue = TypedValue()
-        context.theme.resolveAttribute(attr, typedValue, true)
-        return ContextCompat.getColor(context, typedValue.resourceId)
+        return if (context.theme.resolveAttribute(attr, typedValue, true)) {
+            // Sprawdź czy to jest kolor bezpośredni czy zasób
+            if (typedValue.resourceId != 0) {
+                ContextCompat.getColor(context, typedValue.resourceId)
+            } else {
+                // Użyj wartości data jeśli to bezpośredni kolor
+                typedValue.data
+            }
+        } else {
+            // Fallback na domyślne kolory
+            when (attr) {
+                android.R.attr.textColorPrimary -> ContextCompat.getColor(context, android.R.color.black)
+                android.R.attr.textColorSecondary -> ContextCompat.getColor(context, android.R.color.darker_gray)
+                android.R.attr.colorBackgroundFloating -> Color.parseColor("#F8F8F8")
+                else -> Color.BLACK
+            }
+        }
     }
 
     private fun getColorWithAlpha(color: Int, alpha: Float): Int {
