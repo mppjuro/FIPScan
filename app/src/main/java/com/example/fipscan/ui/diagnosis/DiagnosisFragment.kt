@@ -23,6 +23,7 @@ import android.widget.Toast
 import android.print.PrintAttributes
 import android.print.PrintManager
 import android.content.Context
+import android.content.res.ColorStateList
 import android.print.PrintDocumentAdapter
 import android.print.PrintDocumentInfo
 import android.os.CancellationSignal
@@ -37,6 +38,15 @@ import org.apache.commons.net.ftp.FTPClient
 import java.io.File
 import java.io.IOException
 import java.util.Properties
+import com.example.fipscan.ElectrophoresisShapeAnalyzer
+import androidx.cardview.widget.CardView
+import android.widget.LinearLayout
+import android.widget.TextView
+import android.graphics.Typeface
+import android.graphics.Color
+import com.example.fipscan.FipPatternAnalyzer
+import android.widget.ProgressBar
+import android.graphics.BitmapFactory
 
 class DiagnosisFragment : Fragment() {
     private var _binding: FragmentDiagnosisBinding? = null
@@ -54,6 +64,10 @@ class DiagnosisFragment : Fragment() {
     private var currentFurtherTestsAdvice: String = ""
     private var currentAbnormalResults: List<String> = emptyList()
     private var currentGammopathyResult: String? = null
+
+    // Added missing variables
+    private var currentShapeAnalysis: ElectrophoresisShapeAnalyzer.ShapeAnalysisResult? = null
+    private var currentPatternAnalysis: FipPatternAnalyzer.PatternAnalysisResult? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -117,91 +131,149 @@ class DiagnosisFragment : Fragment() {
     }
 
     private fun setupUI() {
-        result?.let { res ->
-            Log.d("DiagnosisFragment", "Konfigurowanie UI dla: ${res.patientName}")
+        // Fix smart cast issue by creating local variable
+        val currentResult = result ?: return
 
-            binding.textDiagnosis.text = "Diagnoza: ${res.patientName}"
+        Log.d("DiagnosisFragment", "Konfigurowanie UI dla: ${currentResult.patientName}")
 
-            // Pokaż przyciski raportu
-            binding.reportButtonsContainer.visibility = View.VISIBLE
+        binding.textDiagnosis.text = "Diagnoza: ${currentResult.patientName}"
 
-            val patientInfo = """
-                🐱 Pacjent: ${res.patientName}
-                📅 Wiek: ${res.age}
-                🐾 Gatunek: ${res.species ?: "nie podano"}
-                🏷️ Rasa: ${res.breed ?: "nie podano"}
-                ⚥ Płeć: ${res.gender ?: "nie podano"}
-                🎨 Umaszczenie: ${res.coat ?: "nie podano"}
-                📆 Data badania: ${res.collectionDate ?: "brak daty"}
-            """.trimIndent()
-            binding.textPatientInfo.text = patientInfo
-            binding.textPatientInfo.visibility = View.VISIBLE
+        // Pokaż przyciski raportu
+        binding.reportButtonsContainer.visibility = View.VISIBLE
 
-            val extractedMap = res.rawDataJson?.let {
-                try {
-                    Gson().fromJson(it, Map::class.java) as? Map<String, Any> ?: emptyMap()
-                } catch (e: Exception) {
-                    Log.e("DiagnosisFragment", "Błąd parsowania JSON", e)
-                    emptyMap()
-                }
-            } ?: emptyMap()
+        val patientInfo = """
+            🐱 Pacjent: ${currentResult.patientName}
+            📅 Wiek: ${currentResult.age}
+            🐾 Gatunek: ${currentResult.species ?: "nie podano"}
+            🏷️ Rasa: ${currentResult.breed ?: "nie podano"}
+            ⚥ Płeć: ${currentResult.gender ?: "nie podano"}
+            🎨 Umaszczenie: ${currentResult.coat ?: "nie podano"}
+            📆 Data badania: ${currentResult.collectionDate ?: "brak daty"}
+        """.trimIndent()
+        binding.textPatientInfo.text = patientInfo
+        binding.textPatientInfo.visibility = View.VISIBLE
 
-            if (extractedMap.isEmpty()) {
-                Log.w("DiagnosisFragment", "Brak danych do analizy (extractedMap jest pusta).")
-                binding.reportButtonsContainer.visibility = View.GONE
-                return
+        val extractedMap = currentResult.rawDataJson?.let {
+            try {
+                Gson().fromJson(it, Map::class.java) as? Map<String, Any> ?: emptyMap()
+            } catch (e: Exception) {
+                Log.e("DiagnosisFragment", "Błąd parsowania JSON", e)
+                emptyMap()
             }
+        } ?: emptyMap()
 
-            // --- Analizy ---
-            val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
-            val rivaltaStatus = res.rivaltaStatus ?: "nie wykonano, płyn obecny"
-            val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap, rivaltaStatus)
-
-            // Przechowaj dane do generowania raportu
-            currentRiskPercentage = electroResult.riskPercentage
-            currentRiskComment = electroResult.fipRiskComment
-            currentScoreBreakdown = electroResult.scoreBreakdown
-            currentDiagnosticComment = labResult.diagnosticComment
-            currentSupplementAdvice = electroResult.supplementAdvice
-            currentVetConsultationAdvice = electroResult.vetConsultationAdvice
-            currentFurtherTestsAdvice = electroResult.furtherTestsAdvice
-            currentGammopathyResult = res.diagnosis
-
-            // Przygotuj listę nieprawidłowych wyników
-            currentAbnormalResults = prepareAbnormalResults(extractedMap)
-
-            // --- Aktualizacja UI ---
-
-            // 1. Główne podsumowanie ryzyka FIP
-            val riskText = Html.fromHtml(electroResult.fipRiskComment, Html.FROM_HTML_MODE_COMPACT)
-            binding.textDiagnosticComment.text = riskText
-
-            // 2. Szczegółowe uzasadnienie wyniku FIP
-            val breakdownHtml = electroResult.scoreBreakdown.joinToString("<br>")
-            binding.textRiskBreakdown.text = Html.fromHtml("<b>Szczegółowa analiza ryzyka FIP:</b><br>$breakdownHtml", Html.FROM_HTML_MODE_COMPACT)
-            binding.textRiskBreakdown.visibility = View.VISIBLE
-
-            // 3. Zalecenia na podstawie ryzyka FIP
-            binding.textFurtherTests.text = Html.fromHtml("<b>🔬 Dalsze badania:</b> ${electroResult.furtherTestsAdvice}", Html.FROM_HTML_MODE_COMPACT)
-            binding.textRiskSupplements.text = Html.fromHtml("<b>💊 Suplementy (kontekst FIP):</b> ${electroResult.supplementAdvice}", Html.FROM_HTML_MODE_COMPACT)
-            binding.textRiskConsult.text = Html.fromHtml("<b>🏥 Konsultacja (kontekst FIP):</b> ${electroResult.vetConsultationAdvice}", Html.FROM_HTML_MODE_COMPACT)
-
-            // 4. Analiza ogólna wyników krwi (z LabResultAnalyzer)
-            binding.textSupplements.text = Html.fromHtml("<b>💊 Suplementy (ogólne):</b> ${labResult.supplementAdvice}", Html.FROM_HTML_MODE_COMPACT)
-            binding.textVetConsult.text = Html.fromHtml("<b>🏥 Konsultacja (ogólna):</b> ${labResult.vetConsultationAdvice}", Html.FROM_HTML_MODE_COMPACT)
-
-            // Pokaż wszystkie pola
-            val fieldsToShow = listOf(
-                binding.textDiagnosticComment, binding.textSupplements, binding.textVetConsult,
-                binding.textFurtherTests, binding.textRiskSupplements, binding.textRiskConsult,
-                binding.textRiskBreakdown
-            )
-            fieldsToShow.forEach { it.visibility = View.VISIBLE }
-
-        } ?: run {
-            Log.d("DiagnosisFragment", "Brak danych o wyniku, pokazuję wiadomość domyślną.")
-            showNoDataMessage()
+        if (extractedMap.isEmpty()) {
+            Log.w("DiagnosisFragment", "Brak danych do analizy (extractedMap jest pusta).")
+            binding.reportButtonsContainer.visibility = View.GONE
+            return
         }
+
+        // --- Analizy ---
+        val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
+        val rivaltaStatus = currentResult.rivaltaStatus ?: "nie wykonano, płyn obecny"
+        val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap, rivaltaStatus)
+
+        // Przechowaj dane do generowania raportu
+        currentRiskPercentage = electroResult.riskPercentage
+        currentRiskComment = electroResult.fipRiskComment
+        currentScoreBreakdown = electroResult.scoreBreakdown
+        currentDiagnosticComment = labResult.diagnosticComment
+        currentSupplementAdvice = electroResult.supplementAdvice
+        currentVetConsultationAdvice = electroResult.vetConsultationAdvice
+        currentFurtherTestsAdvice = electroResult.furtherTestsAdvice
+        currentGammopathyResult = currentResult.diagnosis
+
+        // Przygotuj listę nieprawidłowych wyników
+        currentAbnormalResults = prepareAbnormalResults(extractedMap)
+
+        // Analiza kształtu krzywej elektroforezy
+        // Note: Make sure chartImageView exists in your layout, or remove this section if not needed
+        try {
+            // Check if chartImageView exists in the binding before using it
+            val chartImageViewField = binding.javaClass.getDeclaredField("chartImageView")
+            chartImageViewField.isAccessible = true
+            val chartImageView = chartImageViewField.get(binding) as? View
+            chartImageView?.visibility = View.VISIBLE
+        } catch (e: NoSuchFieldException) {
+            Log.w("DiagnosisFragment", "chartImageView not found in layout, skipping image display")
+        }
+
+        currentResult.imagePath?.let { imagePath ->
+            val chartFile = File(imagePath)
+            if (chartFile.exists()) {
+                val bitmap = BitmapFactory.decodeFile(imagePath)
+
+                // Pobierz indeksy czerwonych kolumn z poprzedniej analizy
+                val redColumns = listOf(100, 300, 500) // Przykładowe wartości, dostosuj do rzeczywistych
+
+                val shapeAnalysis = ElectrophoresisShapeAnalyzer.analyzeElectrophoresisShape(bitmap, redColumns)
+
+                shapeAnalysis?.let { analysis ->
+                    // Wyświetl wyniki analizy kształtu
+                    val shapeCard = createShapeAnalysisCard(analysis)
+
+                    // Check if analysisContainer exists before adding views
+                    try {
+                        val analysisContainerField = binding.javaClass.getDeclaredField("analysisContainer")
+                        analysisContainerField.isAccessible = true
+                        val analysisContainer = analysisContainerField.get(binding) as? ViewGroup
+                        analysisContainer?.addView(shapeCard)
+                    } catch (e: NoSuchFieldException) {
+                        Log.w("DiagnosisFragment", "analysisContainer not found in layout")
+                    }
+
+                    // Dodaj do raportu
+                    currentShapeAnalysis = analysis
+                }
+            }
+        }
+
+        // Analiza wzorców parametrów
+        val patternAnalysis = FipPatternAnalyzer.analyzeParameterPatterns(extractedMap)
+
+        // Wyświetl kartę z analizą wzorców
+        val patternCard = createPatternAnalysisCard(patternAnalysis)
+
+        // Check if analysisContainer exists before adding views
+        try {
+            val analysisContainerField = binding.javaClass.getDeclaredField("analysisContainer")
+            analysisContainerField.isAccessible = true
+            val analysisContainer = analysisContainerField.get(binding) as? ViewGroup
+            analysisContainer?.addView(patternCard)
+        } catch (e: NoSuchFieldException) {
+            Log.w("DiagnosisFragment", "analysisContainer not found in layout")
+        }
+
+        // Przechowaj do raportu
+        currentPatternAnalysis = patternAnalysis
+
+        // --- Aktualizacja UI ---
+
+        // 1. Główne podsumowanie ryzyka FIP
+        val riskText = Html.fromHtml(electroResult.fipRiskComment, Html.FROM_HTML_MODE_COMPACT)
+        binding.textDiagnosticComment.text = riskText
+
+        // 2. Szczegółowe uzasadnienie wyniku FIP
+        val breakdownHtml = electroResult.scoreBreakdown.joinToString("<br>")
+        binding.textRiskBreakdown.text = Html.fromHtml("<b>Szczegółowa analiza ryzyka FIP:</b><br>$breakdownHtml", Html.FROM_HTML_MODE_COMPACT)
+        binding.textRiskBreakdown.visibility = View.VISIBLE
+
+        // 3. Zalecenia na podstawie ryzyka FIP
+        binding.textFurtherTests.text = Html.fromHtml("<b>🔬 Dalsze badania:</b> ${electroResult.furtherTestsAdvice}", Html.FROM_HTML_MODE_COMPACT)
+        binding.textRiskSupplements.text = Html.fromHtml("<b>💊 Suplementy (kontekst FIP):</b> ${electroResult.supplementAdvice}", Html.FROM_HTML_MODE_COMPACT)
+        binding.textRiskConsult.text = Html.fromHtml("<b>🏥 Konsultacja (kontekst FIP):</b> ${electroResult.vetConsultationAdvice}", Html.FROM_HTML_MODE_COMPACT)
+
+        // 4. Analiza ogólna wyników krwi (z LabResultAnalyzer)
+        binding.textSupplements.text = Html.fromHtml("<b>💊 Suplementy (ogólne):</b> ${labResult.supplementAdvice}", Html.FROM_HTML_MODE_COMPACT)
+        binding.textVetConsult.text = Html.fromHtml("<b>🏥 Konsultacja (ogólna):</b> ${labResult.vetConsultationAdvice}", Html.FROM_HTML_MODE_COMPACT)
+
+        // Pokaż wszystkie pola
+        val fieldsToShow = listOf(
+            binding.textDiagnosticComment, binding.textSupplements, binding.textVetConsult,
+            binding.textFurtherTests, binding.textRiskSupplements, binding.textRiskConsult,
+            binding.textRiskBreakdown
+        )
+        fieldsToShow.forEach { it.visibility = View.VISIBLE }
     }
 
     private fun prepareAbnormalResults(extractedMap: Map<String, Any>): List<String> {
@@ -320,130 +392,132 @@ class DiagnosisFragment : Fragment() {
     }
 
     private fun downloadPdfReport() {
-        result?.let { res ->
-            val generator = PdfReportGenerator(requireContext())
-
-            lifecycleScope.launch(Dispatchers.IO) {
-                val (fileName, localPath) = generator.generateReport(
-                    patientName = res.patientName,
-                    age = res.age,
-                    species = res.species,
-                    breed = res.breed,
-                    gender = res.gender,
-                    coat = res.coat,
-                    collectionDate = res.collectionDate,
-                    riskPercentage = currentRiskPercentage,
-                    riskComment = currentRiskComment,
-                    scoreBreakdown = currentScoreBreakdown,
-                    diagnosticComment = currentDiagnosticComment,
-                    supplementAdvice = currentSupplementAdvice,
-                    vetConsultationAdvice = currentVetConsultationAdvice,
-                    furtherTestsAdvice = currentFurtherTestsAdvice,
-                    abnormalResults = currentAbnormalResults,
-                    gammopathyResult = currentGammopathyResult
-                )
-
-                withContext(Dispatchers.Main) {
-                    if (fileName != null && localPath != null) {
-                        Toast.makeText(
-                            requireContext(),
-                            "Raport zapisano: $fileName",
-                            Toast.LENGTH_LONG
-                        ).show()
-
-                        // Wyślij raport na FTP w tle
-                        lifecycleScope.launch(Dispatchers.IO) {
-                            val localFile = File(localPath)
-                            if (localFile.exists()) {
-                                val uploadSuccess = uploadFileToFTP(localFile)
-                                withContext(Dispatchers.Main) {
-                                    if (uploadSuccess) {
-                                        Log.d("DiagnosisFragment", "Raport wysłany na serwer FTP")
-                                    } else {
-                                        Log.e("DiagnosisFragment", "Błąd wysyłania raportu na FTP")
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        Toast.makeText(
-                            requireContext(),
-                            "Błąd generowania raportu",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-            }
-        } ?: run {
+        val currentResult = result ?: run {
             Toast.makeText(
                 requireContext(),
                 "Brak danych do wygenerowania raportu",
                 Toast.LENGTH_SHORT
             ).show()
+            return
+        }
+
+        val generator = PdfReportGenerator(requireContext())
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val (fileName, localPath) = generator.generateReport(
+                patientName = currentResult.patientName,
+                age = currentResult.age,
+                species = currentResult.species,
+                breed = currentResult.breed,
+                gender = currentResult.gender,
+                coat = currentResult.coat,
+                collectionDate = currentResult.collectionDate,
+                riskPercentage = currentRiskPercentage,
+                riskComment = currentRiskComment,
+                scoreBreakdown = currentScoreBreakdown,
+                diagnosticComment = currentDiagnosticComment,
+                supplementAdvice = currentSupplementAdvice,
+                vetConsultationAdvice = currentVetConsultationAdvice,
+                furtherTestsAdvice = currentFurtherTestsAdvice,
+                abnormalResults = currentAbnormalResults,
+                gammopathyResult = currentGammopathyResult
+            )
+
+            withContext(Dispatchers.Main) {
+                if (fileName != null && localPath != null) {
+                    Toast.makeText(
+                        requireContext(),
+                        "Raport zapisano: $fileName",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    // Wyślij raport na FTP w tle
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        val localFile = File(localPath)
+                        if (localFile.exists()) {
+                            val uploadSuccess = uploadFileToFTP(localFile)
+                            withContext(Dispatchers.Main) {
+                                if (uploadSuccess) {
+                                    Log.d("DiagnosisFragment", "Raport wysłany na serwer FTP")
+                                } else {
+                                    Log.e("DiagnosisFragment", "Błąd wysyłania raportu na FTP")
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Toast.makeText(
+                        requireContext(),
+                        "Błąd generowania raportu",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
         }
     }
 
     private fun printPdfReport() {
-        result?.let { res ->
-            val generator = PdfReportGenerator(requireContext())
-
-            lifecycleScope.launch(Dispatchers.IO) {
-                // Najpierw generuj PDF
-                val (fileName, localPath) = generator.generateReport(
-                    patientName = res.patientName,
-                    age = res.age,
-                    species = res.species,
-                    breed = res.breed,
-                    gender = res.gender,
-                    coat = res.coat,
-                    collectionDate = res.collectionDate,
-                    riskPercentage = currentRiskPercentage,
-                    riskComment = currentRiskComment,
-                    scoreBreakdown = currentScoreBreakdown,
-                    diagnosticComment = currentDiagnosticComment,
-                    supplementAdvice = currentSupplementAdvice,
-                    vetConsultationAdvice = currentVetConsultationAdvice,
-                    furtherTestsAdvice = currentFurtherTestsAdvice,
-                    abnormalResults = currentAbnormalResults,
-                    gammopathyResult = currentGammopathyResult
-                )
-
-                withContext(Dispatchers.Main) {
-                    if (fileName != null && localPath != null) {
-                        // Uruchom drukowanie
-                        val printManager = requireContext().getSystemService(Context.PRINT_SERVICE) as PrintManager
-                        val jobName = "Raport FIP - ${res.patientName}"
-
-                        printManager.print(
-                            jobName,
-                            FipReportPrintAdapter(requireContext(), localPath, fileName),
-                            PrintAttributes.Builder()
-                                .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
-                                .build()
-                        )
-
-                        // Wyślij raport na FTP w tle
-                        lifecycleScope.launch(Dispatchers.IO) {
-                            val localFile = File(localPath)
-                            if (localFile.exists()) {
-                                uploadFileToFTP(localFile)
-                            }
-                        }
-                    } else {
-                        Toast.makeText(
-                            requireContext(),
-                            "Błąd generowania raportu do druku",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-            }
-        } ?: run {
+        val currentResult = result ?: run {
             Toast.makeText(
                 requireContext(),
                 "Brak danych do wydrukowania raportu",
                 Toast.LENGTH_SHORT
             ).show()
+            return
+        }
+
+        val generator = PdfReportGenerator(requireContext())
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            // Najpierw generuj PDF
+            val (fileName, localPath) = generator.generateReport(
+                patientName = currentResult.patientName,
+                age = currentResult.age,
+                species = currentResult.species,
+                breed = currentResult.breed,
+                gender = currentResult.gender,
+                coat = currentResult.coat,
+                collectionDate = currentResult.collectionDate,
+                riskPercentage = currentRiskPercentage,
+                riskComment = currentRiskComment,
+                scoreBreakdown = currentScoreBreakdown,
+                diagnosticComment = currentDiagnosticComment,
+                supplementAdvice = currentSupplementAdvice,
+                vetConsultationAdvice = currentVetConsultationAdvice,
+                furtherTestsAdvice = currentFurtherTestsAdvice,
+                abnormalResults = currentAbnormalResults,
+                gammopathyResult = currentGammopathyResult
+            )
+
+            withContext(Dispatchers.Main) {
+                if (fileName != null && localPath != null) {
+                    // Uruchom drukowanie
+                    val printManager = requireContext().getSystemService(Context.PRINT_SERVICE) as PrintManager
+                    val jobName = "Raport FIP - ${currentResult.patientName}"
+
+                    printManager.print(
+                        jobName,
+                        FipReportPrintAdapter(requireContext(), localPath, fileName),
+                        PrintAttributes.Builder()
+                            .setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                            .build()
+                    )
+
+                    // Wyślij raport na FTP w tle
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        val localFile = File(localPath)
+                        if (localFile.exists()) {
+                            uploadFileToFTP(localFile)
+                        }
+                    }
+                } else {
+                    Toast.makeText(
+                        requireContext(),
+                        "Błąd generowania raportu do druku",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
         }
     }
 
@@ -498,6 +572,211 @@ class DiagnosisFragment : Fragment() {
                 callback.onWriteFailed(e.message)
             }
         }
+    }
+
+    private fun createShapeAnalysisCard(analysis: ElectrophoresisShapeAnalyzer.ShapeAnalysisResult): CardView {
+        val card = CardView(requireContext()).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, 16, 0, 16)
+            }
+            cardElevation = 4f
+            radius = 8f
+        }
+
+        val content = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16, 16, 16, 16)
+        }
+
+        // Tytuł
+        val title = TextView(requireContext()).apply {
+            text = "📊 ANALIZA KSZTAŁTU KRZYWEJ"
+            textSize = 18f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(Color.BLACK)
+        }
+        content.addView(title)
+
+        // Wzorzec
+        val pattern = TextView(requireContext()).apply {
+            text = "Wzorzec: ${analysis.overallPattern}"
+            textSize = 16f
+            setPadding(0, 8, 0, 4)
+        }
+        content.addView(pattern)
+
+        // Wynik FIP Shape Score z kolorowym tłem
+        val scoreView = TextView(requireContext()).apply {
+            text = "Wynik kształtu FIP: ${analysis.fipShapeScore.toInt()}/100"
+            textSize = 16f
+            setPadding(8, 8, 8, 8)
+
+            val bgColor = when {
+                analysis.fipShapeScore >= 70 -> Color.parseColor("#FFCDD2") // Czerwone tło
+                analysis.fipShapeScore >= 50 -> Color.parseColor("#FFF9C4") // Żółte tło
+                analysis.fipShapeScore >= 30 -> Color.parseColor("#DCEDC8") // Zielone tło
+                else -> Color.parseColor("#E0E0E0") // Szare tło
+            }
+            setBackgroundColor(bgColor)
+        }
+        content.addView(scoreView)
+
+        // Opis
+        val description = TextView(requireContext()).apply {
+            text = analysis.shapeDescription
+            textSize = 14f
+            setPadding(0, 8, 0, 0)
+        }
+        content.addView(description)
+
+        // Szczegóły pików
+        val detailsTitle = TextView(requireContext()).apply {
+            text = "\nSzczegóły frakcji:"
+            textSize = 14f
+            setTypeface(null, Typeface.BOLD)
+        }
+        content.addView(detailsTitle)
+
+        val details = """
+        Albuminy: wysokość ${(analysis.albumin.height * 100).toInt()}%, symetria ${(analysis.albumin.symmetry * 100).toInt()}%
+        Gamma: wysokość ${(analysis.gamma.height * 100).toInt()}%, szerokość ${(analysis.gamma.width * 100).toInt()}%
+        Mostek β-γ: ${if (analysis.betaGammaBridge.present) "obecny (głębokość ${(analysis.betaGammaBridge.depth * 100).toInt()}%)" else "nieobecny"}
+    """.trimIndent()
+
+        val detailsText = TextView(requireContext()).apply {
+            text = details
+            textSize = 12f
+            typeface = Typeface.MONOSPACE
+        }
+        content.addView(detailsText)
+
+        card.addView(content)
+        return card
+    }
+
+    private fun createPatternAnalysisCard(analysis: FipPatternAnalyzer.PatternAnalysisResult): CardView {
+        val card = CardView(requireContext()).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                setMargins(0, 16, 0, 16)
+            }
+            cardElevation = 4f
+            radius = 8f
+        }
+
+        val content = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16, 16, 16, 16)
+        }
+
+        // Tytuł
+        val title = TextView(requireContext()).apply {
+            text = "🔬 PROFIL WZORCÓW LABORATORYJNYCH"
+            textSize = 18f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(Color.BLACK)
+        }
+        content.addView(title)
+
+        // Główny profil
+        val profileText = when (analysis.primaryProfile) {
+            FipPatternAnalyzer.FipProfile.INFLAMMATORY_ACUTE -> "⚠️ OSTRY PROFIL ZAPALNY"
+            FipPatternAnalyzer.FipProfile.INFLAMMATORY_CHRONIC -> "⚠️ PRZEWLEKŁY PROFIL ZAPALNY"
+            FipPatternAnalyzer.FipProfile.EFFUSIVE_CLASSIC -> "🔴 KLASYCZNY WYSIĘKOWY"
+            FipPatternAnalyzer.FipProfile.DRY_NEUROLOGICAL -> "🟡 SUCHY NEUROLOGICZNY"
+            FipPatternAnalyzer.FipProfile.MIXED_PATTERN -> "🔶 PROFIL MIESZANY"
+            FipPatternAnalyzer.FipProfile.ATYPICAL -> "❓ PROFIL NIETYPOWY"
+            FipPatternAnalyzer.FipProfile.NON_FIP -> "✅ PROFIL NIE-FIP"
+        }
+
+        val profile = TextView(requireContext()).apply {
+            text = profileText
+            textSize = 16f
+            setTypeface(null, Typeface.BOLD)
+            setPadding(0, 8, 0, 4)
+        }
+        content.addView(profile)
+
+        // Siła wzorca
+        val strengthBar = ProgressBar(requireContext(), null, android.R.attr.progressBarStyleHorizontal).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            max = 100
+            progress = analysis.patternStrength.toInt()
+
+            progressTintList = ColorStateList.valueOf(when {
+                analysis.patternStrength >= 70 -> Color.RED
+                analysis.patternStrength >= 50 -> Color.parseColor("#FFA000")
+                else -> Color.parseColor("#4CAF50")
+            })
+        }
+        content.addView(strengthBar)
+
+        val strengthText = TextView(requireContext()).apply {
+            text = "Siła dopasowania: ${analysis.patternStrength.toInt()}%"
+            textSize = 14f
+            setPadding(0, 4, 0, 8)
+        }
+        content.addView(strengthText)
+
+        // Kluczowe obserwacje
+        if (analysis.keyFindings.isNotEmpty()) {
+            val findingsTitle = TextView(requireContext()).apply {
+                text = "\nKluczowe obserwacje:"
+                textSize = 14f
+                setTypeface(null, Typeface.BOLD)
+            }
+            content.addView(findingsTitle)
+
+            analysis.keyFindings.forEach { finding ->
+                val findingText = TextView(requireContext()).apply {
+                    text = finding
+                    textSize = 13f
+                    setPadding(8, 4, 0, 4)
+                }
+                content.addView(findingText)
+            }
+        }
+
+        // Opis profilu
+        val descTitle = TextView(requireContext()).apply {
+            text = "\nOpis profilu:"
+            textSize = 14f
+            setTypeface(null, Typeface.BOLD)
+        }
+        content.addView(descTitle)
+
+        val description = TextView(requireContext()).apply {
+            text = analysis.profileDescription
+            textSize = 13f
+            setPadding(0, 4, 0, 8)
+        }
+        content.addView(description)
+
+        // Sugestie postępowania
+        val suggestionsTitle = TextView(requireContext()).apply {
+            text = "\nSugestie postępowania:"
+            textSize = 14f
+            setTypeface(null, Typeface.BOLD)
+        }
+        content.addView(suggestionsTitle)
+
+        val suggestions = TextView(requireContext()).apply {
+            text = analysis.managementSuggestions
+            textSize = 13f
+            setPadding(0, 4, 0, 0)
+        }
+        content.addView(suggestions)
+
+        card.addView(content)
+        return card
     }
 
     override fun onDestroyView() {
