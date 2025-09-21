@@ -47,7 +47,13 @@ class PdfReportGenerator(private val context: Context) {
         vetConsultationAdvice: String,
         furtherTestsAdvice: String,
         abnormalResults: List<String>,
-        gammopathyResult: String?
+        gammopathyResult: String?,
+        shapeAnalysis: ElectrophoresisShapeAnalyzer.ShapeAnalysisResult? = null,
+        patternAnalysis: FipPatternAnalyzer.PatternAnalysisResult? = null,
+        shapeAnalysisPoints: Int = 0,
+        patternAnalysisPoints: Int = 0,
+        maxShapePoints: Int = 30,
+        maxPatternPoints: Int = 30
     ): Pair<String?, String?> {
 
         val pdfDocument = PdfDocument()
@@ -77,6 +83,20 @@ class PdfReportGenerator(private val context: Context) {
             yPosition = drawRiskAssessment(
                 canvas, yPosition, riskPercentage, riskComment
             )
+
+            if (shapeAnalysis != null) {
+                yPosition = drawShapeAnalysisSection(
+                    canvas, yPosition, shapeAnalysis,
+                    shapeAnalysisPoints, maxShapePoints
+                )
+            }
+
+            if (patternAnalysis != null) {
+                yPosition = drawPatternAnalysisSection(
+                    canvas, yPosition, patternAnalysis,
+                    patternAnalysisPoints, maxPatternPoints
+                )
+            }
 
             // Sprawdź czy potrzebna nowa strona
             if (yPosition > pageHeight - 200) {
@@ -266,18 +286,18 @@ class PdfReportGenerator(private val context: Context) {
         // Tytuł sekcji
         val sectionPaint = TextPaint().apply {
             color = primaryColor
-            textSize = 18f
+            textSize = 22f  // Większy tytuł dla głównej oceny
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-        canvas.drawText("OCENA RYZYKA FIP", margin, y, sectionPaint)
-        y += 30f
+        canvas.drawText("📊 GŁÓWNA OCENA RYZYKA FIP", margin, y, sectionPaint)
+        y += 35f
 
-        // Wskaźnik ryzyka (pasek postępu)
-        val barHeight = 30f
+        // WIĘKSZY PASEK POSTĘPU dla głównego wyniku
+        val barHeight = 50f  // Zwiększona wysokość
         val barWidth = contentWidth
 
-        // Tło paska
+        // Tło paska z ramką
         val bgPaint = Paint().apply {
             color = Color.LTGRAY
             style = Paint.Style.FILL
@@ -285,6 +305,17 @@ class PdfReportGenerator(private val context: Context) {
         canvas.drawRoundRect(
             margin, y, pageWidth - margin, y + barHeight,
             15f, 15f, bgPaint
+        )
+
+        // Ramka dla lepszej widoczności
+        val borderPaint = Paint().apply {
+            color = Color.DKGRAY
+            style = Paint.Style.STROKE
+            strokeWidth = 2f
+        }
+        canvas.drawRoundRect(
+            margin, y, pageWidth - margin, y + barHeight,
+            15f, 15f, borderPaint
         )
 
         // Wypełnienie paska
@@ -306,17 +337,17 @@ class PdfReportGenerator(private val context: Context) {
             15f, 15f, fillPaint
         )
 
-        // Tekst procentowy
+        // Większy tekst procentowy
         val percentPaint = TextPaint().apply {
             color = Color.WHITE
-            textSize = 16f
+            textSize = 24f  // Większa czcionka
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
         val percentText = "$riskPercentage%"
-        canvas.drawText(percentText, margin + 20f, y + 20f, percentPaint)
+        canvas.drawText(percentText, margin + 25f, y + 32f, percentPaint)
 
-        y += barHeight + 20f
+        y += barHeight + 25f
 
         // Komentarz do ryzyka
         val commentPaint = TextPaint().apply {
@@ -335,7 +366,7 @@ class PdfReportGenerator(private val context: Context) {
         commentLayout.draw(canvas)
         canvas.restore()
 
-        return y + commentLayout.height + 30f
+        return y// + commentLayout.height + 30f
     }
 
     private fun drawScoreBreakdown(
@@ -490,6 +521,18 @@ class PdfReportGenerator(private val context: Context) {
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
+
+        // Check if we need a new page immediately for the title
+        if (y > pageHeight - 50) {
+            pdfDocument.finishPage(currentPage)  // Finish current page first
+            pageNumber++
+            currentPage = pdfDocument.startPage(
+                PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+            )
+            currentCanvas = currentPage.canvas
+            y = margin
+        }
+
         currentCanvas.drawText("WYNIKI POZA NORMĄ", margin, y, sectionPaint)
         y += 30f
 
@@ -516,9 +559,9 @@ class PdfReportGenerator(private val context: Context) {
         y += 10f
 
         for (result in results) {
-            // Sprawdź czy potrzebna nowa strona
+            // Check if we need a new page
             if (y > pageHeight - 50) {
-                currentPage?.let { pdfDocument.finishPage(it) }
+                currentPage?.let { pdfDocument.finishPage(it) }  // Finish current page
                 pageNumber++
                 currentPage = pdfDocument.startPage(
                     PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
@@ -529,6 +572,13 @@ class PdfReportGenerator(private val context: Context) {
 
             currentCanvas.drawText(result, margin, y, resultPaint)
             y += 15f
+        }
+
+        // Finish the last page if we created any new pages
+        currentPage?.let {
+            if (it !== currentPage) {  // Only finish if it's a different page
+                pdfDocument.finishPage(it)
+            }
         }
 
         return y + 20f
@@ -603,5 +653,220 @@ class PdfReportGenerator(private val context: Context) {
             Log.e("PdfReportGenerator", "Błąd zapisu PDF", e)
             Pair(null, null)
         }
+    }
+
+    private fun drawShapeAnalysisSection(
+        canvas: Canvas,
+        startY: Float,
+        analysis: ElectrophoresisShapeAnalyzer.ShapeAnalysisResult,
+        points: Int,
+        maxPoints: Int
+    ): Float {
+        var y = startY
+
+        // Tytuł sekcji
+        val sectionPaint = TextPaint().apply {
+            color = primaryColor
+            textSize = 18f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            isAntiAlias = true
+        }
+        canvas.drawText("📈 ANALIZA KSZTAŁTU KRZYWEJ ELEKTROFOREZY", margin, y, sectionPaint)
+        y += 30f
+
+        // Punkty i pasek postępu
+        val scoreText = "Wynik: $points/$maxPoints punktów"
+        val scorePaint = TextPaint().apply {
+            color = Color.BLACK
+            textSize = 14f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            isAntiAlias = true
+        }
+        canvas.drawText(scoreText, margin, y, scorePaint)
+        y += 25f
+
+        // Pasek postępu dla analizy kształtu
+        val barHeight = 25f
+        val barWidth = contentWidth
+        val percentage = (analysis.fipShapeScore).toInt()
+
+        // Tło paska
+        val bgPaint = Paint().apply {
+            color = Color.parseColor("#E0E0E0")
+            style = Paint.Style.FILL
+        }
+        canvas.drawRoundRect(
+            margin, y, pageWidth - margin, y + barHeight,
+            10f, 10f, bgPaint
+        )
+
+        // Wypełnienie
+        val fillColor = when {
+            percentage >= 70 -> Color.parseColor("#F44336")
+            percentage >= 50 -> Color.parseColor("#FF9800")
+            percentage >= 30 -> Color.parseColor("#FFC107")
+            else -> Color.parseColor("#4CAF50")
+        }
+
+        val fillPaint = Paint().apply {
+            color = fillColor
+            style = Paint.Style.FILL
+        }
+
+        val fillWidth = (barWidth * percentage / 100f)
+        canvas.drawRoundRect(
+            margin, y, margin + fillWidth, y + barHeight,
+            10f, 10f, fillPaint
+        )
+
+        // Procent na pasku
+        val percentPaint = TextPaint().apply {
+            color = Color.WHITE
+            textSize = 14f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            isAntiAlias = true
+        }
+        canvas.drawText("$percentage%", margin + 10f, y + 17f, percentPaint)
+
+        y += barHeight + 20f
+
+        // Szczegóły analizy
+        val detailsPaint = TextPaint().apply {
+            color = Color.BLACK
+            textSize = 12f
+            isAntiAlias = true
+        }
+
+        val details = """
+            Wzorzec: ${analysis.overallPattern}
+            Stosunek albumin/gamma: ${String.format("%.2f", analysis.albumin.height / analysis.gamma.height)}
+            Szerokość piku gamma: ${(analysis.gamma.width * 100).toInt()}%
+            Mostek beta-gamma: ${if (analysis.betaGammaBridge.present) "obecny" else "nieobecny"}
+        """.trimIndent()
+
+        val detailsLayout = StaticLayout.Builder.obtain(
+            details, 0, details.length, detailsPaint, contentWidth.toInt()
+        ).build()
+
+        canvas.save()
+        canvas.translate(margin, y)
+        detailsLayout.draw(canvas)
+        canvas.restore()
+
+        return y + detailsLayout.height + 30f
+    }
+
+    private fun drawPatternAnalysisSection(
+        canvas: Canvas,
+        startY: Float,
+        analysis: FipPatternAnalyzer.PatternAnalysisResult,
+        points: Int,
+        maxPoints: Int
+    ): Float {
+        var y = startY
+
+        // Tytuł sekcji
+        val sectionPaint = TextPaint().apply {
+            color = primaryColor
+            textSize = 18f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            isAntiAlias = true
+        }
+        canvas.drawText("🔬 PROFIL WZORCÓW LABORATORYJNYCH", margin, y, sectionPaint)
+        y += 30f
+
+        // Punkty
+        val scoreText = "Wynik: $points/$maxPoints punktów"
+        val scorePaint = TextPaint().apply {
+            color = Color.BLACK
+            textSize = 14f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            isAntiAlias = true
+        }
+        canvas.drawText(scoreText, margin, y, scorePaint)
+        y += 25f
+
+        // Pasek postępu
+        val barHeight = 25f
+        val percentage = analysis.patternStrength.toInt()
+
+        // Tło paska
+        val bgPaint = Paint().apply {
+            color = Color.parseColor("#E0E0E0")
+            style = Paint.Style.FILL
+        }
+        canvas.drawRoundRect(
+            margin, y, pageWidth - margin, y + barHeight,
+            10f, 10f, bgPaint
+        )
+
+        // Wypełnienie
+        val fillColor = when {
+            percentage >= 70 -> Color.parseColor("#F44336")
+            percentage >= 50 -> Color.parseColor("#FF9800")
+            else -> Color.parseColor("#4CAF50")
+        }
+
+        val fillPaint = Paint().apply {
+            color = fillColor
+            style = Paint.Style.FILL
+        }
+
+        val fillWidth = (contentWidth * percentage / 100f)
+        canvas.drawRoundRect(
+            margin, y, margin + fillWidth, y + barHeight,
+            10f, 10f, fillPaint
+        )
+
+        // Procent
+        val percentPaint = TextPaint().apply {
+            color = Color.WHITE
+            textSize = 14f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            isAntiAlias = true
+        }
+        canvas.drawText("$percentage%", margin + 10f, y + 17f, percentPaint)
+
+        y += barHeight + 20f
+
+        // Profil i opis
+        val profileName = when (analysis.primaryProfile) {
+            FipPatternAnalyzer.FipProfile.INFLAMMATORY_ACUTE -> "Ostry profil zapalny"
+            FipPatternAnalyzer.FipProfile.INFLAMMATORY_CHRONIC -> "Przewlekły profil zapalny"
+            FipPatternAnalyzer.FipProfile.EFFUSIVE_CLASSIC -> "Klasyczny wysiękowy"
+            FipPatternAnalyzer.FipProfile.DRY_NEUROLOGICAL -> "Suchy neurologiczny"
+            FipPatternAnalyzer.FipProfile.MIXED_PATTERN -> "Profil mieszany"
+            FipPatternAnalyzer.FipProfile.ATYPICAL -> "Profil nietypowy"
+            FipPatternAnalyzer.FipProfile.NON_FIP -> "Profil nie-FIP"
+        }
+
+        val profilePaint = TextPaint().apply {
+            color = Color.BLACK
+            textSize = 13f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            isAntiAlias = true
+        }
+        canvas.drawText("Główny profil: $profileName", margin, y, profilePaint)
+        y += 25f
+
+        // Kluczowe obserwacje
+        if (analysis.keyFindings.isNotEmpty()) {
+            val findingsPaint = TextPaint().apply {
+                color = Color.BLACK
+                textSize = 11f
+                isAntiAlias = true
+            }
+
+            canvas.drawText("Kluczowe obserwacje:", margin, y, findingsPaint)
+            y += 20f
+
+            for (finding in analysis.keyFindings.take(3)) { // Max 3 najważniejsze
+                val cleanFinding = finding.replace(Regex("[✅❌⚠️🔸❓]"), "•")
+                canvas.drawText(cleanFinding, margin + 10f, y, findingsPaint)
+                y += 18f
+            }
+        }
+
+        return y + 30f
     }
 }

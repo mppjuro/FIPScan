@@ -29,35 +29,43 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="16dp"
+        android:padding="8dp"
         android:gravity="center"
         android:visibility="gone"
         android:background="?android:attr/colorBackground"
-        android:elevation="4dp">
+        android:elevation="2dp">
 
         <Button
             android:id="@+id/buttonDownloadReport"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="40dp"
             android:layout_weight="1"
-            android:layout_marginEnd="8dp"
-            android:text="Pobierz Raport"
-            android:drawableTop="@drawable/ic_download"
-            android:drawablePadding="8dp"
+            android:layout_marginEnd="4dp"
+            android:text="  Pobierz"
+            android:textSize="13sp"
+            android:drawableLeft="@drawable/ic_download_small"
+            android:drawablePadding="4dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
             android:backgroundTint="?attr/colorPrimary"
-            android:textColor="?attr/colorOnPrimary" />
+            android:textColor="?attr/colorOnPrimary"
+            style="?attr/materialButtonStyle" />
 
         <Button
             android:id="@+id/buttonPrintReport"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="40dp"
             android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:text="Drukuj Raport"
-            android:drawableTop="@drawable/ic_print"
-            android:drawablePadding="8dp"
+            android:layout_marginStart="4dp"
+            android:text="  Drukuj"
+            android:textSize="13sp"
+            android:drawableLeft="@drawable/ic_print_small"
+            android:drawablePadding="4dp"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
             android:backgroundTint="?attr/colorPrimary"
-            android:textColor="?attr/colorOnPrimary" />
+            android:textColor="?attr/colorOnPrimary"
+            style="?attr/materialButtonStyle" />
 
     </LinearLayout>
 
@@ -179,17 +187,6 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 android:orientation="vertical" />
-
-            <!-- Chart Image View (optional) -->
-            <ImageView
-                android:id="@+id/chartImageView"
-                android:layout_width="match_parent"
-                android:layout_height="200dp"
-                android:layout_marginBottom="16dp"
-                android:scaleType="fitCenter"
-                android:visibility="gone"
-                android:contentDescription="Chart Image"
-                android:background="@drawable/rounded_background_themed" />
 
         </LinearLayout>
 

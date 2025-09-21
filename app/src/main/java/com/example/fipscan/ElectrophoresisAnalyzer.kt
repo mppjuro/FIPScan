@@ -8,23 +8,20 @@ import android.util.Log
  * Wykorzystuje ważony system punktowy oparty na wytycznych ABCD (Advisory Board on Cat Diseases).
  */
 object ElectrophoresisAnalyzer {
+    const val SHAPE_ANALYSIS_MAX_POINTS = 30
+    const val PATTERN_ANALYSIS_MAX_POINTS = 30
 
-    /**
-     * Struktura przechowująca wynik analizy ryzyka FIP.
-     * @param riskPercentage Procentowe ryzyko FIP (0-100%).
-     * @param fipRiskComment Komentarz tekstowy podsumowujący ryzyko.
-     * @param scoreBreakdown Lista ciągów znaków, szczegółowo opisująca, które czynniki wpłynęły na wynik.
-     * @param furtherTestsAdvice Sugestie dotyczące dalszych badań.
-     * @param supplementAdvice Zalecenia dotyczące suplementacji.
-     * @param vetConsultationAdvice Sugestia konsultacji weterynaryjnej.
-     */
     data class FipRiskResult(
         val riskPercentage: Int,
         val fipRiskComment: String,
         val scoreBreakdown: List<String>,
         val furtherTestsAdvice: String,
         val supplementAdvice: String,
-        val vetConsultationAdvice: String
+        val vetConsultationAdvice: String,
+        val shapeAnalysisPoints: Int = 0,
+        val patternAnalysisPoints: Int = 0,
+        val maxShapePoints: Int = SHAPE_ANALYSIS_MAX_POINTS,
+        val maxPatternPoints: Int = PATTERN_ANALYSIS_MAX_POINTS
     )
 
     // --- Funkcje pomocnicze ---
@@ -67,7 +64,12 @@ object ElectrophoresisAnalyzer {
      * @param rivaltaStatus Status próby Rivalta ("pozytywna", "negatywna", "nie wykonano").
      * @return [FipRiskResult] zawierający ocenę ryzyka i szczegółowe uzasadnienie.
      */
-    fun assessFipRisk(labData: Map<String, Any>, rivaltaStatus: String): FipRiskResult {
+    fun assessFipRisk(
+        labData: Map<String, Any>,
+        rivaltaStatus: String,
+        shapeAnalysisScore: Float? = null,
+        patternAnalysisScore: Float? = null
+    ): FipRiskResult {
         var totalScore = 0
         var maxScore = 0
         val breakdown = mutableListOf<String>()
@@ -243,10 +245,42 @@ object ElectrophoresisAnalyzer {
         }
 
 
-        // Finalne obliczenia - wystarczy 2/3 objawów, żeby uznać FIP za pewny -
-        // - nigdy nie ma całkiem wszystkich objawów
-        var riskPercentage = if (maxScore > 0) ((totalScore.coerceIn(0, maxScore) * 150) / maxScore) else 0
-        if (riskPercentage > 100) riskPercentage = 100;
+        var shapePoints = 0
+        if (shapeAnalysisScore != null) {
+            shapePoints = ((shapeAnalysisScore / 100f) * SHAPE_ANALYSIS_MAX_POINTS).toInt()
+            totalScore += shapePoints
+            maxScore += SHAPE_ANALYSIS_MAX_POINTS
+
+            val shapeLevel = when {
+                shapePoints >= 25 -> "bardzo charakterystyczny"
+                shapePoints >= 20 -> "charakterystyczny"
+                shapePoints >= 15 -> "umiarkowanie sugestywny"
+                shapePoints >= 10 -> "słabo sugestywny"
+                else -> "niecharakterystyczny"
+            }
+            breakdown.add("📊 Analiza kształtu krzywej ($shapeLevel): <b>+$shapePoints/$SHAPE_ANALYSIS_MAX_POINTS pkt</b>")
+        }
+
+        // INTEGRACJA ANALIZY WZORCÓW PARAMETRÓW
+        var patternPoints = 0
+        if (patternAnalysisScore != null) {
+            patternPoints = ((patternAnalysisScore / 100f) * PATTERN_ANALYSIS_MAX_POINTS).toInt()
+            totalScore += patternPoints
+            maxScore += PATTERN_ANALYSIS_MAX_POINTS
+
+            val patternLevel = when {
+                patternPoints >= 25 -> "bardzo typowy"
+                patternPoints >= 20 -> "typowy"
+                patternPoints >= 15 -> "częściowo typowy"
+                patternPoints >= 10 -> "słabo typowy"
+                else -> "nietypowy"
+            }
+            breakdown.add("🔬 Profil wzorców laboratoryjnych ($patternLevel): <b>+$patternPoints/$PATTERN_ANALYSIS_MAX_POINTS pkt</b>")
+        }
+
+        // Obliczenie końcowego ryzyka
+        var riskPercentage = if (maxScore > 0) ((totalScore.coerceIn(0, maxScore) * 100) / maxScore) else 0
+        if (riskPercentage > 100) riskPercentage = 100
 
         val fipRiskComment = when {
             riskPercentage >= 75 -> "<b><font color='#D32F2F'>BARDZO WYSOKIE RYZYKO FIP (${riskPercentage}%)</font></b>. Wyniki silnie wskazują na zakaźne zapalenie otrzewnej. Należy pilnie skonsultować się z lekarzem weterynarii w celu potwierdzenia diagnozy i wdrożenia leczenia."
@@ -266,7 +300,9 @@ object ElectrophoresisAnalyzer {
             scoreBreakdown = breakdown,
             furtherTestsAdvice = furtherTests,
             supplementAdvice = supplements,
-            vetConsultationAdvice = consultation
+            vetConsultationAdvice = consultation,
+            shapeAnalysisPoints = shapePoints,
+            patternAnalysisPoints = patternPoints
         )
     }
 }

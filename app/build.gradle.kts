@@ -118,19 +118,19 @@ dependencies {
     }
 
     // Commons IO dla operacji na plikach
-    implementation("commons-io:commons-io:2.11.0")
+    implementation("commons-io:commons-io:2.20.0")
 
     // Commons Net do obsługi FTP
-    implementation("commons-net:commons-net:3.6")
+    implementation("commons-net:commons-net:3.12.0")
 
     // Apache Commons CSV do operacji na plikach CSV
-    implementation("org.apache.commons:commons-csv:1.9.0")
+    implementation("org.apache.commons:commons-csv:1.14.1")
 
     implementation(libs.androidx.room.runtime)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.ktx)
-    implementation("androidx.navigation:navigation-fragment-ktx:2.8.9")
-    implementation("androidx.navigation:navigation-ui-ktx:2.8.9")
+    implementation("androidx.navigation:navigation-fragment-ktx:2.9.4")
+    implementation("androidx.navigation:navigation-ui-ktx:2.9.4")
 
     implementation(libs.annotations)
 
