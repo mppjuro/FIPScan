@@ -47,6 +47,8 @@ import android.graphics.Color
 import com.example.fipscan.FipPatternAnalyzer
 import android.widget.ProgressBar
 import android.graphics.BitmapFactory
+import android.util.TypedValue
+import androidx.core.content.ContextCompat
 
 class DiagnosisFragment : Fragment() {
     private var _binding: FragmentDiagnosisBinding? = null
@@ -584,6 +586,7 @@ class DiagnosisFragment : Fragment() {
             }
             cardElevation = 4f
             radius = 8f
+            setCardBackgroundColor(getThemedColor(requireContext(), android.R.attr.colorBackgroundFloating))
         }
 
         val content = LinearLayout(requireContext()).apply {
@@ -596,7 +599,7 @@ class DiagnosisFragment : Fragment() {
             text = "📊 ANALIZA KSZTAŁTU KRZYWEJ"
             textSize = 18f
             setTypeface(null, Typeface.BOLD)
-            setTextColor(Color.BLACK)
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
         }
         content.addView(title)
 
@@ -605,6 +608,7 @@ class DiagnosisFragment : Fragment() {
             text = "Wzorzec: ${analysis.overallPattern}"
             textSize = 16f
             setPadding(0, 8, 0, 4)
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
         }
         content.addView(pattern)
 
@@ -613,12 +617,25 @@ class DiagnosisFragment : Fragment() {
             text = "Wynik kształtu FIP: ${analysis.fipShapeScore.toInt()}/100"
             textSize = 16f
             setPadding(8, 8, 8, 8)
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
 
             val bgColor = when {
-                analysis.fipShapeScore >= 70 -> Color.parseColor("#FFCDD2") // Czerwone tło
-                analysis.fipShapeScore >= 50 -> Color.parseColor("#FFF9C4") // Żółte tło
-                analysis.fipShapeScore >= 30 -> Color.parseColor("#DCEDC8") // Zielone tło
-                else -> Color.parseColor("#E0E0E0") // Szare tło
+                analysis.fipShapeScore >= 70 -> {
+                    // Czerwone tło z przezroczystością
+                    getColorWithAlpha(Color.parseColor("#F44336"), 0.2f)
+                }
+                analysis.fipShapeScore >= 50 -> {
+                    // Żółte tło z przezroczystością
+                    getColorWithAlpha(Color.parseColor("#FF9800"), 0.2f)
+                }
+                analysis.fipShapeScore >= 30 -> {
+                    // Zielone tło z przezroczystością
+                    getColorWithAlpha(Color.parseColor("#4CAF50"), 0.2f)
+                }
+                else -> {
+                    // Szare tło z przezroczystością
+                    getColorWithAlpha(getThemedColor(requireContext(), android.R.attr.textColorSecondary), 0.2f)
+                }
             }
             setBackgroundColor(bgColor)
         }
@@ -629,6 +646,7 @@ class DiagnosisFragment : Fragment() {
             text = analysis.shapeDescription
             textSize = 14f
             setPadding(0, 8, 0, 0)
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
         }
         content.addView(description)
 
@@ -637,6 +655,7 @@ class DiagnosisFragment : Fragment() {
             text = "\nSzczegóły frakcji:"
             textSize = 14f
             setTypeface(null, Typeface.BOLD)
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
         }
         content.addView(detailsTitle)
 
@@ -650,6 +669,7 @@ class DiagnosisFragment : Fragment() {
             text = details
             textSize = 12f
             typeface = Typeface.MONOSPACE
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorSecondary))
         }
         content.addView(detailsText)
 
@@ -657,6 +677,7 @@ class DiagnosisFragment : Fragment() {
         return card
     }
 
+    // Zastąp metodę createPatternAnalysisCard:
     private fun createPatternAnalysisCard(analysis: FipPatternAnalyzer.PatternAnalysisResult): CardView {
         val card = CardView(requireContext()).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -667,6 +688,7 @@ class DiagnosisFragment : Fragment() {
             }
             cardElevation = 4f
             radius = 8f
+            setCardBackgroundColor(getThemedColor(requireContext(), android.R.attr.colorBackgroundFloating))
         }
 
         val content = LinearLayout(requireContext()).apply {
@@ -679,7 +701,7 @@ class DiagnosisFragment : Fragment() {
             text = "🔬 PROFIL WZORCÓW LABORATORYJNYCH"
             textSize = 18f
             setTypeface(null, Typeface.BOLD)
-            setTextColor(Color.BLACK)
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
         }
         content.addView(title)
 
@@ -699,6 +721,7 @@ class DiagnosisFragment : Fragment() {
             textSize = 16f
             setTypeface(null, Typeface.BOLD)
             setPadding(0, 8, 0, 4)
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
         }
         content.addView(profile)
 
@@ -711,11 +734,12 @@ class DiagnosisFragment : Fragment() {
             max = 100
             progress = analysis.patternStrength.toInt()
 
-            progressTintList = ColorStateList.valueOf(when {
-                analysis.patternStrength >= 70 -> Color.RED
-                analysis.patternStrength >= 50 -> Color.parseColor("#FFA000")
-                else -> Color.parseColor("#4CAF50")
-            })
+            val tintColor = when {
+                analysis.patternStrength >= 70 -> Color.parseColor("#F44336") // Czerwony
+                analysis.patternStrength >= 50 -> Color.parseColor("#FF9800") // Pomarańczowy
+                else -> Color.parseColor("#4CAF50") // Zielony
+            }
+            progressTintList = ColorStateList.valueOf(tintColor)
         }
         content.addView(strengthBar)
 
@@ -723,6 +747,7 @@ class DiagnosisFragment : Fragment() {
             text = "Siła dopasowania: ${analysis.patternStrength.toInt()}%"
             textSize = 14f
             setPadding(0, 4, 0, 8)
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
         }
         content.addView(strengthText)
 
@@ -732,6 +757,7 @@ class DiagnosisFragment : Fragment() {
                 text = "\nKluczowe obserwacje:"
                 textSize = 14f
                 setTypeface(null, Typeface.BOLD)
+                setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
             }
             content.addView(findingsTitle)
 
@@ -740,6 +766,7 @@ class DiagnosisFragment : Fragment() {
                     text = finding
                     textSize = 13f
                     setPadding(8, 4, 0, 4)
+                    setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
                 }
                 content.addView(findingText)
             }
@@ -750,6 +777,7 @@ class DiagnosisFragment : Fragment() {
             text = "\nOpis profilu:"
             textSize = 14f
             setTypeface(null, Typeface.BOLD)
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
         }
         content.addView(descTitle)
 
@@ -757,6 +785,7 @@ class DiagnosisFragment : Fragment() {
             text = analysis.profileDescription
             textSize = 13f
             setPadding(0, 4, 0, 8)
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
         }
         content.addView(description)
 
@@ -765,6 +794,7 @@ class DiagnosisFragment : Fragment() {
             text = "\nSugestie postępowania:"
             textSize = 14f
             setTypeface(null, Typeface.BOLD)
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
         }
         content.addView(suggestionsTitle)
 
@@ -772,11 +802,27 @@ class DiagnosisFragment : Fragment() {
             text = analysis.managementSuggestions
             textSize = 13f
             setPadding(0, 4, 0, 0)
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
         }
         content.addView(suggestions)
 
         card.addView(content)
         return card
+    }
+
+    private fun getThemedColor(context: Context, attr: Int): Int {
+        val typedValue = TypedValue()
+        context.theme.resolveAttribute(attr, typedValue, true)
+        return ContextCompat.getColor(context, typedValue.resourceId)
+    }
+
+    private fun getColorWithAlpha(color: Int, alpha: Float): Int {
+        return Color.argb(
+            (alpha * 255).toInt(),
+            Color.red(color),
+            Color.green(color),
+            Color.blue(color)
+        )
     }
 
     override fun onDestroyView() {

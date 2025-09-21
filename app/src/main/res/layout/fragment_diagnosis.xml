@@ -5,31 +5,76 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
+    android:fitsSystemWindows="true"
     tools:context=".ui.diagnosis.DiagnosisFragment">
 
+    <!-- Header -->
+    <TextView
+        android:id="@+id/textDiagnosis"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:text="Diagnoza"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:textColor="?android:attr/textColorPrimary" />
+
+    <!-- Report Buttons Container at top - always visible -->
+    <LinearLayout
+        android:id="@+id/reportButtonsContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp"
+        android:gravity="center"
+        android:visibility="gone"
+        android:background="?android:attr/colorBackground"
+        android:elevation="4dp">
+
+        <Button
+            android:id="@+id/buttonDownloadReport"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:text="Pobierz Raport"
+            android:drawableTop="@drawable/ic_download"
+            android:drawablePadding="8dp"
+            android:backgroundTint="?attr/colorPrimary"
+            android:textColor="?attr/colorOnPrimary" />
+
+        <Button
+            android:id="@+id/buttonPrintReport"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="Drukuj Raport"
+            android:drawableTop="@drawable/ic_print"
+            android:drawablePadding="8dp"
+            android:backgroundTint="?attr/colorPrimary"
+            android:textColor="?attr/colorOnPrimary" />
+
+    </LinearLayout>
+
+    <!-- ScrollView starts below buttons -->
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:fillViewport="true">
+        android:fillViewport="true"
+        android:layout_marginBottom="?attr/actionBarSize"
+        android:scrollbars="vertical">
 
-        <!-- Single direct child of ScrollView -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:padding="16dp">
-
-            <!-- Header -->
-            <TextView
-                android:id="@+id/textDiagnosis"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
-                android:text="Diagnoza"
-                android:textSize="24sp"
-                android:textStyle="bold"
-                android:gravity="center" />
 
             <!-- Patient Info -->
             <TextView
@@ -37,9 +82,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                android:background="@drawable/rounded_background"
+                android:background="@drawable/rounded_background_themed"
                 android:padding="12dp"
                 android:textSize="14sp"
+                android:textColor="?android:attr/textColorPrimary"
                 android:visibility="gone" />
 
             <!-- Diagnostic Comment -->
@@ -48,9 +94,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                android:background="@drawable/rounded_background"
+                android:background="@drawable/rounded_background_themed"
                 android:padding="12dp"
                 android:textSize="14sp"
+                android:textColor="?android:attr/textColorPrimary"
                 android:visibility="gone" />
 
             <!-- Risk Breakdown -->
@@ -59,9 +106,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                android:background="@drawable/rounded_background"
+                android:background="@drawable/rounded_background_themed"
                 android:padding="12dp"
                 android:textSize="14sp"
+                android:textColor="?android:attr/textColorPrimary"
                 android:visibility="gone" />
 
             <!-- Further Tests -->
@@ -70,9 +118,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                android:background="@drawable/rounded_background"
+                android:background="@drawable/rounded_background_themed"
                 android:padding="12dp"
                 android:textSize="14sp"
+                android:textColor="?android:attr/textColorPrimary"
                 android:visibility="gone" />
 
             <!-- Risk Supplements -->
@@ -81,9 +130,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                android:background="@drawable/rounded_background"
+                android:background="@drawable/rounded_background_themed"
                 android:padding="12dp"
                 android:textSize="14sp"
+                android:textColor="?android:attr/textColorPrimary"
                 android:visibility="gone" />
 
             <!-- Risk Consultation -->
@@ -92,9 +142,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                android:background="@drawable/rounded_background"
+                android:background="@drawable/rounded_background_themed"
                 android:padding="12dp"
                 android:textSize="14sp"
+                android:textColor="?android:attr/textColorPrimary"
                 android:visibility="gone" />
 
             <!-- General Supplements -->
@@ -103,9 +154,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                android:background="@drawable/rounded_background"
+                android:background="@drawable/rounded_background_themed"
                 android:padding="12dp"
                 android:textSize="14sp"
+                android:textColor="?android:attr/textColorPrimary"
                 android:visibility="gone" />
 
             <!-- General Consultation -->
@@ -114,9 +166,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                android:background="@drawable/rounded_background"
+                android:background="@drawable/rounded_background_themed"
                 android:padding="12dp"
                 android:textSize="14sp"
+                android:textColor="?android:attr/textColorPrimary"
                 android:visibility="gone" />
 
             <!-- Analysis Container for dynamically added cards -->
@@ -135,42 +188,11 @@
                 android:layout_marginBottom="16dp"
                 android:scaleType="fitCenter"
                 android:visibility="gone"
-                android:contentDescription="Chart Image" />
+                android:contentDescription="Chart Image"
+                android:background="@drawable/rounded_background_themed" />
 
         </LinearLayout>
 
     </ScrollView>
-
-    <!-- Report Buttons Container at bottom -->
-    <LinearLayout
-        android:id="@+id/reportButtonsContainer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="16dp"
-        android:gravity="center"
-        android:visibility="gone">
-
-        <Button
-            android:id="@+id/buttonDownloadReport"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginEnd="8dp"
-            android:text="Pobierz Raport"
-            android:drawableTop="@drawable/ic_download"
-            android:drawablePadding="8dp" />
-
-        <Button
-            android:id="@+id/buttonPrintReport"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:text="Drukuj Raport"
-            android:drawableTop="@drawable/ic_print"
-            android:drawablePadding="8dp" />
-
-    </LinearLayout>
 
 </LinearLayout>
