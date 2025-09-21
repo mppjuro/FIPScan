@@ -21,7 +21,7 @@
         <!-- Background colors -->
         <item name="android:colorBackground">@color/white</item>
         <item name="android:colorBackgroundFloating">#F8F8F8</item>
-        <item name="android:dividerHorizontal">#E0E0E0</item>
+        <item name="android:dividerHorizontal">@color/light_grayE0</item>
     </style>
 
     <style name="Theme.FIPscan.Dark" parent="Theme.MaterialComponents.DayNight.NoActionBar">
