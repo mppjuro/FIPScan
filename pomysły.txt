@@ -8,3 +8,6 @@ języki - angielski i polski do wyboru w ustawieniach
 kalkulator dawki
 
 kontakt - np. pięcioklik na ustawienia
+
+Sprawdzenie ile pliki mają linii:
+git ls-files | xargs wc -l

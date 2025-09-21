@@ -405,7 +405,12 @@ object FipPatternAnalyzer {
             modifier -= 20f
         }
 
-        return (baseScore + modifier).coerceIn(0f, 100f)
+        val baseResult = baseScore + modifier
+
+        // NOWY MNOŻNIK 2.75 - zwiększa wrażliwość systemu
+        val multipliedScore = baseResult * 2.75f
+
+        return multipliedScore.coerceIn(0f, 100f)
     }
 
     private fun generateKeyFindings(
