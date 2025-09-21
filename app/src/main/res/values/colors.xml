@@ -16,4 +16,5 @@
     <color name="background_dark">#121212</color>
     <color name="background_floating_dark">#1E1E1E</color>
     <color name="surface_dark">#1E1E1E</color>
+    <color name="light_grayE0">#E0E0E0</color>
 </resources>
