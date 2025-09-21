@@ -7,7 +7,6 @@ import android.graphics.pdf.PdfDocument
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import android.text.Layout
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.Log
@@ -19,17 +18,18 @@ import java.util.*
 
 class PdfReportGenerator(private val context: Context) {
 
-    private val pageWidth = 595 // A4 width in points
-    private val pageHeight = 842 // A4 height in points
-    private val margin = 50f
+    // Standardowe wymiary A4 w punktach (1pt = 1/72 cala)
+    private val pageWidth = 595 // 595pt = 210mm (A4 width)
+    private val pageHeight = 842 // 842pt = 297mm (A4 height)
+    private val margin = 36f // 0.5 cala (36pt)
     private val contentWidth = pageWidth - (2 * margin)
 
-    // Kolory
-    private val primaryColor = Color.parseColor("#FF018786")
+    // Kolory - dostosowane do druku (bardziej stonowane)
+    private val primaryColor = Color.parseColor("#1976D2")
     private val dangerColor = Color.parseColor("#D32F2F")
     private val warningColor = Color.parseColor("#FFA000")
     private val successColor = Color.parseColor("#388E3C")
-    private val backgroundColor = Color.parseColor("#F5F5F5")
+    private val backgroundColor = Color.parseColor("#F9F9F9")
 
     fun generateReport(
         patientName: String,
@@ -107,6 +107,7 @@ class PdfReportGenerator(private val context: Context) {
                 )
                 canvas = currentPage.canvas
                 yPosition = margin
+                drawFooter(canvas, pageNumber) // Dodaj stopkę na nowej stronie
             }
 
             // Szczegółowa analiza
@@ -121,6 +122,7 @@ class PdfReportGenerator(private val context: Context) {
                 )
                 canvas = currentPage.canvas
                 yPosition = margin
+                drawFooter(canvas, pageNumber) // Dodaj stopkę na nowej stronie
             }
 
             // Zalecenia
@@ -138,11 +140,46 @@ class PdfReportGenerator(private val context: Context) {
                 )
                 canvas = currentPage.canvas
                 yPosition = margin
+                drawFooter(canvas, pageNumber) // Dodaj stopkę na nowej stronie
             }
 
             // Wyniki poza normą
             if (abnormalResults.isNotEmpty()) {
-                yPosition = drawAbnormalResults(canvas, yPosition, abnormalResults, pdfDocument, pageNumber)
+                // Sprawdź czy potrzebna nowa strona
+                if (yPosition > pageHeight - 200) {
+                    pdfDocument.finishPage(currentPage)
+                    pageNumber++
+                    currentPage = pdfDocument.startPage(
+                        PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+                    )
+                    canvas = currentPage.canvas
+                    yPosition = margin
+                    drawFooter(canvas, pageNumber) // Dodaj stopkę na nowej stronie
+                }
+
+                yPosition = drawAbnormalResults(canvas, yPosition, abnormalResults)
+
+                // Sprawdź czy wyniki nie zmieściły się na stronie
+                if (yPosition > pageHeight - 50) {
+                    pdfDocument.finishPage(currentPage)
+                    pageNumber++
+                    currentPage = pdfDocument.startPage(
+                        PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+                    )
+                    canvas = currentPage.canvas
+                    yPosition = margin
+                    drawFooter(canvas, pageNumber) // Dodaj stopkę na nowej stronie
+
+                    // Ponów nagłówek na nowej stronie
+                    val sectionPaint = TextPaint().apply {
+                        color = primaryColor
+                        textSize = 16f
+                        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                        isAntiAlias = true
+                    }
+                    canvas.drawText("WYNIKI POZA NORMĄ (cd.)", margin, yPosition, sectionPaint)
+                    yPosition += 30f
+                }
             }
 
             // Stopka na ostatniej stronie
@@ -164,8 +201,9 @@ class PdfReportGenerator(private val context: Context) {
     }
 
     private fun drawHeader(canvas: Canvas, patientName: String) {
+        // Zmieniony kolor nagłówka na bardziej stonowany
         val paint = Paint().apply {
-            color = primaryColor
+            color = Color.parseColor("#1A237E")
             style = Paint.Style.FILL
         }
 
@@ -175,7 +213,7 @@ class PdfReportGenerator(private val context: Context) {
         // Tytuł
         val titlePaint = TextPaint().apply {
             color = Color.WHITE
-            textSize = 24f
+            textSize = 20f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
@@ -220,7 +258,7 @@ class PdfReportGenerator(private val context: Context) {
         // Tytuł sekcji
         val sectionPaint = TextPaint().apply {
             color = primaryColor
-            textSize = 18f
+            textSize = 16f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
@@ -286,15 +324,15 @@ class PdfReportGenerator(private val context: Context) {
         // Tytuł sekcji
         val sectionPaint = TextPaint().apply {
             color = primaryColor
-            textSize = 22f  // Większy tytuł dla głównej oceny
+            textSize = 20f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
         canvas.drawText("📊 GŁÓWNA OCENA RYZYKA FIP", margin, y, sectionPaint)
         y += 35f
 
-        // WIĘKSZY PASEK POSTĘPU dla głównego wyniku
-        val barHeight = 50f  // Zwiększona wysokość
+        // Pasek postępu dla głównego wyniku
+        val barHeight = 40f
         val barWidth = contentWidth
 
         // Tło paska z ramką
@@ -311,7 +349,7 @@ class PdfReportGenerator(private val context: Context) {
         val borderPaint = Paint().apply {
             color = Color.DKGRAY
             style = Paint.Style.STROKE
-            strokeWidth = 2f
+            strokeWidth = 1f
         }
         canvas.drawRoundRect(
             margin, y, pageWidth - margin, y + barHeight,
@@ -337,15 +375,15 @@ class PdfReportGenerator(private val context: Context) {
             15f, 15f, fillPaint
         )
 
-        // Większy tekst procentowy
+        // Tekst procentowy
         val percentPaint = TextPaint().apply {
             color = Color.WHITE
-            textSize = 24f  // Większa czcionka
+            textSize = 20f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
         val percentText = "$riskPercentage%"
-        canvas.drawText(percentText, margin + 25f, y + 32f, percentPaint)
+        canvas.drawText(percentText, margin + 25f, y + 26f, percentPaint)
 
         y += barHeight + 25f
 
@@ -366,7 +404,7 @@ class PdfReportGenerator(private val context: Context) {
         commentLayout.draw(canvas)
         canvas.restore()
 
-        return y// + commentLayout.height + 30f
+        return y + commentLayout.height + 30f
     }
 
     private fun drawScoreBreakdown(
@@ -381,7 +419,7 @@ class PdfReportGenerator(private val context: Context) {
         // Tytuł sekcji
         val sectionPaint = TextPaint().apply {
             color = primaryColor
-            textSize = 18f
+            textSize = 16f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
@@ -404,6 +442,7 @@ class PdfReportGenerator(private val context: Context) {
                 )
                 currentCanvas = currentPage.canvas
                 y = margin
+                drawFooter(currentCanvas, pageNumber)
             }
 
             val cleanItem = item.replace(Regex("<[^>]*>"), "")
@@ -438,7 +477,7 @@ class PdfReportGenerator(private val context: Context) {
         // Tytuł sekcji
         val sectionPaint = TextPaint().apply {
             color = primaryColor
-            textSize = 18f
+            textSize = 16f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
@@ -506,34 +545,20 @@ class PdfReportGenerator(private val context: Context) {
     }
 
     private fun drawAbnormalResults(
-        canvas: Canvas, startY: Float, results: List<String>,
-        pdfDocument: PdfDocument, currentPageNum: Int
+        canvas: Canvas,
+        startY: Float,
+        results: List<String>
     ): Float {
         var y = startY
-        var pageNumber = currentPageNum
-        var currentCanvas = canvas
-        var currentPage: PdfDocument.Page? = null
 
         // Tytuł sekcji
         val sectionPaint = TextPaint().apply {
             color = primaryColor
-            textSize = 18f
+            textSize = 16f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-
-        // Check if we need a new page immediately for the title
-        if (y > pageHeight - 50) {
-            pdfDocument.finishPage(currentPage)  // Finish current page first
-            pageNumber++
-            currentPage = pdfDocument.startPage(
-                PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
-            )
-            currentCanvas = currentPage.canvas
-            y = margin
-        }
-
-        currentCanvas.drawText("WYNIKI POZA NORMĄ", margin, y, sectionPaint)
+        canvas.drawText("WYNIKI POZA NORMĄ", margin, y, sectionPaint)
         y += 30f
 
         val resultPaint = TextPaint().apply {
@@ -547,7 +572,7 @@ class PdfReportGenerator(private val context: Context) {
         val headerPaint = TextPaint(resultPaint).apply {
             typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
         }
-        currentCanvas.drawText("Badanie | Wynik | Norma", margin, y, headerPaint)
+        canvas.drawText("Badanie | Wynik | Norma", margin, y, headerPaint)
         y += 20f
 
         // Linia separująca
@@ -555,30 +580,17 @@ class PdfReportGenerator(private val context: Context) {
             color = Color.GRAY
             strokeWidth = 1f
         }
-        currentCanvas.drawLine(margin, y, pageWidth - margin, y, linePaint)
+        canvas.drawLine(margin, y, pageWidth - margin, y, linePaint)
         y += 10f
 
         for (result in results) {
-            // Check if we need a new page
-            if (y > pageHeight - 50) {
-                currentPage?.let { pdfDocument.finishPage(it) }  // Finish current page
-                pageNumber++
-                currentPage = pdfDocument.startPage(
-                    PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
-                )
-                currentCanvas = currentPage.canvas
-                y = margin
+            // Sprawdź czy potrzeba nowej strony (nie tworzymy jej tutaj)
+            if (y > pageHeight - 20) {
+                break
             }
 
-            currentCanvas.drawText(result, margin, y, resultPaint)
+            canvas.drawText(result, margin, y, resultPaint)
             y += 15f
-        }
-
-        // Finish the last page if we created any new pages
-        currentPage?.let {
-            if (it !== currentPage) {  // Only finish if it's a different page
-                pdfDocument.finishPage(it)
-            }
         }
 
         return y + 20f
@@ -591,7 +603,7 @@ class PdfReportGenerator(private val context: Context) {
             isAntiAlias = true
         }
 
-        val footerText = "Strona $pageNumber | FIPscan - Raport diagnostyczny"
+        val footerText = "Strona $pageNumber | © ${Calendar.getInstance().get(Calendar.YEAR)} FIPScan"
         val footerWidth = footerPaint.measureText(footerText)
         canvas.drawText(
             footerText,
@@ -667,12 +679,12 @@ class PdfReportGenerator(private val context: Context) {
         // Tytuł sekcji
         val sectionPaint = TextPaint().apply {
             color = primaryColor
-            textSize = 18f
+            textSize = 16f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
         canvas.drawText("📈 ANALIZA KSZTAŁTU KRZYWEJ ELEKTROFOREZY", margin, y, sectionPaint)
-        y += 30f
+        y += 40f
 
         // Punkty i pasek postępu
         val scoreText = "Wynik: $points/$maxPoints punktów"
@@ -686,7 +698,7 @@ class PdfReportGenerator(private val context: Context) {
         y += 25f
 
         // Pasek postępu dla analizy kształtu
-        val barHeight = 25f
+        val barHeight = 20f
         val barWidth = contentWidth
         val percentage = (analysis.fipShapeScore).toInt()
 
@@ -722,11 +734,11 @@ class PdfReportGenerator(private val context: Context) {
         // Procent na pasku
         val percentPaint = TextPaint().apply {
             color = Color.WHITE
-            textSize = 14f
+            textSize = 12f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-        canvas.drawText("$percentage%", margin + 10f, y + 17f, percentPaint)
+        canvas.drawText("$percentage%", margin + 10f, y + 14f, percentPaint)
 
         y += barHeight + 20f
 
@@ -768,7 +780,7 @@ class PdfReportGenerator(private val context: Context) {
         // Tytuł sekcji
         val sectionPaint = TextPaint().apply {
             color = primaryColor
-            textSize = 18f
+            textSize = 16f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
@@ -787,7 +799,7 @@ class PdfReportGenerator(private val context: Context) {
         y += 25f
 
         // Pasek postępu
-        val barHeight = 25f
+        val barHeight = 20f
         val percentage = analysis.patternStrength.toInt()
 
         // Tło paska
@@ -821,11 +833,11 @@ class PdfReportGenerator(private val context: Context) {
         // Procent
         val percentPaint = TextPaint().apply {
             color = Color.WHITE
-            textSize = 14f
+            textSize = 12f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-        canvas.drawText("$percentage%", margin + 10f, y + 17f, percentPaint)
+        canvas.drawText("$percentage%", margin + 10f, y + 14f, percentPaint)
 
         y += barHeight + 20f
 

@@ -1,7 +1,9 @@
 ROZBUDOWAĆ:
 - profil wzorców laboratoryjnych
 - analizę kształtu krzywej i pola pod nią - analiza wykresu
-- zapisywać info z powyższych również w raporcie
+- zapisywać info z powyższych również w raporcie PDF i wydruku
+- wydruk taki jak plik .pdf
+- profil wzorców laboratoryjnych oraz analizę kształtu krzywej elektroforezy mają być składowymi oceny głównej ryzyka FIP
 
 języki - angielski i polski do wyboru w ustawieniach
 

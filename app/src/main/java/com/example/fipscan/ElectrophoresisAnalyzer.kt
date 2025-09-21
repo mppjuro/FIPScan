@@ -8,8 +8,8 @@ import android.util.Log
  * Wykorzystuje ważony system punktowy oparty na wytycznych ABCD (Advisory Board on Cat Diseases).
  */
 object ElectrophoresisAnalyzer {
-    const val SHAPE_ANALYSIS_MAX_POINTS = 30
-    const val PATTERN_ANALYSIS_MAX_POINTS = 30
+    const val SHAPE_ANALYSIS_MAX_POINTS = 20
+    const val PATTERN_ANALYSIS_MAX_POINTS = 20
 
     data class FipRiskResult(
         val riskPercentage: Int,
@@ -279,7 +279,7 @@ object ElectrophoresisAnalyzer {
         }
 
         // Obliczenie końcowego ryzyka
-        var riskPercentage = if (maxScore > 0) ((totalScore.coerceIn(0, maxScore) * 100) / maxScore) else 0
+        var riskPercentage = if (maxScore > 0) ((totalScore.coerceIn(0, maxScore) * 150) / maxScore) else 0
         if (riskPercentage > 100) riskPercentage = 100
 
         val fipRiskComment = when {

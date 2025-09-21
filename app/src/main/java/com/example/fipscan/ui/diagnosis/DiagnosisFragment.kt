@@ -488,6 +488,15 @@ class DiagnosisFragment : Fragment() {
         val generator = PdfReportGenerator(requireContext())
 
         lifecycleScope.launch(Dispatchers.IO) {
+            // Oblicz punkty dla dodatkowych analiz
+            val shapePoints = currentShapeAnalysis?.let {
+                ((it.fipShapeScore / 100f) * ElectrophoresisAnalyzer.SHAPE_ANALYSIS_MAX_POINTS).toInt()
+            } ?: 0
+
+            val patternPoints = currentPatternAnalysis?.let {
+                ((it.patternStrength / 100f) * ElectrophoresisAnalyzer.PATTERN_ANALYSIS_MAX_POINTS).toInt()
+            } ?: 0
+
             // Najpierw generuj PDF
             val (fileName, localPath) = generator.generateReport(
                 patientName = currentResult.patientName,
@@ -505,7 +514,14 @@ class DiagnosisFragment : Fragment() {
                 vetConsultationAdvice = currentVetConsultationAdvice,
                 furtherTestsAdvice = currentFurtherTestsAdvice,
                 abnormalResults = currentAbnormalResults,
-                gammopathyResult = currentGammopathyResult
+                gammopathyResult = currentGammopathyResult,
+                // Nowe parametry
+                shapeAnalysis = currentShapeAnalysis,
+                patternAnalysis = currentPatternAnalysis,
+                shapeAnalysisPoints = shapePoints,
+                patternAnalysisPoints = patternPoints,
+                maxShapePoints = ElectrophoresisAnalyzer.SHAPE_ANALYSIS_MAX_POINTS,
+                maxPatternPoints = ElectrophoresisAnalyzer.PATTERN_ANALYSIS_MAX_POINTS
             )
 
             withContext(Dispatchers.Main) {
