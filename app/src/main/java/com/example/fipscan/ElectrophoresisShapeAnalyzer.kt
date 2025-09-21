@@ -289,7 +289,10 @@ object ElectrophoresisShapeAnalyzer {
         // Punkty za podwyższone frakcje alfa
         if (alpha.height > albumin.height * 0.5f) score += 5f
 
-        return score.coerceIn(0f, 100f)
+        // NOWY MNOŻNIK 2.75 - zwiększa wrażliwość systemu
+        val multipliedScore = score * 2.75f
+
+        return multipliedScore.coerceIn(0f, 100f)
     }
 
     private fun generateShapeDescription(
