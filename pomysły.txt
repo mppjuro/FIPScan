@@ -13,3 +13,26 @@ kontakt - np. pięcioklik na ustawienia
 
 Sprawdzenie ile pliki mają linii:
 git ls-files | xargs wc -l
+
+$ git ls-files | xargs wc -l
+    29 AppDatabase.kt
+   131 BarChartLevelAnalyzer.kt
+   307 ElectrophoresisAnalyzer.kt
+   353 ElectrophoresisShapeAnalyzer.kt
+   295 ExtractData.kt
+   560 FipPatternAnalyzer.kt
+   226 LabResultAnalyzer.kt
+    57 MainActivity.kt
+   359 PdfChartExtractor.kt
+   883 PdfReportGenerator.kt
+    31 ResultDao.kt
+    25 ResultEntity.kt
+    17 SharedResultViewModel.kt
+   881 ui/diagnosis/DiagnosisFragment.kt
+    39 ui/history/HistoryAdapter.kt
+    54 ui/history/HistoryFragment.kt
+   842 ui/home/HomeFragment.kt
+    21 ui/home/HomeViewModel.kt
+    35 ui/settings/SettingsFragment.kt
+  5145 total
+

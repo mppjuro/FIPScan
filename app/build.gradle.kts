@@ -76,9 +76,6 @@ android {
             )
         }
     }
-    viewBinding {
-        enable = true
-    }
 }
 
 configurations.all {

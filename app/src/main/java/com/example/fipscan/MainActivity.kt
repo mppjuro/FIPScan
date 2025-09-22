@@ -5,12 +5,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
-import com.example.fipscan.databinding.ActivityMainBinding
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import androidx.lifecycle.lifecycleScope
+import androidx.activity.viewModels
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import androidx.activity.viewModels
+import com.example.fipscan.databinding.ActivityMainBinding
+import com.google.android.material.bottomnavigation.BottomNavigationView
 
 class MainActivity : AppCompatActivity() {
 
@@ -30,16 +30,25 @@ class MainActivity : AppCompatActivity() {
 
         super.onCreate(savedInstanceState)
 
+        // Inicjalizuj binding
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Wyczyść nieznanych pacjentów z bazy danych
         val db = AppDatabase.getDatabase(applicationContext)
         lifecycleScope.launch(Dispatchers.IO) {
             db.resultDao().deleteUnknownPatients()
         }
 
+        // Konfiguruj nawigację
+        setupNavigation()
+    }
+
+    private fun setupNavigation() {
         val navView: BottomNavigationView = binding.navView
-        val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_activity_main) as? NavHostFragment
+        val navHostFragment = supportFragmentManager
+            .findFragmentById(com.example.fipscan.R.id.nav_host_fragment_activity_main) as? NavHostFragment
+
         val navController = navHostFragment?.navController
 
         if (navController != null) {
@@ -50,7 +59,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onSupportNavigateUp(): Boolean {
-        val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_activity_main) as? NavHostFragment
+        val navHostFragment = supportFragmentManager
+            .findFragmentById(com.example.fipscan.R.id.nav_host_fragment_activity_main) as? NavHostFragment
         val navController = navHostFragment?.navController
         return navController?.navigateUp() ?: false || super.onSupportNavigateUp()
     }
