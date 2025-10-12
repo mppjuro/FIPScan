@@ -22,9 +22,9 @@ $ git ls-files | xargs wc -l
    295 ExtractData.kt
    560 FipPatternAnalyzer.kt
    226 LabResultAnalyzer.kt
-    57 MainActivity.kt
+    66 MainActivity.kt
    359 PdfChartExtractor.kt
-   883 PdfReportGenerator.kt
+   941 PdfReportGenerator.kt
     31 ResultDao.kt
     25 ResultEntity.kt
     17 SharedResultViewModel.kt
@@ -34,5 +34,7 @@ $ git ls-files | xargs wc -l
    842 ui/home/HomeFragment.kt
     21 ui/home/HomeViewModel.kt
     35 ui/settings/SettingsFragment.kt
-  5145 total
+  5212 total
+
+
 
