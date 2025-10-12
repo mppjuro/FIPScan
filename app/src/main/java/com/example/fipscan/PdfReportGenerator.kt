@@ -22,6 +22,7 @@ class PdfReportGenerator(private val context: Context) {
     private val pageWidth = 595 // 595pt = 210mm (A4 width)
     private val pageHeight = 842 // 842pt = 297mm (A4 height)
     private val margin = 36f // 0.5 cala (36pt)
+    private val bottomMargin = 70f
     private val contentWidth = pageWidth - (2 * margin)
 
     // Kolory - dostosowane do druku (bardziej stonowane)
@@ -98,8 +99,8 @@ class PdfReportGenerator(private val context: Context) {
                 )
             }
 
-            // Sprawdź czy potrzebna nowa strona
-            if (yPosition > pageHeight - 200) {
+            // Sprawdź czy potrzebna nowa strona (ZMIENIONO)
+            if (yPosition > pageHeight - bottomMargin - 200) {
                 pdfDocument.finishPage(currentPage)
                 pageNumber++
                 currentPage = pdfDocument.startPage(
@@ -107,14 +108,14 @@ class PdfReportGenerator(private val context: Context) {
                 )
                 canvas = currentPage.canvas
                 yPosition = margin
-                drawFooter(canvas, pageNumber) // Dodaj stopkę na nowej stronie
+                drawFooter(canvas, pageNumber)
             }
 
             // Szczegółowa analiza
             yPosition = drawScoreBreakdown(canvas, yPosition, scoreBreakdown, pdfDocument, pageNumber)
 
-            // Sprawdź czy potrzebna nowa strona dla zaleceń
-            if (yPosition > pageHeight - 250) {
+            // Sprawdź czy potrzebna nowa strona dla zaleceń (ZMIENIONO)
+            if (yPosition > pageHeight - bottomMargin - 250) {
                 pdfDocument.finishPage(currentPage)
                 pageNumber++
                 currentPage = pdfDocument.startPage(
@@ -122,7 +123,7 @@ class PdfReportGenerator(private val context: Context) {
                 )
                 canvas = currentPage.canvas
                 yPosition = margin
-                drawFooter(canvas, pageNumber) // Dodaj stopkę na nowej stronie
+                drawFooter(canvas, pageNumber)
             }
 
             // Zalecenia
@@ -131,8 +132,8 @@ class PdfReportGenerator(private val context: Context) {
                 supplementAdvice, vetConsultationAdvice
             )
 
-            // Sprawdź czy potrzebna nowa strona dla wyników
-            if (yPosition > pageHeight - 200) {
+            // Sprawdź czy potrzebna nowa strona dla wyników (ZMIENIONO)
+            if (yPosition > pageHeight - bottomMargin - 200) {
                 pdfDocument.finishPage(currentPage)
                 pageNumber++
                 currentPage = pdfDocument.startPage(
@@ -140,13 +141,13 @@ class PdfReportGenerator(private val context: Context) {
                 )
                 canvas = currentPage.canvas
                 yPosition = margin
-                drawFooter(canvas, pageNumber) // Dodaj stopkę na nowej stronie
+                drawFooter(canvas, pageNumber)
             }
 
             // Wyniki poza normą
             if (abnormalResults.isNotEmpty()) {
                 // Sprawdź czy potrzebna nowa strona
-                if (yPosition > pageHeight - 200) {
+                if (yPosition > pageHeight - bottomMargin - 200) {
                     pdfDocument.finishPage(currentPage)
                     pageNumber++
                     currentPage = pdfDocument.startPage(
@@ -154,32 +155,65 @@ class PdfReportGenerator(private val context: Context) {
                     )
                     canvas = currentPage.canvas
                     yPosition = margin
-                    drawFooter(canvas, pageNumber) // Dodaj stopkę na nowej stronie
+                    drawFooter(canvas, pageNumber)
                 }
 
-                yPosition = drawAbnormalResults(canvas, yPosition, abnormalResults)
+                // Rysuj bezpośrednio tutaj, bez delegowania do funkcji która tworzy strony
+                val sectionPaint = TextPaint().apply {
+                    color = primaryColor
+                    textSize = 16f
+                    typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                    isAntiAlias = true
+                }
+                canvas.drawText("WYNIKI POZA NORMĄ", margin, yPosition, sectionPaint)
+                yPosition += 30f
 
-                // Sprawdź czy wyniki nie zmieściły się na stronie
-                if (yPosition > pageHeight - 50) {
-                    pdfDocument.finishPage(currentPage)
-                    pageNumber++
-                    currentPage = pdfDocument.startPage(
-                        PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
-                    )
-                    canvas = currentPage.canvas
-                    yPosition = margin
-                    drawFooter(canvas, pageNumber) // Dodaj stopkę na nowej stronie
+                val resultPaint = TextPaint().apply {
+                    color = Color.BLACK
+                    textSize = 10f
+                    typeface = Typeface.MONOSPACE
+                    isAntiAlias = true
+                }
 
-                    // Ponów nagłówek na nowej stronie
-                    val sectionPaint = TextPaint().apply {
-                        color = primaryColor
-                        textSize = 16f
-                        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-                        isAntiAlias = true
+                val headerPaint = TextPaint(resultPaint).apply {
+                    typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
+                }
+                canvas.drawText("Badanie | Wynik | Norma", margin, yPosition, headerPaint)
+                yPosition += 20f
+
+                val linePaint = Paint().apply {
+                    color = Color.GRAY
+                    strokeWidth = 1f
+                }
+                canvas.drawLine(margin, yPosition, pageWidth - margin, yPosition, linePaint)
+                yPosition += 10f
+
+                for (result in abnormalResults) {
+                    // Sprawdź czy potrzeba nowej strony
+                    if (yPosition > pageHeight - bottomMargin - 30) {
+                        pdfDocument.finishPage(currentPage)
+                        pageNumber++
+                        currentPage = pdfDocument.startPage(
+                            PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+                        )
+                        canvas = currentPage.canvas
+                        yPosition = margin
+                        drawFooter(canvas, pageNumber)
+
+                        // Ponów nagłówek
+                        canvas.drawText("WYNIKI POZA NORMĄ (cd.)", margin, yPosition, sectionPaint)
+                        yPosition += 30f
+                        canvas.drawText("Badanie | Wynik | Norma", margin, yPosition, headerPaint)
+                        yPosition += 20f
+                        canvas.drawLine(margin, yPosition, pageWidth - margin, yPosition, linePaint)
+                        yPosition += 10f
                     }
-                    canvas.drawText("WYNIKI POZA NORMĄ (cd.)", margin, yPosition, sectionPaint)
-                    yPosition += 30f
+
+                    canvas?.drawText(result, margin, yPosition, resultPaint)
+                    yPosition += 15f
                 }
+
+                yPosition += 20f
             }
 
             // Stopka na ostatniej stronie
@@ -199,7 +233,6 @@ class PdfReportGenerator(private val context: Context) {
             pdfDocument.close()
         }
     }
-
     private fun drawHeader(canvas: Canvas, patientName: String) {
         // Zmieniony kolor nagłówka na bardziej stonowany
         val paint = Paint().apply {
@@ -433,8 +466,8 @@ class PdfReportGenerator(private val context: Context) {
         }
 
         for (item in breakdown) {
-            // Sprawdź czy potrzebna nowa strona
-            if (y > pageHeight - 100) {
+            // Sprawdź czy potrzebna nowa strona (ZMIENIONO)
+            if (y > pageHeight - bottomMargin - 100) {
                 currentPage?.let { pdfDocument.finishPage(it) }
                 pageNumber++
                 currentPage = pdfDocument.startPage(
@@ -545,11 +578,16 @@ class PdfReportGenerator(private val context: Context) {
     }
 
     private fun drawAbnormalResults(
-        canvas: Canvas,
+        initialCanvas: Canvas,
         startY: Float,
-        results: List<String>
-    ): Float {
+        results: List<String>,
+        pdfDocument: PdfDocument,
+        initialPageNum: Int
+    ): Triple<Float, Int, Canvas> {  // ZMIANA: zwracamy Canvas zamiast PdfDocument.Page
         var y = startY
+        var pageNumber = initialPageNum
+        var canvas = initialCanvas
+        var lastCreatedPage: PdfDocument.Page? = null
 
         // Tytuł sekcji
         val sectionPaint = TextPaint().apply {
@@ -584,19 +622,39 @@ class PdfReportGenerator(private val context: Context) {
         y += 10f
 
         for (result in results) {
-            // Sprawdź czy potrzeba nowej strony (nie tworzymy jej tutaj)
-            if (y > pageHeight - 20) {
-                break
+            // Sprawdź czy potrzeba nowej strony
+            if (y > pageHeight - bottomMargin - 30) {
+                // Zamknij poprzednią stronę jeśli była otwarta przez nas
+                lastCreatedPage?.let { pdfDocument.finishPage(it) }
+
+                pageNumber++
+                lastCreatedPage = pdfDocument.startPage(
+                    PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+                )
+                canvas = lastCreatedPage.canvas
+                y = margin
+                drawFooter(canvas, pageNumber)
+
+                // Ponów nagłówek na nowej stronie
+                canvas.drawText("WYNIKI POZA NORMĄ (cd.)", margin, y, sectionPaint)
+                y += 30f
+
+                // Ponów nagłówek tabeli
+                canvas.drawText("Badanie | Wynik | Norma", margin, y, headerPaint)
+                y += 20f
+                canvas.drawLine(margin, y, pageWidth - margin, y, linePaint)
+                y += 10f
             }
 
             canvas.drawText(result, margin, y, resultPaint)
             y += 15f
         }
 
-        return y + 20f
+        // Zwróć canvas - NIE tworzymy dummy page
+        return Triple(y + 20f, pageNumber, canvas)
     }
 
-    private fun drawFooter(canvas: Canvas, pageNumber: Int) {
+    private fun drawFooter(canvas: Canvas?, pageNumber: Int) {
         val footerPaint = TextPaint().apply {
             color = Color.GRAY
             textSize = 10f
@@ -605,7 +663,7 @@ class PdfReportGenerator(private val context: Context) {
 
         val footerText = "Strona $pageNumber | © ${Calendar.getInstance().get(Calendar.YEAR)} FIPScan"
         val footerWidth = footerPaint.measureText(footerText)
-        canvas.drawText(
+        canvas?.drawText(
             footerText,
             (pageWidth - footerWidth) / 2,
             pageHeight - 20f,
@@ -621,7 +679,7 @@ class PdfReportGenerator(private val context: Context) {
 
         val disclaimer = "Raport ma charakter pomocniczy. Ostateczną diagnozę ustala lekarz weterynarii."
         val disclaimerWidth = disclaimerPaint.measureText(disclaimer)
-        canvas.drawText(
+        canvas?.drawText(
             disclaimer,
             (pageWidth - disclaimerWidth) / 2,
             pageHeight - 35f,
