@@ -15,4 +15,4 @@
 .cxx
 local.properties
 ftp_config.properties
-/opencv/build/*
+/opencv/build/intermediates/local_aar_for_lint/release/out.aar
