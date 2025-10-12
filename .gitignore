@@ -15,4 +15,4 @@
 .cxx
 local.properties
 ftp_config.properties
-/opencv/build
+/opencv/build/*
