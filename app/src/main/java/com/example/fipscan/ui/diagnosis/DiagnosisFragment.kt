@@ -7,7 +7,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import com.example.fipscan.AppDatabase
 import com.example.fipscan.ElectrophoresisAnalyzer
 import com.example.fipscan.LabResultAnalyzer
 import com.example.fipscan.databinding.FragmentDiagnosisBinding
@@ -31,7 +30,6 @@ import android.os.ParcelFileDescriptor
 import com.example.fipscan.PdfReportGenerator
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import android.graphics.pdf.PdfDocument
 import android.os.Bundle as AndroidBundle
 import org.apache.commons.net.ftp.FTP
 import org.apache.commons.net.ftp.FTPClient
@@ -56,8 +54,6 @@ class DiagnosisFragment : Fragment() {
     private val binding get() = _binding!!
     private var result: ResultEntity? = null
     private val sharedViewModel: SharedResultViewModel by activityViewModels()
-
-    // Przechowuj dane do generowania raportu
     private var currentRiskPercentage: Int = 0
     private var currentRiskComment: String = ""
     private var currentScoreBreakdown: List<String> = emptyList()
@@ -67,8 +63,6 @@ class DiagnosisFragment : Fragment() {
     private var currentFurtherTestsAdvice: String = ""
     private var currentAbnormalResults: List<String> = emptyList()
     private var currentGammopathyResult: String? = null
-
-    // Added missing variables
     private var currentShapeAnalysis: ElectrophoresisShapeAnalyzer.ShapeAnalysisResult? = null
     private var currentPatternAnalysis: FipPatternAnalyzer.PatternAnalysisResult? = null
 
@@ -79,7 +73,6 @@ class DiagnosisFragment : Fragment() {
     ): View {
         _binding = FragmentDiagnosisBinding.inflate(inflater, container, false)
 
-        // Ustaw listenery dla przycisków
         binding.buttonDownloadReport.setOnClickListener {
             downloadPdfReport()
         }
@@ -88,13 +81,11 @@ class DiagnosisFragment : Fragment() {
             printPdfReport()
         }
 
-        // Sprawdź czy mamy dane z argumentów
         arguments?.let {
             result = DiagnosisFragmentArgs.fromBundle(it).result
             Log.d("DiagnosisFragment", "Otrzymano wynik z argumentów: ${result?.patientName}")
         }
 
-        // Jeśli nie mamy danych z argumentów, obserwuj SharedViewModel
         sharedViewModel.selectedResult.observe(viewLifecycleOwner) { selectedResult ->
             if (selectedResult != null) {
                 result = selectedResult
@@ -105,7 +96,6 @@ class DiagnosisFragment : Fragment() {
             }
         }
 
-        // Jeśli dane były już w argumentach (np. nawigacja z historii), ustaw UI od razu
         if (result != null) {
             setupUI()
         }
@@ -134,7 +124,6 @@ class DiagnosisFragment : Fragment() {
     }
 
     private fun setupUI() {
-        // Fix smart cast issue by creating local variable
         val currentResult = result ?: return
 
         Log.d("DiagnosisFragment", "Konfigurowanie UI dla: ${currentResult.patientName}")
@@ -171,12 +160,10 @@ class DiagnosisFragment : Fragment() {
             return
         }
 
-        // --- Analizy ---
         val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
         val rivaltaStatus = currentResult.rivaltaStatus ?: "nie wykonano, płyn obecny"
         val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap, rivaltaStatus)
 
-        // Przechowaj dane do generowania raportu
         currentRiskPercentage = electroResult.riskPercentage
         currentRiskComment = electroResult.fipRiskComment
         currentScoreBreakdown = electroResult.scoreBreakdown
@@ -186,13 +173,9 @@ class DiagnosisFragment : Fragment() {
         currentFurtherTestsAdvice = electroResult.furtherTestsAdvice
         currentGammopathyResult = currentResult.diagnosis
 
-        // Przygotuj listę nieprawidłowych wyników
         currentAbnormalResults = prepareAbnormalResults(extractedMap)
 
-        // Analiza kształtu krzywej elektroforezy
-        // Note: Make sure chartImageView exists in your layout, or remove this section if not needed
         try {
-            // Check if chartImageView exists in the binding before using it
             val chartImageViewField = binding.javaClass.getDeclaredField("chartImageView")
             chartImageViewField.isAccessible = true
             val chartImageView = chartImageViewField.get(binding) as? View
@@ -206,16 +189,13 @@ class DiagnosisFragment : Fragment() {
             if (chartFile.exists()) {
                 val bitmap = BitmapFactory.decodeFile(imagePath)
 
-                // Pobierz indeksy czerwonych kolumn z poprzedniej analizy
-                val redColumns = listOf(100, 300, 500) // Przykładowe wartości, dostosuj do rzeczywistych
+                val redColumns = listOf(100, 300, 500)
 
                 val shapeAnalysis = ElectrophoresisShapeAnalyzer.analyzeElectrophoresisShape(bitmap, redColumns)
 
                 shapeAnalysis?.let { analysis ->
-                    // Wyświetl wyniki analizy kształtu
                     val shapeCard = createShapeAnalysisCard(analysis)
 
-                    // Check if analysisContainer exists before adding views
                     try {
                         val analysisContainerField = binding.javaClass.getDeclaredField("analysisContainer")
                         analysisContainerField.isAccessible = true
@@ -225,19 +205,14 @@ class DiagnosisFragment : Fragment() {
                         Log.w("DiagnosisFragment", "analysisContainer not found in layout")
                     }
 
-                    // Dodaj do raportu
                     currentShapeAnalysis = analysis
                 }
             }
         }
 
-        // Analiza wzorców parametrów
         val patternAnalysis = FipPatternAnalyzer.analyzeParameterPatterns(extractedMap)
-
-        // Wyświetl kartę z analizą wzorców
         val patternCard = createPatternAnalysisCard(patternAnalysis)
 
-        // Check if analysisContainer exists before adding views
         try {
             val analysisContainerField = binding.javaClass.getDeclaredField("analysisContainer")
             analysisContainerField.isAccessible = true
@@ -247,30 +222,22 @@ class DiagnosisFragment : Fragment() {
             Log.w("DiagnosisFragment", "analysisContainer not found in layout")
         }
 
-        // Przechowaj do raportu
         currentPatternAnalysis = patternAnalysis
 
-        // --- Aktualizacja UI ---
-
-        // 1. Główne podsumowanie ryzyka FIP
         val riskText = Html.fromHtml(electroResult.fipRiskComment, Html.FROM_HTML_MODE_COMPACT)
         binding.textDiagnosticComment.text = riskText
 
-        // 2. Szczegółowe uzasadnienie wyniku FIP
         val breakdownHtml = electroResult.scoreBreakdown.joinToString("<br>")
         binding.textRiskBreakdown.text = Html.fromHtml("<b>Szczegółowa analiza ryzyka FIP:</b><br>$breakdownHtml", Html.FROM_HTML_MODE_COMPACT)
         binding.textRiskBreakdown.visibility = View.VISIBLE
 
-        // 3. Zalecenia na podstawie ryzyka FIP
         binding.textFurtherTests.text = Html.fromHtml("<b>🔬 Dalsze badania:</b> ${electroResult.furtherTestsAdvice}", Html.FROM_HTML_MODE_COMPACT)
         binding.textRiskSupplements.text = Html.fromHtml("<b>💊 Suplementy (kontekst FIP):</b> ${electroResult.supplementAdvice}", Html.FROM_HTML_MODE_COMPACT)
         binding.textRiskConsult.text = Html.fromHtml("<b>🏥 Konsultacja (kontekst FIP):</b> ${electroResult.vetConsultationAdvice}", Html.FROM_HTML_MODE_COMPACT)
 
-        // 4. Analiza ogólna wyników krwi (z LabResultAnalyzer)
         binding.textSupplements.text = Html.fromHtml("<b>💊 Suplementy (ogólne):</b> ${labResult.supplementAdvice}", Html.FROM_HTML_MODE_COMPACT)
         binding.textVetConsult.text = Html.fromHtml("<b>🏥 Konsultacja (ogólna):</b> ${labResult.vetConsultationAdvice}", Html.FROM_HTML_MODE_COMPACT)
 
-        // Pokaż wszystkie pola
         val fieldsToShow = listOf(
             binding.textDiagnosticComment, binding.textSupplements, binding.textVetConsult,
             binding.textFurtherTests, binding.textRiskSupplements, binding.textRiskConsult,
@@ -407,7 +374,6 @@ class DiagnosisFragment : Fragment() {
         val generator = PdfReportGenerator(requireContext())
 
         lifecycleScope.launch(Dispatchers.IO) {
-            // Oblicz punkty dla dodatkowych analiz
             val shapePoints = currentShapeAnalysis?.let {
                 ((it.fipShapeScore / 100f) * ElectrophoresisAnalyzer.SHAPE_ANALYSIS_MAX_POINTS).toInt()
             } ?: 0
@@ -433,7 +399,6 @@ class DiagnosisFragment : Fragment() {
                 furtherTestsAdvice = currentFurtherTestsAdvice,
                 abnormalResults = currentAbnormalResults,
                 gammopathyResult = currentGammopathyResult,
-                // Nowe parametry
                 shapeAnalysis = currentShapeAnalysis,
                 patternAnalysis = currentPatternAnalysis,
                 shapeAnalysisPoints = shapePoints,
@@ -488,7 +453,6 @@ class DiagnosisFragment : Fragment() {
         val generator = PdfReportGenerator(requireContext())
 
         lifecycleScope.launch(Dispatchers.IO) {
-            // Oblicz punkty dla dodatkowych analiz
             val shapePoints = currentShapeAnalysis?.let {
                 ((it.fipShapeScore / 100f) * ElectrophoresisAnalyzer.SHAPE_ANALYSIS_MAX_POINTS).toInt()
             } ?: 0
@@ -497,7 +461,6 @@ class DiagnosisFragment : Fragment() {
                 ((it.patternStrength / 100f) * ElectrophoresisAnalyzer.PATTERN_ANALYSIS_MAX_POINTS).toInt()
             } ?: 0
 
-            // Najpierw generuj PDF
             val (fileName, localPath) = generator.generateReport(
                 patientName = currentResult.patientName,
                 age = currentResult.age,
@@ -515,7 +478,6 @@ class DiagnosisFragment : Fragment() {
                 furtherTestsAdvice = currentFurtherTestsAdvice,
                 abnormalResults = currentAbnormalResults,
                 gammopathyResult = currentGammopathyResult,
-                // Nowe parametry
                 shapeAnalysis = currentShapeAnalysis,
                 patternAnalysis = currentPatternAnalysis,
                 shapeAnalysisPoints = shapePoints,
@@ -526,7 +488,6 @@ class DiagnosisFragment : Fragment() {
 
             withContext(Dispatchers.Main) {
                 if (fileName != null && localPath != null) {
-                    // Uruchom drukowanie
                     val printManager = requireContext().getSystemService(Context.PRINT_SERVICE) as PrintManager
                     val jobName = "Raport FIP - ${currentResult.patientName}"
 
@@ -556,7 +517,6 @@ class DiagnosisFragment : Fragment() {
         }
     }
 
-    // Adapter do drukowania - poprawiony
     inner class FipReportPrintAdapter(
         private val context: Context,
         private val pdfFilePath: String,
@@ -590,7 +550,6 @@ class DiagnosisFragment : Fragment() {
             callback: WriteResultCallback
         ) {
             try {
-                // Kopiuj istniejący PDF do strumienia wyjściowego drukarki
                 FileInputStream(File(pdfFilePath)).use { input ->
                     FileOutputStream(destination.fileDescriptor).use { output ->
                         val buffer = ByteArray(1024)
@@ -627,7 +586,6 @@ class DiagnosisFragment : Fragment() {
             setPadding(16, 16, 16, 16)
         }
 
-        // Tytuł
         val title = TextView(requireContext()).apply {
             text = "📊 ANALIZA KSZTAŁTU KRZYWEJ"
             textSize = 18f
@@ -636,7 +594,6 @@ class DiagnosisFragment : Fragment() {
         }
         content.addView(title)
 
-        // Wzorzec
         val pattern = TextView(requireContext()).apply {
             text = "Wzorzec: ${analysis.overallPattern}"
             textSize = 16f
@@ -645,7 +602,6 @@ class DiagnosisFragment : Fragment() {
         }
         content.addView(pattern)
 
-        // DODAJ KOLOROWY PASEK POSTĘPU
         val progressBar = ProgressBar(requireContext(), null, android.R.attr.progressBarStyleHorizontal).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -666,7 +622,6 @@ class DiagnosisFragment : Fragment() {
         }
         content.addView(progressBar)
 
-        // Wynik FIP Shape Score
         val scoreView = TextView(requireContext()).apply {
             text = "Siła dopasowania: ${analysis.fipShapeScore.toInt()}%"
             textSize = 14f
@@ -676,7 +631,6 @@ class DiagnosisFragment : Fragment() {
         }
         content.addView(scoreView)
 
-        // Opis
         val description = TextView(requireContext()).apply {
             text = analysis.shapeDescription
             textSize = 14f
@@ -685,7 +639,6 @@ class DiagnosisFragment : Fragment() {
         }
         content.addView(description)
 
-        // Szczegóły pików
         val detailsTitle = TextView(requireContext()).apply {
             text = "\nSzczegóły frakcji:"
             textSize = 14f
@@ -712,7 +665,6 @@ class DiagnosisFragment : Fragment() {
         return card
     }
 
-    // Zastąp metodę createPatternAnalysisCard:
     private fun createPatternAnalysisCard(analysis: FipPatternAnalyzer.PatternAnalysisResult): CardView {
         val card = CardView(requireContext()).apply {
             layoutParams = LinearLayout.LayoutParams(
@@ -731,7 +683,6 @@ class DiagnosisFragment : Fragment() {
             setPadding(16, 16, 16, 16)
         }
 
-        // Tytuł
         val title = TextView(requireContext()).apply {
             text = "🔬 PROFIL WZORCÓW LABORATORYJNYCH"
             textSize = 18f
@@ -740,7 +691,6 @@ class DiagnosisFragment : Fragment() {
         }
         content.addView(title)
 
-        // Główny profil
         val profileText = when (analysis.primaryProfile) {
             FipPatternAnalyzer.FipProfile.INFLAMMATORY_ACUTE -> "⚠️ OSTRY PROFIL ZAPALNY"
             FipPatternAnalyzer.FipProfile.INFLAMMATORY_CHRONIC -> "⚠️ PRZEWLEKŁY PROFIL ZAPALNY"
@@ -760,7 +710,6 @@ class DiagnosisFragment : Fragment() {
         }
         content.addView(profile)
 
-        // Siła wzorca
         val strengthBar = ProgressBar(requireContext(), null, android.R.attr.progressBarStyleHorizontal).apply {
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
@@ -786,7 +735,6 @@ class DiagnosisFragment : Fragment() {
         }
         content.addView(strengthText)
 
-        // Kluczowe obserwacje
         if (analysis.keyFindings.isNotEmpty()) {
             val findingsTitle = TextView(requireContext()).apply {
                 text = "\nKluczowe obserwacje:"
@@ -807,7 +755,6 @@ class DiagnosisFragment : Fragment() {
             }
         }
 
-        // Opis profilu
         val descTitle = TextView(requireContext()).apply {
             text = "\nOpis profilu:"
             textSize = 14f
@@ -824,7 +771,6 @@ class DiagnosisFragment : Fragment() {
         }
         content.addView(description)
 
-        // Sugestie postępowania
         val suggestionsTitle = TextView(requireContext()).apply {
             text = "\nSugestie postępowania:"
             textSize = 14f
@@ -864,15 +810,6 @@ class DiagnosisFragment : Fragment() {
                 else -> Color.BLACK
             }
         }
-    }
-
-    private fun getColorWithAlpha(color: Int, alpha: Float): Int {
-        return Color.argb(
-            (alpha * 255).toInt(),
-            Color.red(color),
-            Color.green(color),
-            Color.blue(color)
-        )
     }
 
     override fun onDestroyView() {

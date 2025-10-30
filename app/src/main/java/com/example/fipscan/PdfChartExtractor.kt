@@ -345,7 +345,6 @@ class PdfChartExtractor(private val context: Context) {
 
             val averagePixelsPerColumn = pixelCount / n
 
-            // Zamaluj dolne `averagePixelsPerColumn` pikseli w danym segmencie
             val xEnd = min(xStart + n, width)
             for (x in xStart until xEnd) {
                 for (y in height - averagePixelsPerColumn until height) {

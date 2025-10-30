@@ -1,33 +1,12 @@
 package com.example.fipscan
 
-/**
- * Analizator wyników laboratoryjnych dla kotów w kontekście FIP.
- * Wykrywa istotne odchylenia w wynikach badań krwi i na ich podstawie:
- * - formułuje komentarz diagnostyczny (np. podejrzenie FIP, inne możliwe przyczyny),
- * - proponuje odpowiednie suplementy (jeśli mają zastosowanie),
- * - sugeruje potrzebę konsultacji z weterynarzem (ogólnym lub specjalistą) w razie poważnych nieprawidłowości.
- */
 object LabResultAnalyzer {
-
-    /**
-     * Struktura przechowująca wynik analizy laboratoryjnej.
-     * @param diagnosticComment Komentarz diagnostyczny dot. możliwych chorób (np. FIP, inne różnicowanie).
-     * @param supplementAdvice Zalecenia dotyczące suplementów diety (jeśli adekwatne do odchyleń).
-     * @param vetConsultationAdvice Sugestia konsultacji weterynaryjnej (np. u specjalisty) lub informacja, że nie jest pilnie wymagana.
-     */
     data class AnalysisResult(
         val diagnosticComment: String,
         val supplementAdvice: String,
         val vetConsultationAdvice: String
     )
 
-    /**
-     * Analizuje dane laboratoryjne kota pod kątem FIP i innych możliwych schorzeń.
-     * @param labData Mapa z nazwami parametrów jako kluczami i ich wartościami (oraz ewentualnie jednostkami i normami) jako wartościami.
-     * Oczekuje się, że mapa zawiera wpisy dla wyników (np. "Albumina", "ALT") oraz odpowiadające im normy ("AlbuminaRangeMin", "AlbuminaRangeMax", itd.).
-     * Szczególnie istotne: albumina, białko całkowite (lub globuliny), frakcje białek, wynik FCoV (ELISA), ALT oraz inne kluczowe parametry.
-     * @return [AnalysisResult] z komentarzem diagnostycznym, zaleceniami suplementacji i sugestią konsultacji.
-     */
     fun analyzeLabData(labData: Map<String, Any>): AnalysisResult {
         // Funkcje pomocnicze do konwersji wartości tekstowych (z przecinkami, znakami "<" ">") na liczby
         fun toDoubleValue(str: String?): Double? {

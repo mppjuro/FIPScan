@@ -5,25 +5,20 @@ import android.graphics.Color
 import android.util.Log
 import kotlin.math.*
 
-/**
- * Zaawansowany analizator kształtu krzywej elektroforezy.
- * Analizuje nie tylko wysokość pików, ale także szerokość, symetrię,
- * obecność mostków między frakcjami oraz inne cechy morfologiczne.
- */
 object ElectrophoresisShapeAnalyzer {
 
     data class PeakCharacteristics(
         val height: Float,
         val width: Float,
-        val symmetry: Float,  // 1.0 = idealnie symetryczny
-        val sharpness: Float, // Ostrość piku (stosunek wysokości do szerokości)
-        val position: Int     // Pozycja na osi X
+        val symmetry: Float,
+        val sharpness: Float,
+        val position: Int
     )
 
     data class BridgeCharacteristics(
         val present: Boolean,
-        val depth: Float,     // Głębokość doliny między pikami (0-1, gdzie 1 = brak doliny)
-        val width: Float      // Szerokość mostka
+        val depth: Float,
+        val width: Float
     )
 
     data class ShapeAnalysisResult(
@@ -34,7 +29,7 @@ object ElectrophoresisShapeAnalyzer {
         val betaGammaBridge: BridgeCharacteristics,
         val alphaBetaBridge: BridgeCharacteristics,
         val overallPattern: String,  // "monoklonalny", "poliklonalny", "normalny", "mostkowaty"
-        val fipShapeScore: Float,    // 0-100, wyższa wartość = bardziej typowy dla FIP
+        val fipShapeScore: Float,
         val shapeDescription: String
     )
 
@@ -48,29 +43,22 @@ object ElectrophoresisShapeAnalyzer {
             return null
         }
 
-        // Wyodrębnij profile wysokości dla każdej sekcji
         val sections = extractSectionProfiles(bitmap, redColumnIndices)
-
-        // Analizuj charakterystyki każdego piku
         val albuminPeak = analyzePeak(sections[0], "albumin")
         val alphaPeak = analyzePeak(sections[1], "alpha")
         val betaPeak = analyzePeak(sections[2], "beta")
         val gammaPeak = analyzePeak(sections[3], "gamma")
 
-        // Analizuj mostki między frakcjami
         val betaGammaBridge = analyzeBridge(sections[2], sections[3])
         val alphaBetaBridge = analyzeBridge(sections[1], sections[2])
 
-        // Określ wzorzec ogólny
         val pattern = classifyPattern(albuminPeak, alphaPeak, betaPeak, gammaPeak, betaGammaBridge)
 
-        // Oblicz wynik kształtu typowego dla FIP
         val fipScore = calculateFIPShapeScore(
             albuminPeak, alphaPeak, betaPeak, gammaPeak,
             betaGammaBridge, alphaBetaBridge, pattern
         )
 
-        // Generuj opis tekstowy
         val description = generateShapeDescription(
             albuminPeak, alphaPeak, betaPeak, gammaPeak,
             betaGammaBridge, pattern, fipScore
@@ -105,7 +93,7 @@ object ElectrophoresisShapeAnalyzer {
             val profile = mutableListOf<Float>()
             val sectionWidth = end - start
 
-            // Próbkuj co 2% szerokości sekcji
+            // Próbkowanie co 2% szerokości sekcji
             val step = max(1, sectionWidth / 50)
 
             for (x in start until end step step) {
@@ -129,11 +117,9 @@ object ElectrophoresisShapeAnalyzer {
             return PeakCharacteristics(0f, 0f, 0f, 0f, 0)
         }
 
-        // Znajdź maksimum
         val maxHeight = profile.maxOrNull() ?: 0f
         val maxIndex = profile.indexOf(maxHeight)
 
-        // Oblicz szerokość w połowie wysokości (FWHM)
         val halfHeight = maxHeight / 2
         var leftIndex = maxIndex
         var rightIndex = maxIndex
@@ -143,10 +129,8 @@ object ElectrophoresisShapeAnalyzer {
 
         val width = (rightIndex - leftIndex).toFloat() / profile.size
 
-        // Oblicz symetrię
         val symmetry = calculateSymmetry(profile, maxIndex)
 
-        // Oblicz ostrość piku
         val sharpness = if (width > 0) maxHeight / width else 0f
 
         return PeakCharacteristics(
@@ -257,16 +241,13 @@ object ElectrophoresisShapeAnalyzer {
         pattern: String
     ): Float {
         var score = 0f
-
-        // Punkty za wzorzec
         when (pattern) {
             "poliklonalny" -> score += 40f
             "mostkowaty" -> score += 35f
-            "monoklonalny" -> score += 20f  // Może występować przy FIP, ale rzadziej
+            "monoklonalny" -> score += 20f
             "normalny" -> score -= 20f
         }
 
-        // Punkty za niską albuminę względem gamma
         val agRatio = if (gamma.height > 0) albumin.height / gamma.height else 999f
         when {
             agRatio < 0.6f -> score += 30f
@@ -280,7 +261,7 @@ object ElectrophoresisShapeAnalyzer {
 
         // Punkty za mostek beta-gamma
         if (betaGammaBridge.present) {
-            score += betaGammaBridge.depth * 20f  // Max 20 punktów
+            score += betaGammaBridge.depth * 20f
         }
 
         // Punkty za asymetrię gamma (typowa dla FIP)
@@ -289,7 +270,7 @@ object ElectrophoresisShapeAnalyzer {
         // Punkty za podwyższone frakcje alfa
         if (alpha.height > albumin.height * 0.5f) score += 5f
 
-        // NOWY MNOŻNIK 2.75 - zwiększa wrażliwość systemu
+        // Mnożnik
         val multipliedScore = score * 2.75f
 
         return multipliedScore.coerceIn(0f, 100f)

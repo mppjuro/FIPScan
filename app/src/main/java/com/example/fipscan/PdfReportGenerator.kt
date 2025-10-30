@@ -17,15 +17,12 @@ import java.text.SimpleDateFormat
 import java.util.*
 
 class PdfReportGenerator(private val context: Context) {
-
-    // Standardowe wymiary A4 w punktach (1pt = 1/72 cala)
     private val pageWidth = 595 // 595pt = 210mm (A4 width)
     private val pageHeight = 842 // 842pt = 297mm (A4 height)
     private val margin = 36f // 0.5 cala (36pt)
     private val bottomMargin = 70f
     private val contentWidth = pageWidth - (2 * margin)
 
-    // Kolory - dostosowane do druku (bardziej stonowane)
     private val primaryColor = Color.parseColor("#1976D2")
     private val dangerColor = Color.parseColor("#D32F2F")
     private val warningColor = Color.parseColor("#FFA000")

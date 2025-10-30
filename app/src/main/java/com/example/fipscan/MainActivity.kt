@@ -18,7 +18,6 @@ class MainActivity : AppCompatActivity() {
     val sharedViewModel: SharedResultViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Odczytaj preferencje trybu ciemnego przed wywołaniem super.onCreate()
         val sharedPreferences = getSharedPreferences("AppPreferences", MODE_PRIVATE)
         val isDarkModeEnabled = sharedPreferences.getBoolean("dark_mode", false)
 
@@ -30,17 +29,14 @@ class MainActivity : AppCompatActivity() {
 
         super.onCreate(savedInstanceState)
 
-        // Inicjalizuj binding
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Wyczyść nieznanych pacjentów z bazy danych
         val db = AppDatabase.getDatabase(applicationContext)
         lifecycleScope.launch(Dispatchers.IO) {
             db.resultDao().deleteUnknownPatients()
         }
 
-        // Konfiguruj nawigację
         setupNavigation()
     }
 

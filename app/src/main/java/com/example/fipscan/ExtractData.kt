@@ -61,11 +61,10 @@ object ExtractData {
 
                     val elisaValue = parts.getOrNull(0)?.replace(",", ".") ?: "-"
                     val elisaUnit = parts.getOrNull(1) ?: ""
-                    val elisaRange = resultLine // Używamy linii wyniku jako informacji o zakresie/interpretacji
+                    val elisaRange = resultLine
 
                     extractedData["FCoV (ELISA)"] = elisaValue
                     extractedData["FCoV (ELISA)Unit"] = elisaUnit
-                    // Zapisujemy cały opis wyniku/zakresu dla FCoV zamiast Min/Max
                     extractedData["FCoV (ELISA)Range"] = elisaRange
 
                     Log.d("DATA", "FCoV (ELISA): $elisaValue ($elisaRange) $elisaUnit")
@@ -223,7 +222,7 @@ object ExtractData {
     private fun extractPatientData(text: String, data: MutableMap<String, Any>) {
         val keys = listOf("Właściciel:", "Pacjent:", "Gatunek:", "Rasa:", "Płeć:", "Wiek:", "Umaszczenie:", "Mikrochip:", "Lecznica:", "Lekarz:", "Rodzaj próbki:")
 
-        var remainingText = text.replace("\n", " ").replace(";", " ") // Uproszczenie tekstu
+        var remainingText = text.replace("\n", " ").replace(";", " ")
 
         keys.forEach { key ->
             val keyIndex = remainingText.indexOf(key, ignoreCase = true)
@@ -242,13 +241,12 @@ object ExtractData {
                 val value = remainingText.substring(valueStartIndex, valueEndIndex).trim()
                 val cleanKey = key.removeSuffix(":").trim() // Klucz bez dwukropka
 
-                if (value.isNotEmpty() && !data.containsKey(cleanKey)) { // Zapisz tylko jeśli wartość nie jest pusta i klucz jeszcze nie istnieje
+                if (value.isNotEmpty() && !data.containsKey(cleanKey)) {
                     data[cleanKey] = value
                     Log.d("DATA_P", "Znaleziono: $cleanKey = $value")
                 }
             }
         }
-        // Specjalna obsługa dla formatu "Pacjent: X Gatunek: Y Rasa: Z" w jednej linii bez wyraźnych separatorów między wartościami
         if (!data.containsKey("Gatunek") && data.containsKey("Pacjent") && data["Pacjent"] is String) {
             val patientLine = data["Pacjent"] as String
             val gatunekMatch = Regex("Gatunek:\\s*(\\S+)").find(patientLine)
@@ -257,7 +255,6 @@ object ExtractData {
 
     }
 
-    // Ulepszona funkcja ekstrakcji daty
     private fun extractDateOfCollection(line: String, data: MutableMap<String, Any>) {
         val regex = Regex("""Data pobrania materiału:\s*(\d{2}\.\d{2}\.\d{4})""")
         val match = regex.find(line)
@@ -277,7 +274,6 @@ object ExtractData {
 
     private fun parseParameterName(str: String): Pair<String, String> {
         val regex = Regex("""([^\d<>]*[a-zA-ZąćęłńóśźżĄĆĘŁŃÓŚŹŻ:/\s-]+)\s*([<>]?\d+[,.]\d+)""")
-        //val regex = Regex("""^(.+?)\s+([<>]?[\d.,]+)$""") // Uproszczony regex
         val match = regex.find(str.trim())
 
         if (match != null && match.groupValues.size == 3) {

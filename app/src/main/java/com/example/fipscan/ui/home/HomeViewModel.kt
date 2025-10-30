@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import java.io.File
 
 class HomeViewModel : ViewModel() {
-
     var diagnosisText: String? = null
     var chartImagePath: String? = null
     var pdfFilePath: String? = null

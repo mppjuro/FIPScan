@@ -1,27 +1,21 @@
 package com.example.fipscan
 
-import android.util.Log
-
-/**
- * Analizator wzorców kombinacji parametrów charakterystycznych dla FIP.
- * Identyfikuje specyficzne profile choroby na podstawie kombinacji wyników.
- */
 object FipPatternAnalyzer {
 
     enum class FipProfile {
-        INFLAMMATORY_ACUTE,      // Ostry profil zapalny
-        INFLAMMATORY_CHRONIC,    // Przewlekły profil zapalny
-        EFFUSIVE_CLASSIC,       // Klasyczny wysiękowy
-        DRY_NEUROLOGICAL,       // Suchy neurologiczny
-        MIXED_PATTERN,          // Mieszany
-        ATYPICAL,              // Nietypowy
-        NON_FIP                // Nie-FIP
+        INFLAMMATORY_ACUTE,
+        INFLAMMATORY_CHRONIC,
+        EFFUSIVE_CLASSIC,
+        DRY_NEUROLOGICAL,
+        MIXED_PATTERN,
+        ATYPICAL,
+        NON_FIP
     }
 
     data class PatternAnalysisResult(
         val primaryProfile: FipProfile,
         val secondaryProfile: FipProfile?,
-        val patternStrength: Float,  // 0-100, siła dopasowania do wzorca
+        val patternStrength: Float,
         val keyFindings: List<String>,
         val profileDescription: String,
         val managementSuggestions: String
@@ -30,7 +24,7 @@ object FipPatternAnalyzer {
     data class ParameterPattern(
         val name: String,
         val present: Boolean,
-        val severity: String  // "mild", "moderate", "severe"
+        val severity: String
     )
 
     fun analyzeParameterPatterns(labData: Map<String, Any>): PatternAnalysisResult {

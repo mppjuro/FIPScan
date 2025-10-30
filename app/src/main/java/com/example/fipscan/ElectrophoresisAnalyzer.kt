@@ -3,10 +3,6 @@ package com.example.fipscan
 import java.util.regex.Pattern
 import android.util.Log
 
-/**
- * Analizator wyników badań pod kątem ryzyka FIP (Feline Infectious Peritonitis).
- * Wykorzystuje ważony system punktowy oparty na wytycznych ABCD (Advisory Board on Cat Diseases).
- */
 object ElectrophoresisAnalyzer {
     const val SHAPE_ANALYSIS_MAX_POINTS = 20
     const val PATTERN_ANALYSIS_MAX_POINTS = 20
@@ -55,15 +51,6 @@ object ElectrophoresisAnalyzer {
         }
     }
 
-
-    /**
-     * Ocenia ryzyko FIP na podstawie danych laboratoryjnych i statusu próby Rivalta.
-     * Implementuje ważony system punktowy na podstawie wytycznych ABCD.
-     *
-     * @param labData Mapa z wynikami laboratoryjnymi.
-     * @param rivaltaStatus Status próby Rivalta ("pozytywna", "negatywna", "nie wykonano").
-     * @return [FipRiskResult] zawierający ocenę ryzyka i szczegółowe uzasadnienie.
-     */
     fun assessFipRisk(
         labData: Map<String, Any>,
         rivaltaStatus: String,
@@ -74,7 +61,7 @@ object ElectrophoresisAnalyzer {
         var maxScore = 0
         val breakdown = mutableListOf<String>()
 
-        // Mapowanie wag ABCD na punkty
+        // Mapowanie wag ABCDcatsvet na punkty
         val pointsMap = mapOf(
             "++++" to 40, "+++" to 30, "++" to 20, "+" to 10,
             "-" to -10, "--" to -20
@@ -122,7 +109,7 @@ object ElectrophoresisAnalyzer {
             }
         }
 
-        // 4. Stosunek A/G < 0.4 -> waga ++ (zastosujemy gradację)
+        // 4. Stosunek A/G < 0.4 -> waga ++
         val agRatioPoints = pointsMap["++++"]!!
         maxScore += agRatioPoints
         var agRatio: Double? = null
@@ -261,7 +248,6 @@ object ElectrophoresisAnalyzer {
             breakdown.add("📊 Analiza kształtu krzywej ($shapeLevel): <b>+$shapePoints/$SHAPE_ANALYSIS_MAX_POINTS pkt</b>")
         }
 
-        // INTEGRACJA ANALIZY WZORCÓW PARAMETRÓW
         var patternPoints = 0
         if (patternAnalysisScore != null) {
             patternPoints = ((patternAnalysisScore / 100f) * PATTERN_ANALYSIS_MAX_POINTS).toInt()

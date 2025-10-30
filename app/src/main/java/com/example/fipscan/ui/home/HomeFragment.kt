@@ -35,7 +35,6 @@ import java.text.SimpleDateFormat
 import java.util.*
 import android.widget.AdapterView
 import kotlin.math.min
-import androidx.fragment.app.viewModels
 import androidx.fragment.app.activityViewModels
 import kotlinx.coroutines.withContext
 
@@ -50,7 +49,6 @@ class HomeFragment : Fragment() {
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        // Initialize the binding object first
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
 
         val rivaltaOptions = arrayOf("nie wykonano, płyn obecny", "negatywna / brak płynu", "pozytywna")
@@ -68,12 +66,10 @@ class HomeFragment : Fragment() {
 
         pdfChartExtractor = PdfChartExtractor(requireContext())
 
-        // Domyślnie ukryj kontrolki Rivalta (będą pokazane gdy są dane)
         binding.rivaltaLabel.visibility = View.GONE
         binding.rivaltaSpinner.visibility = View.GONE
         binding.riskSaveContainer.visibility = View.GONE
 
-        // Listener dla spinnera Rivalta - ustaw PRZED przywracaniem stanu
         binding.rivaltaSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 val newStatus = parent?.getItemAtPosition(position).toString()
@@ -89,7 +85,6 @@ class HomeFragment : Fragment() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        // Sprawdź argumenty z nawigacji
         var dataRestored = false
         arguments?.let {
             val args = HomeFragmentArgs.fromBundle(it)
@@ -109,7 +104,6 @@ class HomeFragment : Fragment() {
             }
         }
 
-        // Jeśli nie przywrócono danych z argumentów, sprawdź SharedViewModel
         if (!dataRestored) {
             sharedViewModel.selectedResult.value?.let { result ->
                 restoreUIFromResult(result)
@@ -267,10 +261,8 @@ class HomeFragment : Fragment() {
         val csvLines = csvFile.readLines()
         val extractedData = ExtractData.parseLabResults(csvLines).toMutableMap() // Zmiana na mutableMap
 
-        // Dodaj wynik gammapatii do extractedData PRZED analizą FIP
         extractedData["GammopathyResult"] = viewModel.diagnosisText ?: "brak danych"
 
-        // Analiza wyników elektroforezy z uwzględnieniem próby Rivalta
         val electroResult = ElectrophoresisAnalyzer.assessFipRisk(
             extractedData,
             rivaltaStatus
@@ -342,18 +334,15 @@ class HomeFragment : Fragment() {
                 } ?: Toast.makeText(requireContext(), "Brak pliku PDF", Toast.LENGTH_SHORT).show()
             }
 
-            // Aktualizujemy UI
             binding.resultsTextView.text = patientInfo + resultsText
             binding.textHome.text = "Wyniki: ${viewModel.patientName}"
 
-            // Pokazujemy spinner Rivalta i wskaźnik ryzyka
             binding.rivaltaLabel.visibility = View.VISIBLE
             binding.rivaltaSpinner.visibility = View.VISIBLE
             binding.riskIndicator.visibility = View.VISIBLE
             binding.rivaltaContainer.visibility = View.VISIBLE
             recalculateRiskAndUpdateUI()
 
-            // Utwórz tymczasowy ResultEntity i ustaw go w SharedViewModel
             val tempResult = ResultEntity(
                 patientName = viewModel.patientName ?: "Nieznany",
                 age = viewModel.patientAge ?: "Nieznany",
@@ -672,11 +661,9 @@ class HomeFragment : Fragment() {
 
             binding.buttonSaveOriginal.visibility =
                 if (result.pdfFilePath != null) View.VISIBLE else View.GONE
-            // Ustaw kontenery na widoczne
             binding.rivaltaContainer.visibility = View.VISIBLE
             binding.riskSaveContainer.visibility = View.VISIBLE
 
-            // Aktualizuj ViewModel
             viewModel.patientName = result.patientName
             viewModel.patientAge = result.age
             viewModel.collectionDate = result.collectionDate
@@ -689,7 +676,6 @@ class HomeFragment : Fragment() {
             viewModel.chartImagePath = result.imagePath
             viewModel.pdfFilePath = result.pdfFilePath
 
-            // Aktualizuj UI
             binding.textHome.text = "Wyniki: ${result.patientName}, ${result.age}"
 
             val patientInfo = """
@@ -709,7 +695,6 @@ class HomeFragment : Fragment() {
                 append("\n\n")
             }
 
-            // Ustaw spinner
             val rivaltaOptions = listOf("nie wykonano, płyn obecny", "negatywna / brak płynu", "pozytywna")
             val position = rivaltaOptions.indexOf(viewModel.currentRivaltaStatus)
             if (position >= 0) {
@@ -731,7 +716,6 @@ class HomeFragment : Fragment() {
                 viewModel.pdfFile = File(path)
             }
 
-            // Wyświetl wykres
             result.imagePath?.let {
                 displayImage(it)
             }
@@ -757,7 +741,6 @@ class HomeFragment : Fragment() {
     }
 
     private fun restoreUIFromResult(result: ResultEntity) {
-        // Przywróć dane do ViewModelu
         viewModel.apply {
             patientName = result.patientName
             patientAge = result.age
@@ -773,13 +756,11 @@ class HomeFragment : Fragment() {
             rawDataJson = result.rawDataJson
             results = result.testResults
 
-            // Przywróć plik PDF jeśli istnieje
             pdfFilePath?.let { path ->
                 pdfFile = File(path)
             }
         }
 
-        // Przywróć UI
         val patientInfo = """
         📆 Data: ${viewModel.collectionDate}
         🐱 Pacjent: ${viewModel.patientName}
@@ -799,14 +780,12 @@ class HomeFragment : Fragment() {
         binding.resultsTextView.text = patientInfo + resultsText
         binding.textHome.text = "Wyniki: ${viewModel.patientName}"
 
-        // Pokaż kontrolki - WAŻNE: najpierw pokaż, potem ustaw wartości
         binding.rivaltaLabel.visibility = View.VISIBLE
         binding.rivaltaSpinner.visibility = View.VISIBLE
         binding.rivaltaContainer.visibility = View.VISIBLE
         binding.riskIndicator.visibility = View.VISIBLE
         binding.riskSaveContainer.visibility = View.VISIBLE
 
-        // Ustaw spinner Rivalta PO pokazaniu go
         binding.rivaltaSpinner.post {
             val rivaltaOptions = listOf("nie wykonano, płyn obecny", "negatywna / brak płynu", "pozytywna")
             val position = rivaltaOptions.indexOf(viewModel.currentRivaltaStatus)
@@ -818,12 +797,10 @@ class HomeFragment : Fragment() {
         binding.buttonSaveOriginal.visibility =
             if (viewModel.pdfFile != null || viewModel.pdfFilePath != null) View.VISIBLE else View.GONE
 
-        // Wyświetl wykres
         viewModel.chartImagePath?.let {
             displayImage(it)
         }
 
-        // Przelicz i wyświetl ryzyko
         recalculateRiskAndUpdateUI()
     }
 

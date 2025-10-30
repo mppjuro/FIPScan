@@ -107,7 +107,7 @@ object BarChartLevelAnalyzer {
                 return "gammapatia monoklonalna"
             }
 
-            // Alternatywna wersja: sprawdź sąsiednie pary
+            // Sprawdź sąsiednie pary
             if (i < section4.size - 1) {
                 val next = section4[i + 1]
                 val avgSurrounding = listOfNotNull(
