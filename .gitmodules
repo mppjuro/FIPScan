@@ -1,3 +1,6 @@
 [submodule "app/src/main/jniLibs"]
 	path = app/src/main/jniLibs
 	url = https://github.com/mppjuro/jniLibs.git
+[submodule "opencv"]
+	path = opencv
+	url = https://github.com/mppjuro/opencv.git
