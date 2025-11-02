@@ -11,7 +11,7 @@ interface ResultDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertResult(result: ResultEntity)
 
-    @Query("SELECT * FROM results")
+    @Query("SELECT * FROM results ORDER BY timestamp DESC")
     suspend fun getAllResults(): List<ResultEntity>
 
     @Query("SELECT * FROM results WHERE id = :id")
@@ -28,4 +28,7 @@ interface ResultDao {
 
     @Query("SELECT * FROM results ORDER BY timestamp DESC LIMIT 1")
     fun getLatestResult(): Flow<ResultEntity?>
+
+    @Query("SELECT * FROM results WHERE patientName != 'Nieznany' ORDER BY timestamp DESC LIMIT :limit")
+    suspend fun getLatestResults(limit: Int): List<ResultEntity>
 }

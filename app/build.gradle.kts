@@ -52,11 +52,6 @@ android {
         jvmTarget = "21"
     }
 
-    buildFeatures {
-        viewBinding = true
-    }
-
-    // Aby wykluczyć zduplikowane pliki w dependencies
     packaging {
         resources {
             excludes += setOf(

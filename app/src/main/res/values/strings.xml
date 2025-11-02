@@ -25,4 +25,6 @@
     <string name="suplementy2">Suplementy: ...</string>
     <string name="konsultacja2">Konsultacja: ...</string>
     <string name="proba_rivalta">Próba Rivalta:</string>
+    <string name="ostrzezenie_pomocnicze">Program ma charakter pomocniczy. Ostateczną diagnozę ustala lekarz weterynarii</string>
+    <string name="ostatnie_badania">Ostatnie badania:</string>
 </resources>

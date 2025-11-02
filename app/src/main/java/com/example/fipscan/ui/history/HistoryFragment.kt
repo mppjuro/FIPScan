@@ -43,6 +43,7 @@ class HistoryFragment : Fragment() {
                         }
                     }
 
+                    sharedViewModel.setSelectedResult(result)
                     val action = HistoryFragmentDirections.actionNavigationHistoryToNavigationHome(result)
                     findNavController().navigate(action)
                 }
@@ -50,5 +51,10 @@ class HistoryFragment : Fragment() {
         }
 
         return binding.root
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
     }
 }

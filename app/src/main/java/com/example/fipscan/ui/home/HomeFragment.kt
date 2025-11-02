@@ -34,9 +34,13 @@ import java.io.*
 import java.text.SimpleDateFormat
 import java.util.*
 import android.widget.AdapterView
-import kotlin.math.min
 import androidx.fragment.app.activityViewModels
+import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.fipscan.ui.history.HistoryFragmentDirections
 import kotlinx.coroutines.withContext
+import kotlin.math.min
+
 
 class HomeFragment : Fragment() {
     private val sharedViewModel: SharedResultViewModel by activityViewModels()
@@ -45,6 +49,7 @@ class HomeFragment : Fragment() {
     private var pdfUri: Uri? = null
     private lateinit var pdfChartExtractor: PdfChartExtractor
     private val viewModel: HomeViewModel by viewModels()
+    private var recentHistoryAdapter: RecentHistoryAdapter? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
@@ -63,12 +68,9 @@ class HomeFragment : Fragment() {
 
         PDFBoxResourceLoader.init(requireContext())
         binding.buttonLoadPdf.setOnClickListener { openFilePicker() }
+        binding.buttonLoadPdfLarge.setOnClickListener { openFilePicker() } // Nowy przycisk
 
         pdfChartExtractor = PdfChartExtractor(requireContext())
-
-        binding.rivaltaLabel.visibility = View.GONE
-        binding.rivaltaSpinner.visibility = View.GONE
-        binding.riskSaveContainer.visibility = View.GONE
 
         binding.rivaltaSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -98,6 +100,7 @@ class HomeFragment : Fragment() {
                 sharedViewModel.setSelectedResult(result)
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    showResultsState() // Pokaż widok wyników
                     displayExistingResult(result)
                     dataRestored = true
                 }
@@ -106,8 +109,15 @@ class HomeFragment : Fragment() {
 
         if (!dataRestored) {
             sharedViewModel.selectedResult.value?.let { result ->
+                showResultsState() // Pokaż widok wyników
                 restoreUIFromResult(result)
+                dataRestored = true
             }
+        }
+
+        if (!dataRestored) {
+            showInitialState() // Pokaż widok początkowy
+            loadRecentHistory()
         }
 
         binding.buttonSaveOriginal.setOnClickListener {
@@ -120,17 +130,74 @@ class HomeFragment : Fragment() {
         return binding.root
     }
 
+    private fun showInitialState() {
+        binding.buttonLoadPdf.visibility = View.GONE
+        binding.rivaltaContainer.visibility = View.GONE
+        binding.chartImageView.visibility = View.GONE
+        binding.riskSaveContainer.visibility = View.GONE
+        binding.scrollView.visibility = View.GONE
+
+        binding.buttonLoadPdfLarge.visibility = View.VISIBLE
+        binding.recentHistoryLabel.visibility = View.VISIBLE
+        binding.recentHistoryRecyclerView.visibility = View.VISIBLE
+    }
+
+    private fun showResultsState() {
+        binding.buttonLoadPdf.visibility = View.VISIBLE
+        binding.rivaltaContainer.visibility = View.VISIBLE
+        binding.chartImageView.visibility = View.VISIBLE
+        binding.riskSaveContainer.visibility = View.VISIBLE
+        binding.scrollView.visibility = View.VISIBLE
+
+        binding.buttonLoadPdfLarge.visibility = View.GONE
+        binding.recentHistoryLabel.visibility = View.GONE
+        binding.recentHistoryRecyclerView.visibility = View.GONE
+
+        // Upewnij się, że niektóre elementy wyników są nadal ukryte, jeśli nie ma danych
+        if (binding.chartImageView.drawable == null) {
+            binding.chartImageView.visibility = View.GONE
+        }
+        if (binding.riskIndicator.text.isNullOrEmpty()) {
+            binding.riskSaveContainer.visibility = View.GONE
+        }
+        if (viewModel.rawDataJson == null) {
+            binding.rivaltaContainer.visibility = View.GONE
+        }
+    }
+
+    private fun loadRecentHistory() {
+        binding.recentHistoryRecyclerView.layoutManager = LinearLayoutManager(requireContext())
+        lifecycleScope.launch(Dispatchers.IO) {
+            val recentResults = AppDatabase.getDatabase(requireContext()).resultDao().getLatestResults(3)
+            withContext(Dispatchers.Main) {
+                recentHistoryAdapter = RecentHistoryAdapter(recentResults) { result ->
+                    // Logika kliknięcia - taka sama jak w HistoryFragment
+                    result.rawDataJson?.let { json ->
+                        val map = Gson().fromJson(json, Map::class.java) as? Map<String, Any>
+                        if (map != null) {
+                            ExtractData.lastExtracted = map
+                        }
+                    }
+                    val action = HistoryFragmentDirections.actionNavigationHistoryToNavigationHome(result)
+                    findNavController().navigate(action)
+                }
+                binding.recentHistoryRecyclerView.adapter = recentHistoryAdapter
+            }
+        }
+    }
+
+
     private fun updateRiskIndicator(percentage: Int? = null) {
         activity?.runOnUiThread {
-            binding.riskSaveContainer.visibility = View.VISIBLE
-
             if (percentage != null) {
+                binding.riskSaveContainer.visibility = View.VISIBLE
                 binding.riskIndicator.text = "Ryzyko FIP: $percentage%"
                 val bgColor = calculateBackgroundColor(percentage)
                 binding.riskIndicator.setBackgroundColor(bgColor)
                 binding.riskIndicator.visibility = View.VISIBLE
             } else {
                 binding.riskIndicator.visibility = View.GONE
+                binding.riskSaveContainer.visibility = View.GONE
             }
         }
     }
@@ -308,6 +375,8 @@ class HomeFragment : Fragment() {
         viewModel.chartImagePath = chartImagePath
 
         activity?.runOnUiThread {
+            showResultsState() // Przełącz na widok wyników
+
             val patientInfo = """
                 📆 Data: ${viewModel.collectionDate}
                 🐱 Pacjent: ${viewModel.patientName}
@@ -337,10 +406,11 @@ class HomeFragment : Fragment() {
             binding.resultsTextView.text = patientInfo + resultsText
             binding.textHome.text = "Wyniki: ${viewModel.patientName}"
 
-            binding.rivaltaLabel.visibility = View.VISIBLE
-            binding.rivaltaSpinner.visibility = View.VISIBLE
-            binding.riskIndicator.visibility = View.VISIBLE
-            binding.rivaltaContainer.visibility = View.VISIBLE
+            // Te elementy są już widoczne dzięki showResultsState()
+            // binding.rivaltaLabel.visibility = View.VISIBLE
+            // binding.rivaltaSpinner.visibility = View.VISIBLE
+            // binding.riskIndicator.visibility = View.VISIBLE
+            // binding.rivaltaContainer.visibility = View.VISIBLE
             recalculateRiskAndUpdateUI()
 
             val tempResult = ResultEntity(
@@ -652,17 +722,19 @@ class HomeFragment : Fragment() {
 
     @RequiresApi(Build.VERSION_CODES.Q)
     private fun displayExistingResult(result: ResultEntity) {
+        showResultsState() // Upewnij się, że widok wyników jest aktywny
         _binding?.let { binding ->
-            binding.rivaltaLabel.visibility = View.VISIBLE
-            binding.rivaltaSpinner.visibility = View.VISIBLE
-            binding.riskIndicator.visibility = View.VISIBLE
-            binding.rivaltaContainer.visibility = View.VISIBLE
-            binding.riskSaveContainer.visibility = View.VISIBLE
+            // Elementy już ustawione przez showResultsState()
+            // binding.rivaltaLabel.visibility = View.VISIBLE
+            // binding.rivaltaSpinner.visibility = View.VISIBLE
+            // binding.riskIndicator.visibility = View.VISIBLE
+            // binding.rivaltaContainer.visibility = View.VISIBLE
+            // binding.riskSaveContainer.visibility = View.VISIBLE
 
             binding.buttonSaveOriginal.visibility =
                 if (result.pdfFilePath != null) View.VISIBLE else View.GONE
-            binding.rivaltaContainer.visibility = View.VISIBLE
-            binding.riskSaveContainer.visibility = View.VISIBLE
+            // binding.rivaltaContainer.visibility = View.VISIBLE
+            // binding.riskSaveContainer.visibility = View.VISIBLE
 
             viewModel.patientName = result.patientName
             viewModel.patientAge = result.age
@@ -741,6 +813,7 @@ class HomeFragment : Fragment() {
     }
 
     private fun restoreUIFromResult(result: ResultEntity) {
+        showResultsState() // Upewnij się, że widok wyników jest aktywny
         viewModel.apply {
             patientName = result.patientName
             patientAge = result.age
@@ -780,11 +853,12 @@ class HomeFragment : Fragment() {
         binding.resultsTextView.text = patientInfo + resultsText
         binding.textHome.text = "Wyniki: ${viewModel.patientName}"
 
-        binding.rivaltaLabel.visibility = View.VISIBLE
-        binding.rivaltaSpinner.visibility = View.VISIBLE
-        binding.rivaltaContainer.visibility = View.VISIBLE
-        binding.riskIndicator.visibility = View.VISIBLE
-        binding.riskSaveContainer.visibility = View.VISIBLE
+        // Elementy już ustawione przez showResultsState()
+        // binding.rivaltaLabel.visibility = View.VISIBLE
+        // binding.rivaltaSpinner.visibility = View.VISIBLE
+        // binding.rivaltaContainer.visibility = View.VISIBLE
+        // binding.riskIndicator.visibility = View.VISIBLE
+        // binding.riskSaveContainer.visibility = View.VISIBLE
 
         binding.rivaltaSpinner.post {
             val rivaltaOptions = listOf("nie wykonano, płyn obecny", "negatywna / brak płynu", "pozytywna")
@@ -806,10 +880,18 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        if (binding.resultsTextView.text.isNullOrEmpty() && sharedViewModel.selectedResult.value != null) {
-            sharedViewModel.selectedResult.value?.let { result ->
-                restoreUIFromResult(result)
+        // Logika do przywracania stanu po powrocie z historii
+        val currentResult = sharedViewModel.selectedResult.value
+        if (currentResult != null) {
+            // Sprawdź, czy widok jest w stanie początkowym (brak tekstu w wynikach)
+            // lub czy załadowany wynik jest inny niż ten w sharedViewModel
+            if (binding.resultsTextView.text.isNullOrEmpty() || viewModel.patientName != currentResult.patientName || viewModel.collectionDate != currentResult.collectionDate) {
+                restoreUIFromResult(currentResult)
             }
+        } else {
+            // Jeśli nie ma wybranego wyniku, pokaż stan początkowy
+            showInitialState()
+            loadRecentHistory()
         }
     }
 
