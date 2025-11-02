@@ -1,0 +1,3 @@
+[submodule "app/src/main/jniLibs"]
+	path = app/src/main/jniLibs
+	url = https://github.com/mppjuro/jniLibs.git
