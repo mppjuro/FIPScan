@@ -2,16 +2,12 @@ ROZBUDOWAĆ:
 - profil wzorców laboratoryjnych
 - analizę kształtu krzywej i pola pod nią - analiza wykresu
 - zapisywać info z powyższych również w raporcie PDF i wydruku
-- wydruk taki jak plik .pdf
 - profil wzorców laboratoryjnych oraz analizę kształtu krzywej elektroforezy mają być składowymi oceny głównej ryzyka FIP
-
-języki - angielski i polski do wyboru w ustawieniach
-
-zapisać napisy (WSZYSTKIE) w pliku strings.xml
-
-kalkulator dawki
-
-kontakt - np. pięcioklik na ustawienia
+- języki - angielski i polski do wyboru w ustawieniach
+=>>> zapisać napisy (WSZYSTKIE) w pliku strings.xml
+- kalkulator dawki leku
+=>>> Easter Egg - kontakt do autora programu - np. pięcioklik na ustawienia, link do githuba oraz pliku .apk
+=>>> zmniejszyć czułość wykrywania gammapatii monoklonalnej (żeby częściej była poliklonalna)
 
 Sprawdzenie ile pliki mają linii:
 git ls-files | xargs wc -l
@@ -19,24 +15,67 @@ git ls-files | xargs wc -l
 $ git ls-files | xargs wc -l
     29 AppDatabase.kt
    131 BarChartLevelAnalyzer.kt
-   307 ElectrophoresisAnalyzer.kt
-   353 ElectrophoresisShapeAnalyzer.kt
-   295 ExtractData.kt
-   560 FipPatternAnalyzer.kt
-   226 LabResultAnalyzer.kt
-    66 MainActivity.kt
-   359 PdfChartExtractor.kt
-   941 PdfReportGenerator.kt
-    31 ResultDao.kt
+   293 ElectrophoresisAnalyzer.kt
+   334 ElectrophoresisShapeAnalyzer.kt
+   291 ExtractData.kt
+   554 FipPatternAnalyzer.kt
+   205 LabResultAnalyzer.kt
+    62 MainActivity.kt
+   358 PdfChartExtractor.kt
+   938 PdfReportGenerator.kt
+    33 ResultDao.kt
     25 ResultEntity.kt
     17 SharedResultViewModel.kt
-   881 ui/diagnosis/DiagnosisFragment.kt
+   818 ui/diagnosis/DiagnosisFragment.kt
     39 ui/history/HistoryAdapter.kt
-    54 ui/history/HistoryFragment.kt
-   842 ui/home/HomeFragment.kt
-    21 ui/home/HomeViewModel.kt
+    59 ui/history/HistoryFragment.kt
+   901 ui/home/HomeFragment.kt
+    20 ui/home/HomeViewModel.kt
+    78 ui/home/RecentHistoryAdapter.kt
     35 ui/settings/SettingsFragment.kt
-  5212 total
+  5220 total
+
+6. Zaawansowana analiza obrazu wykresu - Computer Vision
+Stopień trudności: ★★★★★ (Wysoki)
+Rozszerzenie obecnej analizy wykresu o techniki CV:
+Automatyczna detekcja osi i skali wykresu (OCR dla wartości)
+Segmentacja frakcji białkowych przy użyciu watershed algorithm
+Detekcja i klasyfikacja wzorców: M-spike (monoklonalny), polyklonalny, beta-gamma bridging
+Pomiar pola powierzchni pod krzywą dla każdej frakcji
+Porównanie z wzorcami referencyjnymi (template matching)
+Wartość naukowa: Zaawansowane przetwarzanie obrazu, praktyczna wartość dla diagnostyki
 
 
+12. Moduł optymalizacji terapii - Treatment Optimizer
+Stopień trudności: ★★★★☆ (Średnio-wysoki)
+Pomoc w doborze leczenia:
+Kalkulator dawki GS-441524 z uwzględnieniem:
+Masy ciała i surface area
+Formy choroby (neurologiczna wymaga wyższych dawek)
+Funkcji nerek i wątroby
+Interakcji z innymi lekami
+Harmonogram podawania leków z alertami
+Predykcja odpowiedzi na leczenie na podstawie parametrów baseline
+Monitorowanie skuteczności terapii (porównanie przed/po)
+Wartość naukowa: Clinical decision support, pharmacokinetics modeling
 
+
+4. Kalkulator Dawek i Protokoły Leczenia (Twój pomysł)
+To świetny pomysł na rozszerzenie aplikacji poza czystą diagnostykę, co zwiększa jej użyteczność.
+    Opis:
+        Stwórz osobny moduł (np. nową zakładkę), gdzie weterynarz może wprowadzić wagę kota i wybrać typ leczenia (np. GS-441524).
+        Program obliczałby dawkę (mg/kg), objętość roztworu (ml) na podstawie stężenia leku (mg/ml), a także całkowity kosztorys kuracji na 84 dni.
+        Rozbudowa: Można dodać różne protokoły dawkowania (np. dawka standardowa, dawka neurologiczna/oczna) i kalkulator zmiany dawki w trakcie leczenia (gdy kot tyje).
+        Ważne: Należy dodać wyraźne oświadczenie (disclaimer), że kalkulator jest tylko pomocą, a ostateczną dawkę ustala lekarz weterynarii.
+    Ocena trudności: Niska do Średniej. Sama logika obliczeń jest prosta (matematyka). Trudność polega na zaprojektowaniu czytelnego i niezawodnego interfejsu użytkownika, który obsłuży różne stężenia i jednostki.
+
+
+1. Zaawansowana analiza wykresu elektroforezy (Rozbudowa Twojego pomysłu)
+To jest Twój najsilniejszy pomysł i można go rozwinąć w imponujący "feature" inżynierski. Zamiast tylko odczytywać procentowe wartości podane przez Vetlab, program mógłby sam analizować surowy wykres.
+    Opis:
+        Ekstrakcja danych z wykresu: Jeśli Twój PdfChartExtractor jest w stanie wyciągnąć z pliku PDF dane wektorowe (współrzędne X,Y) tworzące krzywą, masz otwartą drogę do zaawansowanej analizy. (Jeśli to obraz rastrowy, jest to bardzo trudne – wymagałoby to Optycznego Rozpoznawania Wykresów, co jest tematem na osobną pracę).
+        Analiza numeryczna: Mając punkty danych (x,y) krzywej, możesz:
+            Obliczyć pole pod wykresem (AUC): Zastosuj metody całkowania numerycznego (np. metodę trapezów) dla każdej z frakcji (albumina, alfa, beta, gamma). Daje to dokładniejszą miarę niż wartości procentowe.
+            Kwantyfikacja "gammopatii poliklonalnej": FIP często charakteryzuje się nie tyle wysokim, co szerokim pikiem w rejonie gamma. Możesz to zmierzyć algorytmicznie, identyfikując pik gamma i obliczając jego wariancję lub odchylenie standardowe. Szeroki, "rozlany" pik będzie miał wysoką wariancję.
+        Włączenie do raportu: Nowe dane (np. "Wariancja piku gamma", "AUC frakcji gamma") mogą być kluczowymi elementami w raporcie PDF.
+    Ocena trudności: Wysoka. Wymaga dobrego ekstraktora danych z PDF oraz implementacji algorytmów analizy numerycznej i statystycznej. To jest czysta informatyka i idealnie nadaje się na rdzeń pracy inżynierskiej.

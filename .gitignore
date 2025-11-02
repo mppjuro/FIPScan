@@ -9,7 +9,9 @@
 /.idea/assetWizardSettings.xml
 .DS_Store
 /build
-/app/build
+/app/build/
+/app/debug/
+/app/release/
 /captures
 .externalNativeBuild
 .cxx
@@ -17,3 +19,4 @@ local.properties
 ftp_config.properties
 opencv/build/
 *.aar
+*.apk

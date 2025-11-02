@@ -19,3 +19,12 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+-dontwarn com.gemalto.jp2.JP2Decoder
+-dontwarn javax.imageio.spi.ImageInputStreamSpi
+-dontwarn javax.imageio.spi.ImageOutputStreamSpi
+-dontwarn javax.imageio.spi.ImageReaderSpi
+-dontwarn javax.imageio.spi.ImageWriterSpi
+-dontwarn javax.imageio.stream.ImageInputStream
+-dontwarn javax.script.ScriptEngineFactory
+-keep class com.example.fipscan.ResultEntity { *; }
