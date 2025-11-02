@@ -7,6 +7,8 @@ ROZBUDOWAĆ:
 
 języki - angielski i polski do wyboru w ustawieniach
 
+zapisać napisy (WSZYSTKIE) w pliku strings.xml
+
 kalkulator dawki
 
 kontakt - np. pięcioklik na ustawienia
