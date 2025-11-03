@@ -20,3 +20,4 @@ ftp_config.properties
 opencv/build/
 *.aar
 *.apk
+app/src/main/assets/ftp_config.properties
