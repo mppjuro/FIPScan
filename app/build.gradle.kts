@@ -123,6 +123,7 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     implementation("androidx.navigation:navigation-fragment-ktx:2.9.4")
     implementation("androidx.navigation:navigation-ui-ktx:2.9.4")
+    implementation("com.google.zxing:core:3.5.3")
 
     implementation(libs.annotations)
 
