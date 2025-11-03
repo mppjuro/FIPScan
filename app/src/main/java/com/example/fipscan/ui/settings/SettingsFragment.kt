@@ -57,7 +57,7 @@ class SettingsFragment : Fragment() {
         binding.textHistory.setOnClickListener {
             clickCount++
             if (clickCount >= EASTER_EGG_CLICKS) {
-                clickCount = 0 // Reset
+                clickCount = 0
                 showEasterEggDialog()
             }
         }
@@ -78,6 +78,7 @@ class SettingsFragment : Fragment() {
             Autor: $AUTHOR_NAME
             
             Kontakt: $AUTHOR_EMAIL
+            
             Tel.: $AUTHOR_PHONE
             
             Github projektu: $GITHUB_PROJECT_URL
