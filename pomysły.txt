@@ -6,7 +6,7 @@ ROZBUDOWAĆ:
 - języki - angielski i polski do wyboru w ustawieniach
 =>>> zapisać napisy (WSZYSTKIE) w pliku strings.xml
 - kalkulator dawki leku
-=>>> Easter Egg - kontakt do autora programu - np. pięcioklik na ustawienia, link do githuba oraz pliku .apk
+OK - Easter Egg - kontakt do autora programu - np. pięcioklik na ustawienia, link do githuba oraz pliku .apk
 =>>> zmniejszyć czułość wykrywania gammapatii monoklonalnej (żeby częściej była poliklonalna)
 =>>> usunąć "program ma char. pom..." gdy już wybierzemy kota lub wczytamy wynik na ekranie skanuj
 
