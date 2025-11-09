@@ -48,7 +48,8 @@ class RecentHistoryAdapter(
                     val defaultRivalta = context.resources.getStringArray(R.array.rivalta_options)[0]
                     val electroResult = ElectrophoresisAnalyzer.assessFipRisk(
                         extractedData,
-                        result.rivaltaStatus ?: defaultRivalta
+                        result.rivaltaStatus ?: defaultRivalta,
+                        context
                     )
                     riskPercentage = electroResult.riskPercentage
                 }

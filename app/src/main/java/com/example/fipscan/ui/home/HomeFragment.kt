@@ -264,7 +264,8 @@ class HomeFragment : Fragment() {
                             extractionResult.barSections?.let { sections ->
                                 viewModel.diagnosisText = BarChartLevelAnalyzer.analyzeGammapathy(
                                     sections.section1,
-                                    sections.section4
+                                    sections.section4,
+                                    requireContext()
                                 )
                                 Log.d("GAMMOPATHY", "Wynik analizy gammapatii: ${viewModel.diagnosisText}")
                             } ?: run {
@@ -341,7 +342,8 @@ class HomeFragment : Fragment() {
         // Zakładamy, że PDFy są zawsze w tym samym języku (polskim), więc klucze "Data", "Pacjent" itp. zostają.
         val electroResult = ElectrophoresisAnalyzer.assessFipRisk(
             extractedData,
-            rivaltaStatus
+            rivaltaStatus,
+            requireContext()
         )
 
         viewModel.collectionDate = extractedData["Data"] as? String ?: getString(R.string.default_no_date)
@@ -705,7 +707,8 @@ class HomeFragment : Fragment() {
 
             val electroResult = ElectrophoresisAnalyzer.assessFipRisk(
                 extractedData,
-                viewModel.currentRivaltaStatus
+                viewModel.currentRivaltaStatus,
+                requireContext()
             )
 
             updateRiskIndicator(electroResult.riskPercentage)
@@ -724,7 +727,8 @@ class HomeFragment : Fragment() {
                 extractedData["GammopathyResult"] = viewModel.diagnosisText ?: getString(R.string.no_data)
                 val electroResult = ElectrophoresisAnalyzer.assessFipRisk(
                     extractedData,
-                    viewModel.currentRivaltaStatus
+                    viewModel.currentRivaltaStatus,
+                    requireContext()
                 )
                 updateRiskIndicator(electroResult.riskPercentage)
                 viewModel.rawDataJson = Gson().toJson(extractedData)
