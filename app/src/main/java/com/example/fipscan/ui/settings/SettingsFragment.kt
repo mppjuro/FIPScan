@@ -26,6 +26,7 @@ import com.google.zxing.qrcode.QRCodeWriter
 
 class SettingsFragment : Fragment() {
     companion object {
+        // Dane kontaktowe pozostają hardcoded, ponieważ to dane, nie napisy interfejsu
         private const val AUTHOR_NAME = "Miłosz Piórkowski"
         private const val AUTHOR_EMAIL = "mppjuro@gmail.com"
         private const val AUTHOR_PHONE = "+48-724-928-250"
@@ -100,6 +101,9 @@ class SettingsFragment : Fragment() {
     }
 
     private fun setupEasterEgg() {
+        // Używamy tekstu z layoutu jako wyzwalacza, zakładając, że jest tam jakiś TextView
+        // Jeśli binding.textHistory to nagłówek historii w settings, upewnij się, że ID się zgadza.
+        // W typowym SettingsFragment często klika się np. w wersję aplikacji.
         binding.textHistory.setOnClickListener {
             clickCount++
             if (clickCount >= EASTER_EGG_CLICKS) {
@@ -118,33 +122,36 @@ class SettingsFragment : Fragment() {
         val textAuthor = dialogView.findViewById<TextView>(R.id.textAuthorInfo)
         val imageQR = dialogView.findViewById<ImageView>(R.id.imageQrCode)
 
-        val fullText = """
-            Autor: $AUTHOR_NAME
-            
-            Kontakt: $AUTHOR_EMAIL
-            
-            Tel.: $AUTHOR_PHONE
-            
-            Github projektu: $GITHUB_PROJECT_URL
-        """.trimIndent()
+        // Budowanie tekstu z użyciem zasobów dla etykiet
+        val fullText = buildString {
+            append(getString(R.string.about_author_label)).append(" ").append(AUTHOR_NAME).append("\n\n")
+            append(getString(R.string.about_contact_label)).append(" ").append(AUTHOR_EMAIL).append("\n\n")
+            append(getString(R.string.about_phone_label)).append(" ").append(AUTHOR_PHONE).append("\n\n")
+            append(getString(R.string.about_github_label)).append(" ").append(GITHUB_PROJECT_URL)
+        }
 
         val spannableString = SpannableString(fullText)
 
+        // Wyszukiwanie stałych fragmentów (danych) w zbudowanym tekście, aby nadać im klikalność
         val nameStart = fullText.indexOf(AUTHOR_NAME)
-        val nameEnd = nameStart + AUTHOR_NAME.length
-        spannableString.setSpan(object : ClickableSpan() { override fun onClick(widget: View) { openUrl(FACEBOOK_PROFILE_URL) } }, nameStart, nameEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        if (nameStart != -1) {
+            spannableString.setSpan(object : ClickableSpan() { override fun onClick(widget: View) { openUrl(FACEBOOK_PROFILE_URL) } }, nameStart, nameStart + AUTHOR_NAME.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
 
         val emailStart = fullText.indexOf(AUTHOR_EMAIL)
-        val emailEnd = emailStart + AUTHOR_EMAIL.length
-        spannableString.setSpan(object : ClickableSpan() { override fun onClick(widget: View) { openEmail(AUTHOR_EMAIL) } }, emailStart, emailEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        if (emailStart != -1) {
+            spannableString.setSpan(object : ClickableSpan() { override fun onClick(widget: View) { openEmail(AUTHOR_EMAIL) } }, emailStart, emailStart + AUTHOR_EMAIL.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
 
         val phoneStart = fullText.indexOf(AUTHOR_PHONE)
-        val phoneEnd = phoneStart + AUTHOR_PHONE.length
-        spannableString.setSpan(object : ClickableSpan() { override fun onClick(widget: View) { openPhone(AUTHOR_PHONE) } }, phoneStart, phoneEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        if (phoneStart != -1) {
+            spannableString.setSpan(object : ClickableSpan() { override fun onClick(widget: View) { openPhone(AUTHOR_PHONE) } }, phoneStart, phoneStart + AUTHOR_PHONE.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
 
         val githubStart = fullText.indexOf(GITHUB_PROJECT_URL)
-        val githubEnd = githubStart + GITHUB_PROJECT_URL.length
-        spannableString.setSpan(object : ClickableSpan() { override fun onClick(widget: View) { openUrl(GITHUB_PROJECT_URL) } }, githubStart, githubEnd, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        if (githubStart != -1) {
+            spannableString.setSpan(object : ClickableSpan() { override fun onClick(widget: View) { openUrl(GITHUB_PROJECT_URL) } }, githubStart, githubStart + GITHUB_PROJECT_URL.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
 
         textAuthor.text = spannableString
         textAuthor.movementMethod = LinkMovementMethod.getInstance()
@@ -153,9 +160,9 @@ class SettingsFragment : Fragment() {
         imageQR.setImageBitmap(qrBitmap)
 
         AlertDialog.Builder(requireContext())
-            .setTitle(getString(R.string.o_aplikacji))
+            .setTitle(R.string.about_app_title)
             .setView(dialogView)
-            .setPositiveButton(getString(R.string.ok), null)
+            .setPositiveButton(R.string.ok_button, null)
             .show()
     }
 

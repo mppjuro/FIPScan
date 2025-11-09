@@ -11,6 +11,10 @@ OK - Easter Egg - kontakt do autora programu - np. pięcioklik na ustawienia, li
 =>>> usunąć "program ma char. pom..." gdy już wybierzemy kota lub wczytamy wynik na ekranie skanuj
 
 Sprawdzenie ile pliki mają linii:
+for dir in app/src/main/java/com/example/fipscan app/src/main/res/layout app/src/main/res/values app/src/main/res/values-night app/src/main/res/values-pl app/src/main/res/navigation app/src/main/res/menu; do echo "=== $dir ==="; git ls-files "$dir" | xargs wc -l; done
+
+
+Sprawdzenie ile pliki mają linii:
 git ls-files | xargs wc -l
 
 $ git ls-files | xargs wc -l
