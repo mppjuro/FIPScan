@@ -1,31 +1,163 @@
 <resources>
+    <!-- App name -->
     <string name="app_name">FIPscan</string>
-    <string name="title_home">Skanuj</string>
-    <string name="title_history">Historia</string>
-    <string name="title_settings">Ustawienia</string>
-    <string name="pacjent">Pacjent</string>
-    <string name="wiek">Wiek</string>
-    <string name="tryb_ciemny">Tryb ciemny</string>
-    <string name="wgraj_pdf">Wgraj PDF</string>
+
+    <!-- Navigation titles -->
+    <string name="title_home">Scan</string>
+    <string name="title_history">History</string>
+    <string name="title_settings">Settings</string>
+    <string name="diagnoza">Diagnosis</string>
+
+    <!-- Language selection -->
+    <string name="wybierz_jezyk">Select language:</string>
+    <string name="lang_polish">Polski (Polish)</string>
+    <string name="lang_english">English</string>
+    <string name="lang_german">Deutsch (German) - Coming soon</string>
+    <string name="lang_french">Français (French) - Coming soon</string>
+
+    <!-- Settings -->
+    <string name="tryb_ciemny">Dark mode</string>
+
+    <!-- Patient info -->
+    <string name="pacjent">Patient</string>
+    <string name="wiek">Age</string>
+    <string name="gatunek">Species</string>
+    <string name="rasa">Breed</string>
+    <string name="plec">Gender</string>
+    <string name="umaszczenie">Coat color</string>
+    <string name="data">Date</string>
+    <string name="data_nieznana">📅 Date unknown</string>
+    <string name="data_badania">Test date</string>
+    <string name="data_pobrania">📅 Collection date: %s</string>
+
+    <!-- Buttons -->
+    <string name="wgraj_pdf">Upload PDF</string>
+    <string name="zapisz_oryg">Save original</string>
+    <string name="pobierz_diagnoze">Download Report</string>
+    <string name="drukuj_diagnoze">Print Report</string>
+
+    <!-- Home screen -->
+    <string name="skanuj">Scan</string>
+    <string name="historia_badan">Test history</string>
+    <string name="ostatnie_badania">Recent tests:</string>
+    <string name="proba_rivalta">Rivalta test:</string>
+    <string name="rivalta_nie_wykonano">not performed, fluid present</string>
+    <string name="rivalta_negatywna">negative / no fluid</string>
+    <string name="rivalta_pozytywna">positive</string>
+    <string name="ryzyko_fip">FIP risk: %d%%</string>
+    <string name="wykres_diagnostyczny">Diagnostic chart</string>
+
+    <!-- Diagnosis -->
+    <string name="diagnoza_tytul">Diagnosis: %s</string>
+    <string name="komentarz_diagnostyczny">Diagnostic comment...</string>
+    <string name="szczegolowa_analiza">DETAILED ANALYSIS</string>
+    <string name="zalecenia">RECOMMENDATIONS</string>
+    <string name="dalsze_badania">🔬 Further tests:</string>
+    <string name="suplementy">💊 Supplements:</string>
+    <string name="konsultacja">🏥 Consultation:</string>
+    <string name="suplementy_fip">💊 Supplements (FIP context):</string>
+    <string name="konsultacja_fip">🏥 Consultation (FIP context):</string>
+    <string name="wyniki_poza_norma">RESULTS OUT OF RANGE</string>
+    <string name="badanie_wynik_norma">Test | Result | Reference range</string>
+    <string name="wszystkie_w_normie">✅ All results within range</string>
+
+    <!-- Risk assessment -->
+    <string name="ocena_ryzyka_fip">📊 FIP RISK ASSESSMENT</string>
+    <string name="sila_dopasowania">Match strength: %d%%</string>
+    <string name="profil_wzorow">🔬 LABORATORY PATTERN PROFILE</string>
+    <string name="analiza_ksztaltu">📈 ELECTROPHORESIS CURVE SHAPE ANALYSIS</string>
+    <string name="kluczowe_obserwacje">Key findings:</string>
+    <string name="opis_profilu">Profile description:</string>
+    <string name="sugestie_postepowania">Management suggestions:</string>
+    <string name="wynik_punkty">Result: %d/%d points</string>
+
+    <!-- Risk levels -->
+    <string name="bardzo_wysokie_ryzyko">VERY HIGH FIP RISK (%d%%)</string>
+    <string name="wysokie_ryzyko">HIGH FIP RISK (%d%%)</string>
+    <string name="srednie_ryzyko">MODERATE FIP RISK (%d%%)</string>
+    <string name="niskie_ryzyko">LOW FIP RISK (%d%%)</string>
+
+    <!-- Messages -->
+    <string name="brak_danych">No data to analyze</string>
+    <string name="wprowadz_dane">Enter data for analysis\n\nTo see diagnosis:\n• Go to \'Scan\' tab and upload PDF with results\n• Or select a record from \'History\'</string>
+    <string name="brak_pdf">No PDF file</string>
+    <string name="plik_nie_istnieje">Source file does not exist</string>
+    <string name="zapisano_w">Saved in: %s</string>
+    <string name="blad_zapisu">Error saving PDF: %s</string>
+    <string name="nie_wybrano_pliku">No PDF file selected</string>
+    <string name="blad_przetwarzania">Error processing PDF file!</string>
+    <string name="blad_generowania">Error generating report</string>
+    <string name="raport_zapisano">Report saved: %s</string>
+    <string name="raport_wyslano_ftp">Report sent to FTP server</string>
+    <string name="blad_wyslania_ftp">Error sending report to FTP</string>
+
+    <!-- Disclaimer -->
+    <string name="ostrzezenie_pomocnicze">This program is for assistance only. Final diagnosis is made by a veterinarian</string>
+
+    <!-- Pattern analysis profiles -->
+    <string name="profil_ostry_zapalny">⚠️ ACUTE INFLAMMATORY PROFILE</string>
+    <string name="profil_przewlekly_zapalny">⚠️ CHRONIC INFLAMMATORY PROFILE</string>
+    <string name="profil_klasyczny_wysiekowy">🔴 CLASSIC EFFUSIVE</string>
+    <string name="profil_suchy_neurologiczny">🟡 DRY NEUROLOGICAL</string>
+    <string name="profil_mieszany">🔶 MIXED PATTERN</string>
+    <string name="profil_nietypowy">❓ ATYPICAL PROFILE</string>
+    <string name="profil_nie_fip">✅ NON-FIP PROFILE</string>
+
+    <!-- Shape analysis -->
+    <string name="wzorzec">Pattern: %s</string>
+    <string name="stosunek_ag">Albumin/gamma ratio: %.2f</string>
+    <string name="szerokosc_piku_gamma">Gamma peak width: %d%%</string>
+    <string name="mostek_beta_gamma">Beta-gamma bridge: %s</string>
+    <string name="obecny">present</string>
+    <string name="nieobecny">absent</string>
+    <string name="glebokosc">depth %d%%</string>
+    <string name="szczegoly_frakcji">Fraction details:</string>
+    <string name="albuminy_wysokosc">Albumin: height %d%%, symmetry %d%%</string>
+    <string name="gamma_wysokosc">Gamma: height %d%%, width %d%%</string>
+    <string name="mostek_szczegoly">β-γ bridge: %s</string>
+
+    <!-- Easter egg -->
+    <string name="o_aplikacji">🐱 About App</string>
+    <string name="autor">Author: %s</string>
+    <string name="kontakt">Contact: %s</string>
+    <string name="telefon">Tel.: %s</string>
+    <string name="github_projektu">Project GitHub: %s</string>
+    <string name="zeskanuj_qr">Scan QR code to download latest version:</string>
+    <string name="kod_qr_releases">QR code to download latest app version</string>
+
+    <!-- Patient info display -->
+    <string name="info_pacjent">🐱 Patient: %s</string>
+    <string name="info_gatunek">🐾 Species: %s</string>
+    <string name="info_rasa">🏷️ Breed: %s</string>
+    <string name="info_plec">⚥ Gender: %s</string>
+    <string name="info_wiek">📅 Age: %s</string>
+    <string name="info_umaszczenie">🎨 Coat: %s</string>
+    <string name="info_data">📆 Date: %s</string>
+    <string name="nie_podano">not specified</string>
+    <string name="brak_daty">no date</string>
+
+    <!-- Results -->
+    <string name="wyniki">Results: %s</string>
+    <string name="wyniki_poza_norma_lista">📊 Results out of range:\nTest: result (reference range) unit\n%s</string>
+
+    <!-- Common -->
+    <string name="ok">OK</string>
+    <string name="anuluj">Cancel</string>
+    <string name="tak">Yes</string>
+    <string name="nie">No</string>
+    <string name="zapisz">Save</string>
+    <string name="usun">Delete</string>
+    <string name="edytuj">Edit</string>
+    <string name="zamknij">Close</string>
+
+    <!-- Unused strings (kept for compatibility) -->
     <string name="todo">TODO</string>
-    <string name="wykres">wykres</string>
-    <string name="przycisk">przycisk</string>
-    <string name="skanuj">Skanuj</string>
-    <string name="historia_badan">Historia badań</string>
-    <string name="wykres_diagnostyczny">Wykres diagnostyczny</string>
-    <string name="zapisz_oryg">Zapisz oryginał</string>
+    <string name="wykres">chart</string>
+    <string name="przycisk">button</string>
     <string name="emoji_virus">🦠</string>
-    <string name="data_nieznana">📅 Data nieznana</string>
-    <string name="diagnoza">Diagnoza</string>
-    <string name="komentarz_diagnostyczny">Komentarz diagnostyczny...</string>
-    <string name="suplementy">Suplementy: ...</string>
-    <string name="konsultacja">Konsultacja: ...</string>
-    <string name="ryzyko_fip">Ryzyko FIP: ...</string>
-    <string name="dalsze_badania">Dalsze badania: ...</string>
-    <string name="suplementy2">Suplementy: ...</string>
-    <string name="konsultacja2">Konsultacja: ...</string>
-    <string name="proba_rivalta">Próba Rivalta:</string>
-    <string name="ostrzezenie_pomocnicze">Program ma charakter pomocniczy. Ostateczną diagnozę ustala lekarz weterynarii</string>
-    <string name="ostatnie_badania">Ostatnie badania:</string>
-    <string name="kod_qr_releases">Kod QR do pobrania najnowszej wersji aplikacji</string>
+    <string name="komentarz_diagnostyczny2">Diagnostic comment: ...</string>
+    <string name="suplementy2">Supplements: ...</string>
+    <string name="konsultacja2">Consultation: ...</string>
+    <string name="ryzyko_fip2">FIP risk: ...</string>
+    <string name="dalsze_badania2">Further tests: ...</string>
 </resources>
