@@ -335,8 +335,8 @@
     <string name="ostrzezenie_pomocnicze">UWAGA: Aplikacja jest narzędziem pomocniczym. Ostateczną diagnozę stawia zawsze lekarz weterynarii w oparciu o pełny obraz kliniczny.</string>
     <string name="tryb_ciemny">Tryb ciemny</string>
     <string name="wybierz_jezyk">Wybierz język</string>
-    <string name="lang_german">Deutsch (Niemiecki) - wkrótce</string>
-    <string name="lang_french">Français (Francuski) - wkrótce</string>
+    <string name="lang_german">Deutsch (Niemiecki)</string>
+    <string name="lang_french">Français (Francuski)</string>
     <string name="pacjent">Pacjent:</string>
     <string name="wiek">Wiek:</string>
     <string name="data_nieznana">Data nieznana</string>

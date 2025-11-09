@@ -1,0 +1,344 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FIPScan</string>
+
+    <string name="title_home">Scan</string>
+    <string name="title_history">Verlauf</string>
+    <string name="title_settings">Einstellungen</string>
+    <string name="title_diagnosis">Diagnose</string>
+
+    <string name="action_save">Ergebnis speichern</string>
+    <string name="action_back">Zurück</string>
+    <string name="action_close">Schließen</string>
+    <string name="saved_successfully">Erfolgreich gespeichert!</string>
+    <string name="save_error">Fehler beim Speichern.</string>
+
+    <string name="home_welcome_title">Willkommen bei FIPScan!</string>
+    <string name="home_welcome_message">Laden Sie Laborergebnisse hoch, um das FIP-Risiko bei Ihrer Katze zu bewerten.</string>
+    <string name="home_start_analysis">Neue Analyse starten</string>
+    <string name="home_recent_results">Letzte Ergebnisse</string>
+    <string name="home_no_recent">Keine aktuellen Analysen.</string>
+
+    <string name="toast_no_pdf">Keine PDF-Datei</string>
+    <string name="error_no_pdf_selected">Keine PDF-Datei ausgewählt</string>
+    <string name="error_pdf_local_save">Lokales Speichern der PDF fehlgeschlagen.</string>
+    <string name="error_source_file_not_found">Quelldatei existiert nicht</string>
+    <string name="toast_pdf_saved">Gespeichert in: %1$s</string>
+    <string name="downloads_folder_name">Downloads</string>
+    <string name="error_pdf_save_generic">Fehler beim Speichern der PDF: %1$s</string>
+    <string name="error_db_save">Fehler beim Speichern in die Datenbank!</string>
+
+    <string name="diagnosis_no_gammopathy">keine Gammopathie</string>
+    <string name="diagnosis_chart_error">Fehler bei der Diagrammanalyse</string>
+    <string name="error_no_tables_found">Keine Tabellen gefunden!</string>
+    <string name="error_pdf_processing">Fehler bei der PDF-Verarbeitung!</string>
+    <string name="error_pdf_processing_short">PDF-Verarbeitungsfehler</string>
+
+    <string name="no_data">keine Daten</string>
+    <string name="default_no_date">Kein Datum</string>
+    <string name="default_unknown">Unbekannt</string>
+    <string name="default_not_provided">nicht angegeben</string>
+
+    <string name="risk_indicator_format">FIP-Risiko: %1$d%%</string>
+
+    <string name="patient_info_full">📆 Datum: %1$s\n🐱 Patient: %2$s\n🐾 Spezies: %3$s\n🏷️ Rasse: %4$s\n⚥ Geschlecht: %5$s\n📅 Alter: %6$s\n🎨 Fellfarbe: %7$s</string>
+    <string name="patient_info_short">📆 Datum: %1$s\n🐱 Patient: %2$s\n🐾 Spezies: %3$s\n🏷️ Rasse: %4$s\n⚥ Geschlecht: %5$s\n📅 Alter: %6$s\n🎨 Fellfarbe: %7$s</string>
+
+    <string name="results_abnormal_header">\n\n📊 Abnormale Ergebnisse:\nTest: Ergebnis (Norm) Einheit\n%1$s\n\n</string>
+    <string name="results_normal_header">\n\n✅ Alle Ergebnisse im Normbereich</string>
+    <string name="no_result_data">Keine Ergebnisdaten</string>
+
+    <string name="home_results_title">Ergebnisse: %1$s</string>
+    <string name="home_results_title_age">Ergebnisse: %1$s, %2$s</string>
+
+    <string name="history_empty">Keine gespeicherten Ergebnisse.</string>
+    <string name="history_date_format">dd.MM.yyyy HH:mm</string>
+    <string name="history_date_label">📅 Untersuchungsdatum: %1$s</string>
+    <string name="recent_history_date_format">📅 Datum: %1$s</string>
+    <string name="risk_percentage_format">%1$d%%</string>
+
+    <string name="diagnosis_result_title">Analyseergebnis</string>
+    <string name="diagnosis_probability_label">FIP-Wahrscheinlichkeit:</string>
+    <string name="diagnosis_recommendations_label">Empfehlungen:</string>
+    <string name="diagnosis_title">Diagnose</string>
+    <string name="patient_info_empty">Geben Sie Daten zur Analyse ein\n\nUm eine Diagnose anzuzeigen:\n• Gehen Sie zum Tab \'Scan\' und laden Sie eine PDF mit Ergebnissen hoch\n• Oder wählen Sie einen Eintrag aus dem \'Verlauf\'</string>
+    <string name="diagnosis_patient_title">Diagnose: %1$s</string>
+    <string name="not_provided">nicht angegeben</string>
+    <string name="no_date">kein Datum</string>
+    <string name="rivalta_not_performed">nicht durchgeführt, Flüssigkeit vorhanden</string>
+    <string name="patient_info_template">🐱 Patient: %1$s\n📅 Alter: %2$s\n🐾 Spezies: %3$s\n🏷️ Rasse: %4$s\n⚥ Geschlecht: %5$s\n🎨 Fellfarbe: %6$s\n📆 Datum: %7$s</string>
+    <string name="risk_breakdown_html"><b>Detaillierte FIP-Risikoanalyse:</b><br></br>%1$s</string>
+    <string name="further_tests_html"><b>🔬 Weitere Tests:</b> %1$s</string>
+    <string name="supplements_fip_html"><b>💊 Nahrungsergänzung (FIP-Kontext):</b> %1$s</string>
+    <string name="consult_fip_html"><b>🏥 Konsultation (FIP-Kontext):</b> %1$s</string>
+    <string name="supplements_general_html"><b>💊 Nahrungsergänzung (allgemein):</b> %1$s</string>
+    <string name="consult_general_html"><b>🏥 Konsultation (allgemein):</b> %1$s</string>
+    <string name="abnormal_result_format">%1$s: %2$s %3$s (Norm: %4$s - %5$s)</string>
+    <string name="error_no_data_report">Keine Daten für Berichtserstellung</string>
+    <string name="report_saved_success">Bericht gespeichert: %1$s</string>
+    <string name="error_report_generation">Fehler bei der Berichtserstellung</string>
+    <string name="error_no_data_print">Keine Daten zum Drucken</string>
+    <string name="print_job_name">FIP-Bericht - %1$s</string>
+    <string name="error_print_generation">Fehler bei der Druckberichtserstellung</string>
+
+    <string name="shape_analysis_title">📊 KURVENFORM-ANALYSE</string>
+    <string name="pattern_label">Muster: %1$s</string>
+    <string name="match_strength_label">Übereinstimmung: %1$d%%</string>
+    <string name="fraction_details_title">\nFraktionsdetails:</string>
+    <string name="present_depth">vorhanden (Tiefe %1$d%%)</string>
+    <string name="absent">fehlt</string>
+    <string name="shape_details_template">Albumin: Höhe %1$d%%, Symmetrie %2$d%%\nGamma: Höhe %3$d%%, Breite %4$d%%\nβ-γ-Brücke: %5$s</string>
+
+    <string name="pattern_profile_title">🔬 LABORPROFIL-MUSTER</string>
+    <string name="profile_inflammatory_acute">⚠️ AKUTES ENTZÜNDUNGSPROFIL</string>
+    <string name="profile_inflammatory_chronic">⚠️ CHRONISCHES ENTZÜNDUNGSPROFIL</string>
+    <string name="profile_effusive_classic">🔴 KLASSISCH EFFUSIV</string>
+    <string name="profile_dry_neurological">🟡 TROCKEN NEUROLOGISCH</string>
+    <string name="profile_mixed">🔶 GEMISCHTES PROFIL</string>
+    <string name="profile_atypical">❓ ATYPISCHES PROFIL</string>
+    <string name="profile_non_fip">✅ KEIN FIP-PROFIL</string>
+    <string name="key_findings_title">\nHauptbefunde:</string>
+    <string name="profile_description_title">\nProfilbeschreibung:</string>
+    <string name="management_suggestions_title">\nHandlungsempfehlungen:</string>
+
+    <string name="settings_language_label">Sprache</string>
+    <string name="lang_polish">Polski (Polnisch)</string>
+    <string name="lang_english">English (Englisch)</string>
+    <string name="settings_restart_required">Neustart der Anwendung erforderlich, um Sprachänderungen vollständig zu übernehmen.</string>
+    <string name="about_app_title">Über die App</string>
+    <string name="about_author_label">Autor:</string>
+    <string name="about_contact_label">Kontakt:</string>
+    <string name="about_phone_label">Tel.:</string>
+    <string name="about_github_label">Projekt Github:</string>
+    <string name="ok_button">OK</string>
+
+    <string name="easter_egg_title">Herzlichen Glückwunsch!</string>
+    <string name="easter_egg_message">Sie haben den geheimen Modus gefunden! Die Macher von FIPScan wünschen Ihrem Kätzchen viel Gesundheit! 🐱</string>
+
+    <string name="breakdown_age_young">✅ Alter &lt; 2 Jahre: <b>+%1$d Pkt.</b> (hoch suggestiv)</string>
+    <string name="breakdown_age_old">❌ Alter ≥ 2 Jahre: <b>+0 Pkt.</b></string>
+    <string name="breakdown_rivalta_pos">✅ Rivalta-Probe positiv: <b>+%1$d Pkt.</b> (mäßig suggestiv)</string>
+    <string name="breakdown_rivalta_neg">❌ Rivalta-Probe negativ: <b>+0 Pkt.</b></string>
+    <string name="breakdown_rivalta_unknown">❓ Rivalta-Probe nicht durchgeführt: <b>+%1$d Pkt.</b> (fehlende Daten schwächen Differentialdiagnose)</string>
+
+    <string name="breakdown_globulin_high">✅ Hyperglobulinämie: <b>+%1$d Pkt.</b> (stark suggestiv)</string>
+    <string name="breakdown_globulin_normal">❌ Globuline normal: <b>+0 Pkt.</b></string>
+    <string name="breakdown_globulin_missing">❓ Globulin-Daten fehlen: <b>+0 Pkt.</b></string>
+
+    <string name="breakdown_ag_very_low">✅ A/G-Quotient &lt; 0,4: <b>+%1$d Pkt.</b> (stark suggestiv)</string>
+    <string name="breakdown_ag_low">⚠️ A/G-Quotient &lt; 0,6: <b>+%1$d Pkt.</b> (mäßig suggestiv)</string>
+    <string name="breakdown_ag_high">❌ A/G-Quotient &gt; 0,8: <b>%1$d Pkt.</b> (spricht gegen FIP)</string>
+    <string name="breakdown_ag_grey">❔ A/G-Quotient in \'Grauzone\' (0,6-0,8): <b>+0 Pkt.</b></string>
+    <string name="breakdown_ag_missing">❓ A/G-Quotient fehlt: <b>+0 Pkt.</b></string>
+
+    <string name="breakdown_lym_low">✅ Lymphopenie: <b>+%1$d Pkt.</b> (mäßig suggestiv)</string>
+    <string name="breakdown_lym_normal">❌ Lymphozyten normal: <b>+0 Pkt.</b></string>
+    <string name="breakdown_lym_missing">❓ Lymphozyten-Daten fehlen: <b>+0 Pkt.</b></string>
+
+    <string name="breakdown_neu_high">✅ Neutrophilie: <b>+%1$d Pkt.</b> (mäßig suggestiv)</string>
+    <string name="breakdown_neu_normal">❌ Neutrophile normal: <b>+0 Pkt.</b></string>
+    <string name="breakdown_neu_missing">❓ Neutrophile-Daten fehlen: <b>+0 Pkt.</b></string>
+
+    <string name="breakdown_anemia">✅ Anämie: <b>+%1$d Pkt.</b> (mäßig suggestiv)</string>
+    <string name="breakdown_hct_normal">❌ Hämatokrit normal: <b>+0 Pkt.</b></string>
+    <string name="breakdown_hct_missing">❓ Hämatokrit-Daten fehlen: <b>+0 Pkt.</b></string>
+
+    <string name="breakdown_bili_high">✅ Hyperbilirubinämie: <b>+%1$d Pkt.</b> (stark suggestiv)</string>
+    <string name="breakdown_bili_normal">❌ Bilirubin normal: <b>+0 Pkt.</b></string>
+    <string name="breakdown_bili_missing">❓ Bilirubin-Daten fehlen: <b>+0 Pkt.</b></string>
+
+    <string name="breakdown_gamma_poly">✅ Polyklonale Gammopathie: <b>+%1$d Pkt.</b> (stark suggestiv für FIP)</string>
+    <string name="breakdown_gamma_mono">⚠️ Monoklonale Gammopathie: <b>+%1$d Pkt.</b> (kann bei FIP vorkommen, aber weniger typisch)</string>
+    <string name="breakdown_gamma_none">❌ Keine Gammopathie: <b>+0 Pkt.</b></string>
+
+    <string name="breakdown_shape_analysis">📊 Kurvenform-Analyse (%1$s): <b>+%2$d/%3$d Pkt.</b></string>
+    <string name="breakdown_pattern_analysis">🔬 Laborprofil-Muster (%1$s): <b>+%2$d/%3$d Pkt.</b></string>
+
+    <string name="level_very_characteristic">sehr charakteristisch</string>
+    <string name="level_characteristic">charakteristisch</string>
+    <string name="level_moderately_suggestive">mäßig suggestiv</string>
+    <string name="level_weakly_suggestive">schwach suggestiv</string>
+    <string name="level_uncharacteristic">uncharakteristisch</string>
+    <string name="level_very_typical">sehr typisch</string>
+    <string name="level_typical">typisch</string>
+    <string name="level_partially_typical">teilweise typisch</string>
+    <string name="level_weakly_typical">schwach typisch</string>
+    <string name="level_atypical">atypisch</string>
+
+    <string name="risk_comment_very_high"><b><font color="#D32F2F">SEHR HOHES FIP-RISIKO (%1$d%%)</font></b>. Ergebnisse deuten stark auf Feline Infektiöse Peritonitis hin. Dringende Konsultation mit einem Tierarzt zur Bestätigung der Diagnose und Einleitung der Behandlung erforderlich.</string>
+    <string name="risk_comment_high"><b><font color="#FFA000">HOHES FIP-RISIKO (%1$d%%)</font></b>. Hohe Wahrscheinlichkeit für FIP. Weitere Diagnostik erforderlich.</string>
+    <string name="risk_comment_medium"><b><font color="#FBC02D">MITTLERES FIP-RISIKO (%1$d%%)</font></b>. FIP ist eine mögliche Diagnose. Differentialdiagnose für andere entzündliche Erkrankungen sollte in Betracht gezogen werden.</string>
+    <string name="risk_comment_low"><b><font color="#388E3C">NIEDRIGES FIP-RISIKO (%1$d%%)</font></b>. Basierend auf diesen Ergebnissen ist FIP unwahrscheinlich, kann aber nicht zu 100%% ausgeschlossen werden.</string>
+
+    <string name="advice_further_tests">Abdominaler Ultraschall (Beurteilung der mesenterialen Lymphknoten, Nieren, Leber), Analyse von Körperhöhlenflüssigkeit (falls vorhanden), RT-PCR auf FCoV aus Flüssigkeit oder Biopsiematerial.</string>
+    <string name="advice_supplements">Je nach klinischem Zustand: B-Vitamine, immunstärkende Präparate (z.B. Beta-Glucan), leberunterstützende Ergänzungsmittel (bei erhöhtem ALT/Bilirubin).</string>
+    <string name="advice_consultation">Dringende tierärztliche Konsultation bei mittlerem und höherem Risiko angezeigt. Erwägen Sie die Konsultation eines Spezialisten für Innere Medizin oder Infektionskrankheiten.</string>
+
+    <string name="gammopathy_none">keine Gammopathie</string>
+    <string name="gammopathy_monoclonal">monoklonale Gammopathie</string>
+    <string name="gammopathy_polyclonal">polyklonale Gammopathie</string>
+
+    <string name="pattern_name_monoclonal">monoklonal</string>
+    <string name="pattern_name_polyclonal">polyklonal</string>
+    <string name="pattern_name_bridging">Brückenbildung</string>
+    <string name="pattern_name_normal">normal</string>
+    <string name="pattern_name_nonspecific">unspezifisch</string>
+
+    <string name="desc_pattern_polyclonal">Polyklonales Muster mit breitem Gamma-Peak erkannt</string>
+    <string name="desc_pattern_monoclonal">Spitzer monoklonaler Peak im Gamma-Bereich erkannt</string>
+    <string name="desc_pattern_bridging">Beta-Gamma-Brücke charakteristisch für Entzündungen vorhanden</string>
+    <string name="desc_pattern_normal">Elektrophorese-Kurve nahe am Normalbereich</string>
+    <string name="desc_pattern_nonspecific">Unspezifisches Elektrophorese-Muster</string>
+
+    <string name="desc_ag_very_low">Signifikant reduzierter Albumin/Globulin-Quotient (A/G &lt; 0,6)</string>
+    <string name="desc_ag_low">Reduzierter Albumin/Globulin-Quotient (A/G &lt; 0,8)</string>
+    <string name="desc_bridge_depth">Tiefe der Beta-Gamma-Brücke %d%%</string>
+    <string name="desc_gamma_asymmetry">Asymmetrischer Gamma-Peak</string>
+
+    <string name="risk_high_adj">HOCHGRADIG suggestiv</string>
+    <string name="risk_moderate_adj">mäßig suggestiv</string>
+    <string name="risk_low_adj">schwach suggestiv</string>
+    <string name="risk_none_adj">nicht suggestiv</string>
+    <string name="desc_summary">Kurvenform %1$s für FIP (Score: %2$d/100)</string>
+
+    <string name="finding_classic_triad">✅ Klassische FIP-Trias (Hyperglobulinämie + Hypoalbuminämie + Lymphopenie)</string>
+    <string name="finding_stress_leukogram">✅ Stressleukogramm (Neutrophilie + Lymphopenie)</string>
+    <string name="finding_severe_hyperglobulinemia">⚠️ Schwere Hyperglobulinämie</string>
+    <string name="finding_severe_hypoalbuminemia">⚠️ Schwere Hypoalbuminämie</string>
+    <string name="finding_severe_lymphopenia">⚠️ Schwere Lymphopenie</string>
+    <string name="finding_severe_anemia">⚠️ Schwere Anämie</string>
+    <string name="finding_liver_involvement">🔸 Leberbeteiligung</string>
+    <string name="finding_renal_involvement">🔸 Mögliche Nierenbeteiligung</string>
+
+    <string name="desc_profile_inflammatory_acute">Akutes Entzündungsprofil, charakteristisch für aktive effusive FIP-Phase</string>
+    <string name="desc_profile_inflammatory_chronic">Chronisches Entzündungsprofil mit Auszehrungsmerkmalen, typisch für fortgeschrittene FIP</string>
+    <string name="desc_profile_effusive_classic">Klassisches effusives FIP-Profil mit Leberbeteiligung</string>
+    <string name="desc_profile_dry_neurological">Profil deutet auf trockene FIP-Form mit möglicher Beteiligung des Nervensystems hin</string>
+    <string name="desc_profile_mixed">Gemischtes Profil mit Merkmalen sowohl der effusiven als auch der trockenen FIP</string>
+    <string name="desc_profile_atypical">Atypisches Profil - einige FIP-Merkmale vorhanden, aber kein klassisches Bild</string>
+    <string name="desc_profile_non_fip">FIP-untypisches Profil - andere entzündliche Erkrankungen in Betracht ziehen</string>
+    <string name="desc_secondary_features">Sekundäre Profilmerkmale: %1$s</string>
+    <string name="desc_classic_triad_present">Klassische FIP-Labor-Trias vorhanden</string>
+    <string name="desc_severe_abnormalities_count">%1$d schwere Laboranomalien erkannt</string>
+
+    <string name="profile_name_acute">Akut entzündlich</string>
+    <string name="profile_name_chronic">Chronisch entzündlich</string>
+    <string name="profile_name_effusive">Klassisch effusiv</string>
+    <string name="profile_name_neuro">Trocken neurologisch</string>
+    <string name="profile_name_mixed">Gemischtes Muster</string>
+    <string name="profile_name_atypical">Atypisch</string>
+    <string name="profile_name_non_fip">Kein FIP</string>
+
+    <string name="sugg_urgent_consult">🚨 DRINGENDE Konsultation - hoher Verdacht auf aktive FIP</string>
+    <string name="sugg_ultrasound_rivalta">📋 Empfohlen: Abdominaler Ultraschall, Flüssigkeitspunktion (Rivalta-Probe, Zytologie)</string>
+    <string name="sugg_gs_immediate">💊 Erwägen Sie sofortigen Beginn der GS-441524-Behandlung nach Bestätigung</string>
+    <string name="sugg_quick_consult">⚠️ Schnelle Konsultation - wahrscheinlich fortgeschrittene FIP</string>
+    <string name="sugg_imaging">📋 Empfohlen: vollständige bildgebende Diagnostik, Beurteilung des Allgemeinzustands</string>
+    <string name="sugg_gs_support">💊 GS-441524-Behandlung mit intensiver Unterstützung</string>
+    <string name="sugg_neuro_consult">⚠️ Neurologische Konsultation - mögliche neurologische FIP-Form</string>
+    <string name="sugg_mri_ct">📋 Empfohlen: neurologische Untersuchung, MRT/CT erwägen</string>
+    <string name="sugg_gs_neuro_dose">💊 Höhere GS-441524-Dosen für neurologische Form</string>
+    <string name="sugg_complex_diagnostics">⚠️ Komplexes Bild - erfordert detaillierte Diagnostik</string>
+    <string name="sugg_comprehensive_imaging">📋 Umfassende Diagnostik: Bildgebung + Labor</string>
+    <string name="sugg_differential_diagnosis">❓ Atypisches Bild - Differentialdiagnose</string>
+    <string name="sugg_repeat_tests">📋 Tests in 2-4 Wochen wiederholen, Panel erweitern</string>
+    <string name="sugg_fip_unlikely">✅ FIP unwahrscheinlich</string>
+    <string name="sugg_search_other_causes">🔍 Suche nach anderen Ursachen der klinischen Symptome</string>
+    <string name="sugg_monitor">📊 Überwachung: Gesamtprotein, A/G, Hämatokrit alle 2 Wochen</string>
+
+    <string name="lab_ag_ratio_low">Niedriger A/G-Quotient (A/G = %1$s) – hochverdächtig für FIP.</string>
+    <string name="lab_ag_ratio_moderate">Reduzierter A/G-Quotient (A/G = %1$s) – kann auf chronische Entzündung (z.B. FIP) hindeuten, ist aber nicht definitiv.</string>
+    <string name="lab_hypergammaglobulinemia">Hypergammaglobulinämie (erhöhte Gamma-Globuline) – charakteristisch für chronische Entzündungen, einschließlich FIP.</string>
+
+    <string name="lab_alt_mild">ALT leicht erhöht (%1$s%2$s) – leichte Leberschädigung.</string>
+    <string name="lab_alt_severe">ALT deutlich erhöht (%1$s%2$s) – weist auf ernstere Leberschädigung hin.</string>
+    <string name="lab_bilirubin_high">Erhöhtes Bilirubin (%1$s%2$s) – mögliche Leberschädigung oder Hämolyse (u.a. bei FIP beobachtet).</string>
+
+    <string name="lab_leukocytosis">Leukozytose (WBC = %1$s, über der Norm) – weist auf Entzündung oder Infektion hin.</string>
+    <string name="lab_leukopenia">Leukopenie (WBC = %1$s, unter der Norm) – kann auf Immunsuppression oder Knochenmarkserkrankung hinweisen.</string>
+    <string name="lab_stress_leukogram">Neutrophilie mit Lymphopenie – erhöhte Neutrophile und reduzierte Lymphozyten (häufiges Bild bei FIP).</string>
+    <string name="lab_anemia">Reduzierter Hämatokrit (HCT = %1$s) – Anämie, begleitet oft chronische Krankheiten (z.B. FIP).</string>
+
+    <string name="lab_fcov_positive">FCoV ELISA Test: **positiv** – Antikörper gegen Coronavirus nachgewiesen. Erhöht den Verdacht auf FIP (obwohl viele gesunde Katzen ebenfalls positiv testen).</string>
+    <string name="lab_fcov_negative">FCoV ELISA Test: **negativ** – keine Antikörper gegen FCoV nachgewiesen. Negatives Ergebnis macht FIP unwahrscheinlich (schließt es aber nicht vollständig aus).</string>
+    <string name="lab_fcov_titer_high">Hoher FCoV-Antikörpertiter (%1$s) – so hohe Werte treten oft bei Katzen mit FIP auf (Bestätigung durch andere Tests erforderlich).</string>
+    <string name="lab_fcov_titer_moderate">Mäßiger FCoV-Antikörpertiter (%1$s) – Katze ist Coronavirus-Träger; in Kombination mit Symptomen erhöht dies den FIP-Verdacht mäßig.</string>
+    <string name="lab_fcov_titer_low">Niedriger FCoV-Antikörpertiter (%1$s) – niedriger Antikörperspiegel; FIP ist weniger wahrscheinlich, aber in spezifischen Fällen möglich.</string>
+    <string name="lab_fcov_result">FCoV ELISA Ergebnis: %1$s – Interpretation hängt vom Kontext ab (positiv unterstützt FIP-Verdacht, negativ macht es weniger wahrscheinlich).</string>
+
+    <string name="lab_results_normal">Ergebnisse im Normbereich – keine Abweichungen, die auf FIP oder andere ernste Erkrankungen hindeuten.</string>
+    <string name="lab_disclaimer_other_diseases">Ähnliche Abweichungen können auch bei anderen Krankheiten auftreten (z.B. chronische Infektionen, Autoimmunerkrankungen oder immunvermittelte Neoplasien).</string>
+
+    <string name="lab_consult_specialist">Empfohlene schnelle Konsultation mit einem Tierarzt (Spezialist für %1$s) zur weiteren Diagnostik und Behandlung.</string>
+    <string name="lab_consult_general">Empfohlene Konsultation mit einem Tierarzt zur Bestätigung der Diagnose und Besprechung der Behandlung.</string>
+    <string name="lab_consult_none">Keine dringende Notwendigkeit für eine Konsultation – Beobachtung und Einhaltung der obigen Empfehlungen angeraten.</string>
+
+    <string name="lab_supplements_none">Keine Empfehlungen zur Nahrungsergänzung.</string>
+    <string name="supp_hepatiale_forte">Hepatiale Forte – Leberunterstützung bei leichter ALT-Erhöhung.</string>
+    <string name="supp_hepatiale_forte_advanced">Hepatiale Forte **Advanced** – stärkere Leberunterstützung bei hohem ALT.</string>
+
+    <string name="specialist_hepatologist">Hepatologie</string>
+    <string name="specialist_internist">Innere Medizin</string>
+
+    <string name="pdf_report_title">FIP-DIAGNOSEBERICHT</string>
+    <string name="pdf_patient_prefix">Patient: %1$s</string>
+    <string name="pdf_generated_date">Erstellt: %1$s (GMT+2)</string>
+    <string name="pdf_section_patient_data">PATIENTENDATEN</string>
+    <string name="pdf_label_name">Name:</string>
+    <string name="pdf_label_species">Spezies:</string>
+    <string name="pdf_label_age">Alter:</string>
+    <string name="pdf_label_breed">Rasse:</string>
+    <string name="pdf_label_gender">Geschlecht:</string>
+    <string name="pdf_label_coat">Fellfarbe:</string>
+    <string name="pdf_label_date">Untersuchungsdatum:</string>
+    <string name="pdf_value_not_provided">nicht angegeben</string>
+    <string name="pdf_value_no_date">kein Datum</string>
+    <string name="pdf_section_risk_assessment">📊 HAUPT-FIP-RISIKOBEWERTUNG</string>
+    <string name="pdf_section_detailed_analysis">DETAILLIERTE ANALYSE</string>
+    <string name="pdf_section_recommendations">EMPFEHLUNGEN</string>
+    <string name="pdf_rec_further_tests">🔬 Weitere Tests:</string>
+    <string name="pdf_rec_supplements">💊 Nahrungsergänzung:</string>
+    <string name="pdf_rec_consultation">🏥 Konsultation:</string>
+    <string name="pdf_section_abnormal_results">ABNORMALE ERGEBNISSE</string>
+    <string name="pdf_section_abnormal_results_cont">ABNORMALE ERGEBNISSE (Forts.)</string>
+    <string name="pdf_table_header">Test | Ergebnis | Norm</string>
+    <string name="pdf_footer_page">Seite %1$d | © %2$d FIPScan</string>
+    <string name="pdf_footer_disclaimer">Dieser Bericht ist ein Hilfsmittel. Die endgültige Diagnose wird von einem Tierarzt gestellt.</string>
+    <string name="pdf_filename_prefix">FIP_Bericht_</string>
+    <string name="pdf_section_shape_analysis">📈 ELEKTROPHORESE-KURVENFORM-ANALYSE</string>
+    <string name="pdf_score_format">Score: %1$d/%2$d Punkte</string>
+    <string name="pdf_shape_pattern">Muster: %1$s</string>
+    <string name="pdf_shape_ag_ratio">Albumin/Gamma-Quotient: %1$s</string>
+    <string name="pdf_shape_gamma_width">Gamma-Peak-Breite: %1$d%%</string>
+    <string name="pdf_shape_bridge">Beta-Gamma-Brücke: %1$s</string>
+    <string name="pdf_bridge_present">vorhanden</string>
+    <string name="pdf_bridge_absent">fehlt</string>
+    <string name="pdf_section_pattern_analysis">🔬 LABORPROFIL-MUSTER</string>
+    <string name="pdf_profile_label">Hauptprofil: %1$s</string>
+    <string name="pdf_key_findings">Hauptbefunde:</string>
+    <string name="pdf_profile_acute">Akutes Entzündungsprofil</string>
+    <string name="pdf_profile_chronic">Chronisches Entzündungsprofil</string>
+    <string name="pdf_profile_effusive">Klassisch effusiv</string>
+    <string name="pdf_profile_neuro">Trocken neurologisch</string>
+    <string name="pdf_profile_mixed">Gemischtes Profil</string>
+    <string name="pdf_profile_atypical">Atypisches Profil</string>
+    <string name="pdf_profile_non_fip">Kein FIP-Profil</string>
+    <string name="zeskanuj_qr">QR-Code scannen, um die neueste Version herunterzuladen:</string>
+    <string name="kod_qr_releases">QR-Code für GitHub-Releases</string>
+    <string name="historia_badan">Untersuchungsverlauf</string>
+    <string name="skanuj">Scan</string>
+    <string name="wgraj_pdf">PDF laden</string>
+    <string name="ostatnie_badania">Letzte Untersuchungen</string>
+    <string name="proba_rivalta">Rivalta-Probe Status:</string>
+    <string name="wykres_diagnostyczny">Diagnosediagramm</string>
+    <string name="zapisz_oryg">Original-PDF speichern</string>
+    <string name="ostrzezenie_pomocnicze">HINWEIS: Diese Anwendung ist nur ein Hilfsmittel. Die endgültige Diagnose muss immer von einem qualifizierten Tierarzt auf Basis des vollständigen klinischen Bildes gestellt werden.</string>
+    <string name="tryb_ciemny">Dunkelmodus</string>
+    <string name="wybierz_jezyk">Sprache wählen</string>
+    <string name="lang_german">Deutsch</string>
+    <string name="lang_french">Français (Französisch)</string>
+    <string name="pacjent">Patient:</string>
+    <string name="wiek">Alter:</string>
+    <string name="data_nieznana">Unbekanntes Datum</string>
+    <string name="diagnoza">Diagnose</string>
+</resources>
