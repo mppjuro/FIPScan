@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">FIPScan</string>
 
-    <string name="title_home">Start</string>
+    <string name="title_home">Skanuj</string>
     <string name="title_history">Historia</string>
     <string name="title_settings">Ustawienia</string>
     <string name="title_diagnosis">Diagnoza</string>
@@ -101,8 +101,8 @@
     <string name="management_suggestions_title">\nSugestie postępowania:</string>
 
     <string name="settings_language_label">Język / Language</string>
-    <string name="lang_polish">Polski (Polish)</string>
-    <string name="lang_english">English</string>
+    <string name="lang_polish">Polski</string>
+    <string name="lang_english">English (Angielski)</string>
     <string name="settings_restart_required">Wymagany restart aplikacji, aby w pełni zastosować zmianę języka.</string>
     <string name="about_app_title">O aplikacji</string>
     <string name="about_author_label">Autor:</string>
@@ -126,7 +126,7 @@
 
     <string name="breakdown_ag_very_low">✅ Stosunek A/G &lt; 0.4: <b>+%1$d pkt</b> (silnie sugestywny)</string>
     <string name="breakdown_ag_low">⚠️ Stosunek A/G &lt; 0.6: <b>+%1$d pkt</b> (umiarkowanie sugestywny)</string>
-    <string name="breakdown_ag_high">❌ Stosunek A/G &gt; 0.8: <b>%1$d pkt</b> (przemawia przeciw FIP)</string>
+    <string name="breakdown_ag_high">❌ Stosunek A/G &gt; 0.8: <b>+%1$d pkt</b> (przemawia przeciw FIP)</string>
     <string name="breakdown_ag_grey">❔ Stosunek A/G w \'szarej strefie\' (0.6-0.8): <b>+0 pkt</b></string>
     <string name="breakdown_ag_missing">❓ Brak stosunku A/G: <b>+0 pkt</b></string>
 

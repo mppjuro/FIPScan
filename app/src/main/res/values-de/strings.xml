@@ -127,7 +127,7 @@
 
     <string name="breakdown_ag_very_low">✅ A/G-Quotient &lt; 0,4: <b>+%1$d Pkt.</b> (stark suggestiv)</string>
     <string name="breakdown_ag_low">⚠️ A/G-Quotient &lt; 0,6: <b>+%1$d Pkt.</b> (mäßig suggestiv)</string>
-    <string name="breakdown_ag_high">❌ A/G-Quotient &gt; 0,8: <b>%1$d Pkt.</b> (spricht gegen FIP)</string>
+    <string name="breakdown_ag_high">❌ A/G-Quotient &gt; 0,8: <b>+%1$d Pkt.</b> (spricht gegen FIP)</string>
     <string name="breakdown_ag_grey">❔ A/G-Quotient in \'Grauzone\' (0,6-0,8): <b>+0 Pkt.</b></string>
     <string name="breakdown_ag_missing">❓ A/G-Quotient fehlt: <b>+0 Pkt.</b></string>
 

@@ -10,34 +10,11 @@ OK - Easter Egg - kontakt do autora programu - np. pięcioklik na ustawienia, li
 =>>> usunąć wszystkie warningi w IDE
 
 Sprawdzenie ile pliki mają linii:
-for dir in app/src/main/java/com/example/fipscan app/src/main/res/layout app/src/main/res/values app/src/main/res/values-night app/src/main/res/values-pl app/src/main/res/navigation app/src/main/res/menu; do echo "=== $dir ==="; git ls-files "$dir" | xargs wc -l; done
+for dir in app/src/main/java/com/example/fipscan app/src/main/res/layout app/src/main/res/values app/src/main/res/values-night app/src/main/res/values-pl app/src/main/res/values-de app/src/main/res/values-pl app/src/main/res/values-fr app/src/main/res/navigation app/src/main/res/menu; do echo "=== $dir ==="; git ls-files "$dir" | xargs wc -l; done
 
 
-Sprawdzenie ile pliki mają linii:
+Sprawdzenie ile pliki w tym folderze mają linii:
 git ls-files | xargs wc -l
-
-$ git ls-files | xargs wc -l
-    29 AppDatabase.kt
-   131 BarChartLevelAnalyzer.kt
-   293 ElectrophoresisAnalyzer.kt
-   334 ElectrophoresisShapeAnalyzer.kt
-   291 ExtractData.kt
-   554 FipPatternAnalyzer.kt
-   205 LabResultAnalyzer.kt
-    62 MainActivity.kt
-   358 PdfChartExtractor.kt
-   938 PdfReportGenerator.kt
-    33 ResultDao.kt
-    25 ResultEntity.kt
-    17 SharedResultViewModel.kt
-   818 ui/diagnosis/DiagnosisFragment.kt
-    39 ui/history/HistoryAdapter.kt
-    59 ui/history/HistoryFragment.kt
-   901 ui/home/HomeFragment.kt
-    20 ui/home/HomeViewModel.kt
-    78 ui/home/RecentHistoryAdapter.kt
-    35 ui/settings/SettingsFragment.kt
-  5220 total
 
 6. Zaawansowana analiza obrazu wykresu - Computer Vision
 Stopień trudności: ★★★★★ (Wysoki)
