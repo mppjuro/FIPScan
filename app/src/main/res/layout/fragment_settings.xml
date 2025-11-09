@@ -39,7 +39,6 @@
         android:minHeight="48dp"
         android:layout_marginTop="16dp"
         android:checked="false"
-        android:textColor="?attr/switchTextColor"
         app:layout_constraintTop_toBottomOf="@id/textHistory"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
@@ -71,8 +70,10 @@
             android:layout_height="48dp"
             android:text="@string/lang_polish"
             android:textSize="15sp"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:gravity="center_vertical"
+            android:button="@null"
             android:background="@drawable/language_selector_background" />
 
         <RadioButton
@@ -81,9 +82,11 @@
             android:layout_height="48dp"
             android:text="@string/lang_english"
             android:textSize="15sp"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:gravity="center_vertical"
             android:layout_marginTop="4dp"
+            android:button="@null"
             android:background="@drawable/language_selector_background" />
 
         <RadioButton
@@ -92,9 +95,11 @@
             android:layout_height="48dp"
             android:text="@string/lang_german"
             android:textSize="15sp"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:gravity="center_vertical"
             android:layout_marginTop="4dp"
+            android:button="@null"
             android:background="@drawable/language_selector_background"
             android:enabled="false"
             android:alpha="0.5" />
@@ -105,9 +110,11 @@
             android:layout_height="48dp"
             android:text="@string/lang_french"
             android:textSize="15sp"
-            android:paddingStart="8dp"
-            android:paddingEnd="8dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:gravity="center_vertical"
             android:layout_marginTop="4dp"
+            android:button="@null"
             android:background="@drawable/language_selector_background"
             android:enabled="false"
             android:alpha="0.5" />
