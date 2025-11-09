@@ -1,5 +1,6 @@
 package com.example.fipscan
 
+import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.util.Log
@@ -83,14 +84,15 @@ object BarChartLevelAnalyzer {
         return r > 200 && g < 100 && b < 100
     }
 
-    fun analyzeGammapathy(section1: List<Float>, section4: List<Float>): String {
+    // Dodano parametr context: Context
+    fun analyzeGammapathy(section1: List<Float>, section4: List<Float>, context: Context): String {
         val sum1 = section1.sum()
         val sum4 = section4.sum()
         val ratioThreshold = sum1 * 9f / 7f
 
         if (sum4 <= ratioThreshold) {
             Log.d("GAMMOPATHY_ANALYSIS", "Suma gamma ($sum4) <= próg ($ratioThreshold) - brak gammapatii")
-            return "brak gammapatii"
+            return context.getString(R.string.gammopathy_none)
         }
 
         // Sprawdź, czy jest ostry pik (monoklonalna)
@@ -104,7 +106,7 @@ object BarChartLevelAnalyzer {
 
             if (leftDiff > 2f && rightDiff > 2f) {
                 Log.d("GAMMOPATHY_ANALYSIS", "Wykryto ostry pik - gammapatia monoklonalna")
-                return "gammapatia monoklonalna"
+                return context.getString(R.string.gammopathy_monoclonal)
             }
 
             // Sprawdź sąsiednie pary
@@ -118,14 +120,14 @@ object BarChartLevelAnalyzer {
 
                 if (avgSurrounding > 0f && peakAvg > avgSurrounding * 2f) {
                     Log.d("GAMMOPATHY_ANALYSIS", "Wykryto lokalny pik - gammapatia monoklonalna")
-                    return "gammapatia monoklonalna"
+                    return context.getString(R.string.gammopathy_monoclonal)
                 }
             }
         }
 
         // Jeśli nie ma ostrych pików, ale jest szerokie podniesienie – poliklonalna
         Log.d("GAMMOPATHY_ANALYSIS", "Szerokie podniesienie bez ostrych pików - gammapatia poliklonalna")
-        return "gammapatia poliklonalna"
+        return context.getString(R.string.gammopathy_polyclonal)
     }
 
 }

@@ -1,5 +1,8 @@
 package com.example.fipscan
 
+import android.content.Context
+import java.util.Locale
+
 object FipPatternAnalyzer {
 
     enum class FipProfile {
@@ -24,10 +27,10 @@ object FipPatternAnalyzer {
     data class ParameterPattern(
         val name: String,
         val present: Boolean,
-        val severity: String
+        val severity: String // "severe", "moderate", "mild" (internal use)
     )
 
-    fun analyzeParameterPatterns(labData: Map<String, Any>): PatternAnalysisResult {
+    fun analyzeParameterPatterns(labData: Map<String, Any>, context: Context): PatternAnalysisResult {
 
         // Wykryj podstawowe nieprawidłowości
         val patterns = detectBasicPatterns(labData)
@@ -36,19 +39,19 @@ object FipPatternAnalyzer {
         val combinations = identifyCombinations(patterns)
 
         // Określ profil FIP
-        val (primaryProfile, secondaryProfile) = determineProfiles(combinations, labData)
+        val (primaryProfile, secondaryProfile) = determineProfiles(combinations)
 
         // Oblicz siłę wzorca
         val strength = calculatePatternStrength(combinations, primaryProfile)
 
         // Generuj kluczowe obserwacje
-        val findings = generateKeyFindings(patterns, combinations, primaryProfile)
+        val findings = generateKeyFindings(patterns, combinations, context)
 
         // Generuj opis profilu
-        val description = generateProfileDescription(primaryProfile, secondaryProfile, patterns, combinations)
+        val description = generateProfileDescription(primaryProfile, secondaryProfile, patterns, combinations, context)
 
         // Generuj sugestie postępowania
-        val suggestions = generateManagementSuggestions(primaryProfile, strength)
+        val suggestions = generateManagementSuggestions(primaryProfile, strength, context)
 
         return PatternAnalysisResult(
             primaryProfile = primaryProfile,
@@ -64,178 +67,122 @@ object FipPatternAnalyzer {
         val patterns = mutableMapOf<String, ParameterPattern>()
 
         // Hiperglobulinemia
-        val globulinPattern = analyzeGlobulinemia(labData)
-        if (globulinPattern != null) patterns["hyperglobulinemia"] = globulinPattern
-
+        analyzeGlobulinemia(labData)?.let { patterns["hyperglobulinemia"] = it }
         // Hipoalbuminemia
-        val albuminPattern = analyzeAlbuminemia(labData)
-        if (albuminPattern != null) patterns["hypoalbuminemia"] = albuminPattern
-
+        analyzeAlbuminemia(labData)?.let { patterns["hypoalbuminemia"] = it }
         // Limfopenia
-        val lymphPattern = analyzeLymphopenia(labData)
-        if (lymphPattern != null) patterns["lymphopenia"] = lymphPattern
-
+        analyzeLymphopenia(labData)?.let { patterns["lymphopenia"] = it }
         // Neutrofilia
-        val neutroPattern = analyzeNeutrophilia(labData)
-        if (neutroPattern != null) patterns["neutrophilia"] = neutroPattern
-
+        analyzeNeutrophilia(labData)?.let { patterns["neutrophilia"] = it }
         // Anemia
-        val anemiaPattern = analyzeAnemia(labData)
-        if (anemiaPattern != null) patterns["anemia"] = anemiaPattern
-
+        analyzeAnemia(labData)?.let { patterns["anemia"] = it }
         // Hiperbilirubinemia
-        val biliPattern = analyzeBilirubinemia(labData)
-        if (biliPattern != null) patterns["hyperbilirubinemia"] = biliPattern
-
+        analyzeBilirubinemia(labData)?.let { patterns["hyperbilirubinemia"] = it }
         // Podwyższone enzymy wątrobowe
-        val liverPattern = analyzeLiverEnzymes(labData)
-        if (liverPattern != null) patterns["liver_enzymes"] = liverPattern
-
+        analyzeLiverEnzymes(labData)?.let { patterns["liver_enzymes"] = it }
         // Azotemia
-        val azotemiaPattern = analyzeAzotemia(labData)
-        if (azotemiaPattern != null) patterns["azotemia"] = azotemiaPattern
-
+        analyzeAzotemia(labData)?.let { patterns["azotemia"] = it }
         // Trombocytopenia
-        val plateletPattern = analyzeThrombocytopenia(labData)
-        if (plateletPattern != null) patterns["thrombocytopenia"] = plateletPattern
+        analyzeThrombocytopenia(labData)?.let { patterns["thrombocytopenia"] = it }
 
         return patterns
     }
 
+    // --- Analityczne funkcje pomocnicze (bez zmian w logice, tylko refaktoryzacja null-safety) ---
     private fun analyzeGlobulinemia(labData: Map<String, Any>): ParameterPattern? {
-        val globKey = labData.keys.find { it.contains("Globulin", ignoreCase = true) }
-        if (globKey == null) return null
-
+        val globKey = labData.keys.find { it.contains("Globulin", ignoreCase = true) } ?: return null
         val value = toDoubleValue(labData[globKey] as? String) ?: return null
         val max = toDoubleValue(labData["${globKey}RangeMax"] as? String) ?: return null
-
         if (value <= max) return null
-
         val severity = when {
             value > max * 2.0 -> "severe"
             value > max * 1.5 -> "moderate"
             else -> "mild"
         }
-
         return ParameterPattern("hyperglobulinemia", true, severity)
     }
 
     private fun analyzeAlbuminemia(labData: Map<String, Any>): ParameterPattern? {
-        val albKey = labData.keys.find { it.contains("Albumin", ignoreCase = true) }
-        if (albKey == null) return null
-
+        val albKey = labData.keys.find { it.contains("Albumin", ignoreCase = true) } ?: return null
         val value = toDoubleValue(labData[albKey] as? String) ?: return null
         val min = toDoubleValue(labData["${albKey}RangeMin"] as? String) ?: return null
-
         if (value >= min) return null
-
         val severity = when {
             value < min * 0.5 -> "severe"
             value < min * 0.75 -> "moderate"
             else -> "mild"
         }
-
         return ParameterPattern("hypoalbuminemia", true, severity)
     }
 
     private fun analyzeLymphopenia(labData: Map<String, Any>): ParameterPattern? {
-        val lymphKey = labData.keys.find {
-            it.contains("LYM", ignoreCase = true) && !it.contains("%")
-        }
-        if (lymphKey == null) return null
-
+        val lymphKey = labData.keys.find { it.contains("LYM", ignoreCase = true) && !it.contains("%") } ?: return null
         val value = toDoubleValue(labData[lymphKey] as? String) ?: return null
         val min = toDoubleValue(labData["${lymphKey}RangeMin"] as? String) ?: return null
-
         if (value >= min) return null
-
         val severity = when {
             value < min * 0.3 -> "severe"
             value < min * 0.6 -> "moderate"
             else -> "mild"
         }
-
         return ParameterPattern("lymphopenia", true, severity)
     }
 
     private fun analyzeNeutrophilia(labData: Map<String, Any>): ParameterPattern? {
-        val neutKey = labData.keys.find {
-            it.contains("NEU", ignoreCase = true) && !it.contains("%")
-        }
-        if (neutKey == null) return null
-
+        val neutKey = labData.keys.find { it.contains("NEU", ignoreCase = true) && !it.contains("%") } ?: return null
         val value = toDoubleValue(labData[neutKey] as? String) ?: return null
         val max = toDoubleValue(labData["${neutKey}RangeMax"] as? String) ?: return null
-
         if (value <= max) return null
-
         val severity = when {
             value > max * 1.5 -> "severe"
             value > max * 1.25 -> "moderate"
             else -> "mild"
         }
-
         return ParameterPattern("neutrophilia", true, severity)
     }
 
     private fun analyzeAnemia(labData: Map<String, Any>): ParameterPattern? {
-        val hctKey = labData.keys.find { it.contains("HCT", ignoreCase = true) }
-        if (hctKey == null) return null
-
+        val hctKey = labData.keys.find { it.contains("HCT", ignoreCase = true) } ?: return null
         val value = toDoubleValue(labData[hctKey] as? String) ?: return null
         val min = toDoubleValue(labData["${hctKey}RangeMin"] as? String) ?: return null
-
         if (value >= min) return null
-
         val severity = when {
             value < 0.2 -> "severe"
             value < 0.25 -> "moderate"
             else -> "mild"
         }
-
         return ParameterPattern("anemia", true, severity)
     }
 
     private fun analyzeBilirubinemia(labData: Map<String, Any>): ParameterPattern? {
-        val biliKey = labData.keys.find { it.contains("Bilirubina", ignoreCase = true) }
-        if (biliKey == null) return null
-
+        val biliKey = labData.keys.find { it.contains("Bilirubina", ignoreCase = true) } ?: return null
         val value = toDoubleValue(labData[biliKey] as? String) ?: return null
         val max = toDoubleValue(labData["${biliKey}RangeMax"] as? String) ?: return null
-
         if (value <= max) return null
-
         val severity = when {
             value > max * 3 -> "severe"
             value > max * 2 -> "moderate"
             else -> "mild"
         }
-
         return ParameterPattern("hyperbilirubinemia", true, severity)
     }
 
     private fun analyzeLiverEnzymes(labData: Map<String, Any>): ParameterPattern? {
-        val altKey = labData.keys.find { it.contains("ALT", ignoreCase = true) }
-        if (altKey == null) return null
-
+        val altKey = labData.keys.find { it.contains("ALT", ignoreCase = true) } ?: return null
         val value = toDoubleValue(labData[altKey] as? String) ?: return null
         val max = toDoubleValue(labData["${altKey}RangeMax"] as? String) ?: return null
-
         if (value <= max) return null
-
         val severity = when {
             value > max * 3 -> "severe"
             value > max * 2 -> "moderate"
             else -> "mild"
         }
-
         return ParameterPattern("liver_enzymes", true, severity)
     }
 
     private fun analyzeAzotemia(labData: Map<String, Any>): ParameterPattern? {
         val ureaKey = labData.keys.find { it.contains("Mocznik", ignoreCase = true) }
         val creaKey = labData.keys.find { it.contains("Kreatynina", ignoreCase = true) }
-
         var azotemia = false
         var severity = "mild"
 
@@ -248,7 +195,6 @@ object FipPatternAnalyzer {
                 else if (value > max * 1.5) severity = "moderate"
             }
         }
-
         if (creaKey != null) {
             val value = toDoubleValue(labData[creaKey] as? String) ?: 0.0
             val max = toDoubleValue(labData["${creaKey}RangeMax"] as? String) ?: 999.0
@@ -258,117 +204,76 @@ object FipPatternAnalyzer {
                 else if (value > max * 1.5 && severity == "mild") severity = "moderate"
             }
         }
-
         return if (azotemia) ParameterPattern("azotemia", true, severity) else null
     }
 
     private fun analyzeThrombocytopenia(labData: Map<String, Any>): ParameterPattern? {
-        val pltKey = labData.keys.find { it.contains("PLT", ignoreCase = true) }
-        if (pltKey == null) return null
-
+        val pltKey = labData.keys.find { it.contains("PLT", ignoreCase = true) } ?: return null
         val value = toDoubleValue(labData[pltKey] as? String) ?: return null
         val min = toDoubleValue(labData["${pltKey}RangeMin"] as? String) ?: return null
-
         if (value >= min) return null
-
         val severity = when {
             value < 50 -> "severe"
             value < 100 -> "moderate"
             else -> "mild"
         }
-
         return ParameterPattern("thrombocytopenia", true, severity)
     }
 
     private fun identifyCombinations(patterns: Map<String, ParameterPattern>): Map<String, Boolean> {
         val combinations = mutableMapOf<String, Boolean>()
-
-        // Klasyczna triada FIP
         combinations["classic_triad"] = patterns.containsKey("hyperglobulinemia") &&
                 patterns.containsKey("hypoalbuminemia") &&
                 patterns.containsKey("lymphopenia")
-
-        // Profil zapalny
         combinations["inflammatory"] = patterns.containsKey("hyperglobulinemia") &&
                 patterns.containsKey("neutrophilia")
-
-        // Profil wyniszczający
         combinations["wasting"] = patterns.containsKey("hypoalbuminemia") &&
                 patterns.containsKey("anemia") &&
                 (patterns["hypoalbuminemia"]?.severity == "severe" ||
                         patterns["anemia"]?.severity == "severe")
-
-        // Profil wątrobowy
         combinations["hepatic"] = patterns.containsKey("hyperbilirubinemia") ||
                 patterns.containsKey("liver_enzymes")
-
-        // Profil nerkowy
         combinations["renal"] = patterns.containsKey("azotemia")
-
-        // Profil hematologiczny
         combinations["hematologic"] = (patterns.containsKey("anemia") ||
                 patterns.containsKey("thrombocytopenia")) &&
                 patterns.containsKey("lymphopenia")
-
-        // Stress leukogram
         combinations["stress_leukogram"] = patterns.containsKey("neutrophilia") &&
                 patterns.containsKey("lymphopenia")
-
         return combinations
     }
 
     private fun determineProfiles(
-        combinations: Map<String, Boolean>,
-        labData: Map<String, Any>
+        combinations: Map<String, Boolean>
     ): Pair<FipProfile, FipProfile?> {
-
         val profiles = mutableListOf<Pair<FipProfile, Float>>()
-
-        // Ocena profilu ostrego zapalnego
         if (combinations["classic_triad"] == true && combinations["inflammatory"] == true) {
             profiles.add(FipProfile.INFLAMMATORY_ACUTE to 85f)
         }
-
-        // Ocena profilu przewlekłego zapalnego
         if (combinations["classic_triad"] == true && combinations["wasting"] == true) {
             profiles.add(FipProfile.INFLAMMATORY_CHRONIC to 80f)
         }
-
-        // Ocena profilu wysiękowego klasycznego
         if (combinations["classic_triad"] == true && combinations["hepatic"] == true) {
             profiles.add(FipProfile.EFFUSIVE_CLASSIC to 90f)
         }
-
-        // Ocena profilu suchego neurologicznego
-        if (combinations["inflammatory"] == true && !combinations["hepatic"]!! &&
+        if (combinations["inflammatory"] == true && combinations["hepatic"] != true &&
             combinations["stress_leukogram"] == true) {
             profiles.add(FipProfile.DRY_NEUROLOGICAL to 70f)
         }
-
-        // Ocena profilu mieszanego
         if (combinations.values.count { it } >= 4) {
             profiles.add(FipProfile.MIXED_PATTERN to 75f)
         }
-
-        // Ocena profilu nietypowego
         if (combinations["classic_triad"] == false &&
             combinations.values.count { it } >= 2) {
             profiles.add(FipProfile.ATYPICAL to 60f)
         }
-
-        // Jeśli brak charakterystycznych kombinacji
         if (combinations.values.count { it } < 2) {
             profiles.add(FipProfile.NON_FIP to 90f)
         }
-
-        // Sortuj według siły dopasowania
         profiles.sortByDescending { it.second }
-
         val primary = profiles.firstOrNull()?.first ?: FipProfile.NON_FIP
         val secondary = if (profiles.size > 1 && profiles[1].second > 50f) {
             profiles[1].first
         } else null
-
         return Pair(primary, secondary)
     }
 
@@ -376,7 +281,6 @@ object FipPatternAnalyzer {
         combinations: Map<String, Boolean>,
         profile: FipProfile
     ): Float {
-
         val baseScore = when (profile) {
             FipProfile.INFLAMMATORY_ACUTE -> 80f
             FipProfile.INFLAMMATORY_CHRONIC -> 75f
@@ -386,63 +290,51 @@ object FipPatternAnalyzer {
             FipProfile.ATYPICAL -> 50f
             FipProfile.NON_FIP -> 20f
         }
-
-        // Modyfikatory
         var modifier = 0f
-
         if (combinations["classic_triad"] == true) modifier += 15f
         if (combinations["stress_leukogram"] == true) modifier += 10f
         if (combinations["inflammatory"] == true) modifier += 5f
-
-        // Kara za brak kluczowych cech
         if (combinations["classic_triad"] == false && profile != FipProfile.NON_FIP) {
             modifier -= 20f
         }
-
         val baseResult = baseScore + modifier
-
-        // NOWY MNOŻNIK 2.75 - zwiększa wrażliwość systemu
         val multipliedScore = baseResult * 2.75f
-
         return multipliedScore.coerceIn(0f, 100f)
     }
 
     private fun generateKeyFindings(
         patterns: Map<String, ParameterPattern>,
         combinations: Map<String, Boolean>,
-        profile: FipProfile
+        context: Context
     ): List<String> {
-
         val findings = mutableListOf<String>()
 
-        // Dodaj główne nieprawidłowości
         if (combinations["classic_triad"] == true) {
-            findings.add("✅ Klasyczna triada FIP (hiperglobulinemia + hipoalbuminemia + limfopenia)")
+            findings.add(context.getString(R.string.finding_classic_triad))
         }
-
         if (combinations["stress_leukogram"] == true) {
-            findings.add("✅ Stress leukogram (neutrofilia + limfopenia)")
+            findings.add(context.getString(R.string.finding_stress_leukogram))
         }
 
-        // Dodaj ciężkie nieprawidłowości
-        patterns.filter { it.value.severity == "severe" }.forEach { (key, pattern) ->
-            val name = when (key) {
-                "hyperglobulinemia" -> "Ciężka hiperglobulinemia"
-                "hypoalbuminemia" -> "Ciężka hipoalbuminemia"
-                "lymphopenia" -> "Ciężka limfopenia"
-                "anemia" -> "Ciężka anemia"
-                else -> key
+        patterns.filter { it.value.severity == "severe" }.forEach { (key, _) ->
+            val resId = when (key) {
+                "hyperglobulinemia" -> R.string.finding_severe_hyperglobulinemia
+                "hypoalbuminemia" -> R.string.finding_severe_hypoalbuminemia
+                "lymphopenia" -> R.string.finding_severe_lymphopenia
+                "anemia" -> R.string.finding_severe_anemia
+                else -> null
             }
-            findings.add("⚠️ $name")
+            if (resId != null) {
+                findings.add(context.getString(resId))
+            }
+            // Dla innych rzadszych ciężkich przypadków można dodać fallback lub kolejne ID
         }
 
-        // Dodaj zajęcie narządów
         if (combinations["hepatic"] == true) {
-            findings.add("🔸 Zajęcie wątroby")
+            findings.add(context.getString(R.string.finding_liver_involvement))
         }
-
         if (combinations["renal"] == true) {
-            findings.add("🔸 Możliwe zajęcie nerek")
+            findings.add(context.getString(R.string.finding_renal_involvement))
         }
 
         return findings
@@ -452,104 +344,96 @@ object FipPatternAnalyzer {
         primary: FipProfile,
         secondary: FipProfile?,
         patterns: Map<String, ParameterPattern>,
-        combinations: Map<String, Boolean>
+        combinations: Map<String, Boolean>,
+        context: Context
     ): String {
-
         val descriptions = mutableListOf<String>()
 
-        // Główny profil
-        val primaryDesc = when (primary) {
-            FipProfile.INFLAMMATORY_ACUTE -> {
-                "Ostry profil zapalny charakterystyczny dla aktywnej fazy FIP wysiękowego"
-            }
-            FipProfile.INFLAMMATORY_CHRONIC -> {
-                "Przewlekły profil zapalny z cechami wyniszczenia, typowy dla zaawansowanego FIP"
-            }
-            FipProfile.EFFUSIVE_CLASSIC -> {
-                "Klasyczny profil FIP wysiękowego z zajęciem wątroby"
-            }
-            FipProfile.DRY_NEUROLOGICAL -> {
-                "Profil sugerujący suchą formę FIP z możliwym zajęciem układu nerwowego"
-            }
-            FipProfile.MIXED_PATTERN -> {
-                "Mieszany profil z cechami zarówno formy wysiękowej jak i suchej FIP"
-            }
-            FipProfile.ATYPICAL -> {
-                "Nietypowy profil - niektóre cechy FIP, ale brak klasycznego obrazu"
-            }
-            FipProfile.NON_FIP -> {
-                "Profil niecharakterystyczny dla FIP - rozważ inne choroby zapalne"
-            }
+        val primaryDescId = when (primary) {
+            FipProfile.INFLAMMATORY_ACUTE -> R.string.desc_profile_inflammatory_acute
+            FipProfile.INFLAMMATORY_CHRONIC -> R.string.desc_profile_inflammatory_chronic
+            FipProfile.EFFUSIVE_CLASSIC -> R.string.desc_profile_effusive_classic
+            FipProfile.DRY_NEUROLOGICAL -> R.string.desc_profile_dry_neurological
+            FipProfile.MIXED_PATTERN -> R.string.desc_profile_mixed
+            FipProfile.ATYPICAL -> R.string.desc_profile_atypical
+            FipProfile.NON_FIP -> R.string.desc_profile_non_fip
         }
-        descriptions.add(primaryDesc)
+        descriptions.add(context.getString(primaryDescId))
 
-        // Profil drugorzędowy
         if (secondary != null) {
-            descriptions.add("Cechy drugorzędowe profilu: ${secondary.name.lowercase().replace('_', ' ')}")
+            descriptions.add(context.getString(R.string.desc_secondary_features, getProfileName(secondary, context).lowercase(Locale.getDefault())))
         }
 
-        // Szczegóły kombinacji
         if (combinations["classic_triad"] == true) {
-            descriptions.add("Obecna klasyczna triada laboratoryjna FIP")
+            descriptions.add(context.getString(R.string.desc_classic_triad_present))
         }
 
         val severeCount = patterns.values.count { it.severity == "severe" }
         if (severeCount > 0) {
-            descriptions.add("Wykryto $severeCount ciężkich nieprawidłowości laboratoryjnych")
+            descriptions.add(context.getString(R.string.desc_severe_abnormalities_count, severeCount))
         }
 
         return descriptions.joinToString(". ")
     }
 
-    private fun generateManagementSuggestions(profile: FipProfile, strength: Float): String {
+    private fun generateManagementSuggestions(profile: FipProfile, strength: Float, context: Context): String {
         val suggestions = mutableListOf<String>()
 
         when (profile) {
             FipProfile.INFLAMMATORY_ACUTE, FipProfile.EFFUSIVE_CLASSIC -> {
-                suggestions.add("🚨 PILNA konsultacja - wysokie podejrzenie aktywnego FIP")
-                suggestions.add("📋 Zalecane: USG jamy brzusznej, punkcja płynu (test Rivalta, cytologia)")
-                suggestions.add("💊 Rozważ natychmiastowe rozpoczęcie leczenia GS-441524 przy potwierdzeniu")
+                suggestions.add(context.getString(R.string.sugg_urgent_consult))
+                suggestions.add(context.getString(R.string.sugg_ultrasound_rivalta))
+                suggestions.add(context.getString(R.string.sugg_gs_immediate))
             }
-
             FipProfile.INFLAMMATORY_CHRONIC -> {
-                suggestions.add("⚠️ Szybka konsultacja - prawdopodobny zaawansowany FIP")
-                suggestions.add("📋 Zalecane: pełna diagnostyka obrazowa, ocena stanu ogólnego")
-                suggestions.add("💊 Leczenie GS-441524 z intensywnym wsparciem")
+                suggestions.add(context.getString(R.string.sugg_quick_consult))
+                suggestions.add(context.getString(R.string.sugg_imaging))
+                suggestions.add(context.getString(R.string.sugg_gs_support))
             }
-
             FipProfile.DRY_NEUROLOGICAL -> {
-                suggestions.add("⚠️ Konsultacja neurologiczna - możliwa neurologiczna forma FIP")
-                suggestions.add("📋 Zalecane: badanie neurologiczne, rozważ MRI/CT")
-                suggestions.add("💊 Wyższe dawki GS-441524 przy formie neurologicznej")
+                suggestions.add(context.getString(R.string.sugg_neuro_consult))
+                suggestions.add(context.getString(R.string.sugg_mri_ct))
+                suggestions.add(context.getString(R.string.sugg_gs_neuro_dose))
             }
-
             FipProfile.MIXED_PATTERN -> {
-                suggestions.add("⚠️ Złożony obraz - wymaga szczegółowej diagnostyki")
-                suggestions.add("📋 Kompleksowa diagnostyka: obrazowa + laboratoryjna")
+                suggestions.add(context.getString(R.string.sugg_complex_diagnostics))
+                suggestions.add(context.getString(R.string.sugg_comprehensive_imaging))
             }
-
             FipProfile.ATYPICAL -> {
-                suggestions.add("❓ Nietypowy obraz - diagnostyka różnicowa")
-                suggestions.add("📋 Powtórz badania za 2-4 tygodnie, rozszerz panel")
+                suggestions.add(context.getString(R.string.sugg_differential_diagnosis))
+                suggestions.add(context.getString(R.string.sugg_repeat_tests))
             }
-
             FipProfile.NON_FIP -> {
-                suggestions.add("✅ FIP mało prawdopodobny")
-                suggestions.add("🔍 Szukaj innych przyczyn objawów klinicznych")
+                suggestions.add(context.getString(R.string.sugg_fip_unlikely))
+                suggestions.add(context.getString(R.string.sugg_search_other_causes))
             }
         }
 
-        // Dodaj sugestie monitorowania
         if (strength >= 70 && profile != FipProfile.NON_FIP) {
-            suggestions.add("📊 Monitoruj: białko całkowite, A/G, hematokryt co 2 tyg.")
+            suggestions.add(context.getString(R.string.sugg_monitor))
         }
 
         return suggestions.joinToString("\n")
     }
 
+    private fun getProfileName(profile: FipProfile, context: Context): String {
+        return when (profile) {
+            FipProfile.INFLAMMATORY_ACUTE -> context.getString(R.string.profile_name_acute)
+            FipProfile.INFLAMMATORY_CHRONIC -> context.getString(R.string.profile_name_chronic)
+            FipProfile.EFFUSIVE_CLASSIC -> context.getString(R.string.profile_name_effusive)
+            FipProfile.DRY_NEUROLOGICAL -> context.getString(R.string.profile_name_neuro)
+            FipProfile.MIXED_PATTERN -> context.getString(R.string.profile_name_mixed)
+            FipProfile.ATYPICAL -> context.getString(R.string.profile_name_atypical)
+            FipProfile.NON_FIP -> context.getString(R.string.profile_name_non_fip)
+        }
+    }
+
     private fun toDoubleValue(str: String?): Double? {
         if (str == null) return null
-        val cleaned = str.replace(Regex("[<>]"), "").replace(",", ".").trim()
-        return cleaned.toDoubleOrNull()
+        return try {
+            str.replace(Regex("[<>]"), "").replace(",", ".").trim().toDoubleOrNull()
+        } catch (e: Exception) {
+            null
+        }
     }
 }

@@ -1,7 +1,8 @@
 package com.example.fipscan
 
-import java.util.regex.Pattern
+import android.content.Context
 import android.util.Log
+import java.util.regex.Pattern
 
 object ElectrophoresisAnalyzer {
     const val SHAPE_ANALYSIS_MAX_POINTS = 20
@@ -23,8 +24,12 @@ object ElectrophoresisAnalyzer {
     // --- Funkcje pomocnicze ---
     private fun toDoubleValue(str: String?): Double? {
         if (str == null) return null
-        val cleaned = str.replace(Regex("[<>]"), "").replace(",", ".").trim()
-        return cleaned.toDoubleOrNull()
+        try {
+            val cleaned = str.replace(Regex("[<>]"), "").replace(",", ".").trim()
+            return cleaned.toDoubleOrNull()
+        } catch (e: Exception) {
+            return null
+        }
     }
 
     private fun findKeyContains(name: String, data: Map<String, Any>): String? {
@@ -41,19 +46,20 @@ object ElectrophoresisAnalyzer {
 
     private fun parseAgeInYears(ageString: String?): Int? {
         if (ageString == null) return null
+        // Zakładamy, że PDF jest po polsku, więc zostawiamy polskie regexy do parsowania wieku z tekstu
         val pattern = Pattern.compile("(\\d+)\\s*(lat|lata|rok)")
         val matcher = pattern.matcher(ageString)
         return if (matcher.find()) {
-            matcher.group(1).toIntOrNull()
+            matcher.group(1)?.toIntOrNull()
         } else {
-            // Jeśli nie ma lat, może to być kot poniżej roku, zwracamy 0
-            if (ageString.contains("miesiąc") || ageString.contains("miesiące")) 0 else null
+            if (ageString.contains("miesiąc", ignoreCase = true) || ageString.contains("miesiące", ignoreCase = true)) 0 else null
         }
     }
 
     fun assessFipRisk(
         labData: Map<String, Any>,
         rivaltaStatus: String,
+        context: Context,
         shapeAnalysisScore: Float? = null,
         patternAnalysisScore: Float? = null
     ): FipRiskResult {
@@ -61,40 +67,48 @@ object ElectrophoresisAnalyzer {
         var maxScore = 0
         val breakdown = mutableListOf<String>()
 
-        // Mapowanie wag ABCDcatsvet na punkty
         val pointsMap = mapOf(
             "++++" to 40, "+++" to 30, "++" to 20, "+" to 10,
             "-" to -10, "--" to -20
         )
 
-        // 1. Wiek (< 2 lata) -> waga ++++
+        // 1. Wiek
         val agePoints = pointsMap["++"]!!
         maxScore += agePoints
         val ageInYears = parseAgeInYears(labData["Wiek"] as? String)
         if (ageInYears != null && ageInYears < 2) {
             totalScore += agePoints
-            breakdown.add("✅ Wiek poniżej 2 lat: <b>+$agePoints pkt</b> (bardzo sugestywny)")
+            breakdown.add(context.getString(R.string.breakdown_age_young, agePoints))
         } else {
-            breakdown.add("❌ Wiek ≥ 2 lata: <b>+0 pkt</b>")
+            breakdown.add(context.getString(R.string.breakdown_age_old))
         }
 
-        // 2. Próba Rivalta -> waga ++
+        // 2. Próba Rivalta
         val rivaltaPoints = pointsMap["++++"]!!
         maxScore += rivaltaPoints
-        when (rivaltaStatus) {
-            "pozytywna" -> {
+
+        // Pobierz opcje z zasobów, aby porównać z aktualnym językiem
+        val rivaltaOpts = context.resources.getStringArray(R.array.rivalta_options)
+        // Zakładamy kolejność w arrays.xml: 0 -> nie wykonano, 1 -> negatywna, 2 -> pozytywna
+
+        val isPositive = rivaltaStatus.equals(rivaltaOpts.getOrNull(2), ignoreCase = true) || rivaltaStatus.contains("pozytywna", true) || rivaltaStatus.contains("positive", true)
+        val isNegative = rivaltaStatus.equals(rivaltaOpts.getOrNull(1), ignoreCase = true) || rivaltaStatus.contains("negatywna", true) || rivaltaStatus.contains("negative", true)
+
+        when {
+            isPositive -> {
                 totalScore += rivaltaPoints
-                breakdown.add("✅ Próba Rivalta pozytywna: <b>+$rivaltaPoints pkt</b> (umiarkowanie sugestywna)")
+                breakdown.add(context.getString(R.string.breakdown_rivalta_pos, rivaltaPoints))
             }
-            "negatywna / brak płynu" -> breakdown.add("❌ Próba Rivalta negatywna: <b>+0 pkt</b>")
+            isNegative -> {
+                breakdown.add(context.getString(R.string.breakdown_rivalta_neg))
+            }
             else -> {
-                // Za brak wykonania dodajemy połowę punktów jako "podejrzenie"
                 totalScore += rivaltaPoints / 2
-                breakdown.add("❓ Próba Rivalta nie wykonano: <b>+${rivaltaPoints/2} pkt</b> (brak danych osłabia diagnozę różnicową)")
+                breakdown.add(context.getString(R.string.breakdown_rivalta_unknown, rivaltaPoints / 2))
             }
         }
 
-        // 3. Hiperglobulinemia -> waga +++
+        // 3. Hiperglobulinemia
         val hyperglobPoints = pointsMap["+++"]!!
         maxScore += hyperglobPoints
         val globulinKey = findKeyContains("Globulin", labData)
@@ -103,13 +117,15 @@ object ElectrophoresisAnalyzer {
             val globMax = toDoubleValue(labData["${globulinKey}RangeMax"] as? String)
             if (isValueHigh(globVal, globMax)) {
                 totalScore += hyperglobPoints
-                breakdown.add("✅ Hiperglobulinemia: <b>+$hyperglobPoints pkt</b> (silnie sugestywna)")
+                breakdown.add(context.getString(R.string.breakdown_globulin_high, hyperglobPoints))
             } else {
-                breakdown.add("❌ Globuliny w normie: <b>+0 pkt</b>")
+                breakdown.add(context.getString(R.string.breakdown_globulin_normal))
             }
+        } else {
+            breakdown.add(context.getString(R.string.breakdown_globulin_missing))
         }
 
-        // 4. Stosunek A/G < 0.4 -> waga ++
+        // 4. Stosunek A/G
         val agRatioPoints = pointsMap["++++"]!!
         maxScore += agRatioPoints
         var agRatio: Double? = null
@@ -126,44 +142,48 @@ object ElectrophoresisAnalyzer {
                 if (globVal > 0) agRatio = albuminVal / globVal
             }
         }
+
         if (agRatio != null) {
             when {
                 agRatio < 0.4 -> {
                     totalScore += agRatioPoints
-                    breakdown.add("✅ Stosunek A/G < 0.4: <b>+$agRatioPoints pkt</b> (silnie sugestywny)")
+                    breakdown.add(context.getString(R.string.breakdown_ag_very_low, agRatioPoints))
                 }
                 agRatio < 0.6 -> {
                     totalScore += agRatioPoints / 2
-                    breakdown.add("⚠️ Stosunek A/G < 0.6: <b>+${agRatioPoints/2} pkt</b> (umiarkowanie sugestywny)")
+                    breakdown.add(context.getString(R.string.breakdown_ag_low, agRatioPoints / 2))
                 }
                 agRatio > 0.8 -> {
-                    totalScore += pointsMap["-"]!! // Punkty ujemne
-                    breakdown.add("❌ Stosunek A/G > 0.8: <b>${pointsMap["-"]!!} pkt</b> (przemawia przeciw FIP)")
+                    val negativePoints = pointsMap["-"]!!
+                    totalScore += negativePoints
+                    breakdown.add(context.getString(R.string.breakdown_ag_high, negativePoints))
                 }
                 else -> {
-                    breakdown.add("❔ Stosunek A/G w 'szarej strefie' (0.6-0.8): <b>+0 pkt</b>")
+                    breakdown.add(context.getString(R.string.breakdown_ag_grey))
                 }
             }
         } else {
-            breakdown.add("❓ Brak stosunku A/G: <b>+0 pkt</b>")
+            breakdown.add(context.getString(R.string.breakdown_ag_missing))
         }
 
-        // 5. Limfopenia -> waga ++
+        // 5. Limfopenia
         val lymphopeniaPoints = pointsMap["++"]!!
         maxScore += lymphopeniaPoints
         val lymphKey = findKeyContains("LYM", labData)
-        if (lymphKey != null && !lymphKey.contains("%")) { // Upewnij się, że to wartość bezwzględna
+        if (lymphKey != null && !lymphKey.contains("%")) {
             val lymphVal = toDoubleValue(labData[lymphKey] as? String)
             val lymphMin = toDoubleValue(labData["${lymphKey}RangeMin"] as? String)
             if (isValueLow(lymphVal, lymphMin)) {
                 totalScore += lymphopeniaPoints
-                breakdown.add("✅ Limfopenia: <b>+$lymphopeniaPoints pkt</b> (umiarkowanie sugestywna)")
+                breakdown.add(context.getString(R.string.breakdown_lym_low, lymphopeniaPoints))
             } else {
-                breakdown.add("❌ Limfocyty w normie: <b>+0 pkt</b>")
+                breakdown.add(context.getString(R.string.breakdown_lym_normal))
             }
+        } else {
+            breakdown.add(context.getString(R.string.breakdown_lym_missing))
         }
 
-        // 6. Neutrofilia -> waga ++
+        // 6. Neutrofilia
         val neutrophiliaPoints = pointsMap["++"]!!
         maxScore += neutrophiliaPoints
         val neutKey = findKeyContains("NEU", labData)
@@ -172,29 +192,32 @@ object ElectrophoresisAnalyzer {
             val neutMax = toDoubleValue(labData["${neutKey}RangeMax"] as? String)
             if (isValueHigh(neutVal, neutMax)) {
                 totalScore += neutrophiliaPoints
-                breakdown.add("✅ Neutrofilia: <b>+$neutrophiliaPoints pkt</b> (umiarkowanie sugestywna)")
+                breakdown.add(context.getString(R.string.breakdown_neu_high, neutrophiliaPoints))
             } else {
-                breakdown.add("❌ Neutrofile w normie: <b>+0 pkt</b>")
+                breakdown.add(context.getString(R.string.breakdown_neu_normal))
             }
+        } else {
+            breakdown.add(context.getString(R.string.breakdown_neu_missing))
         }
 
-        // 7. Niedokrwistość (łagodna, nieregeneratywna) -> waga ++
+        // 7. Niedokrwistość
         val anemiaPoints = pointsMap["++"]!!
         maxScore += anemiaPoints
         val hctKey = findKeyContains("HCT", labData)
         if (hctKey != null) {
             val hctVal = toDoubleValue(labData[hctKey] as? String)
             val hctMin = toDoubleValue(labData["${hctKey}RangeMin"] as? String)
-            // Zakładamy, że anemia w chorobie przewlekłej jest nieregeneratywna
             if (isValueLow(hctVal, hctMin)) {
                 totalScore += anemiaPoints
-                breakdown.add("✅ Niedokrwistość: <b>+$anemiaPoints pkt</b> (umiarkowanie sugestywna)")
+                breakdown.add(context.getString(R.string.breakdown_anemia, anemiaPoints))
             } else {
-                breakdown.add("❌ Hematokryt w normie: <b>+0 pkt</b>")
+                breakdown.add(context.getString(R.string.breakdown_hct_normal))
             }
+        } else {
+            breakdown.add(context.getString(R.string.breakdown_hct_missing))
         }
 
-        // 8. Hiperbilirubinemia -> waga +++
+        // 8. Hiperbilirubinemia
         val hyperbiliPoints = pointsMap["+++"]!!
         maxScore += hyperbiliPoints
         val biliKey = findKeyContains("Bilirubina", labData)
@@ -203,35 +226,39 @@ object ElectrophoresisAnalyzer {
             val biliMax = toDoubleValue(labData["${biliKey}RangeMax"] as? String)
             if (isValueHigh(biliVal, biliMax)) {
                 totalScore += hyperbiliPoints
-                breakdown.add("✅ Hiperbilirubinemia: <b>+$hyperbiliPoints pkt</b> (silnie sugestywna)")
+                breakdown.add(context.getString(R.string.breakdown_bili_high, hyperbiliPoints))
             } else {
-                breakdown.add("❌ Bilirubina w normie: <b>+0 pkt</b>")
+                breakdown.add(context.getString(R.string.breakdown_bili_normal))
             }
+        } else {
+            breakdown.add(context.getString(R.string.breakdown_bili_missing))
         }
 
-        // 9. Gammapatia poliklonalna -> waga ++++
+        // 9. Gammapatia
         val gammopathyPoints = pointsMap["++++"]!!
         maxScore += gammopathyPoints
-        val gammopathyResult = labData["GammopathyResult"] as? String ?: "brak danych"
+        val gammopathyResult = labData["GammopathyResult"] as? String ?: ""
 
-        Log.d("FIP_ANALYSIS", "Wynik gammapatii: $gammopathyResult")
+        Log.d("FIP_ANALYSIS", "Gammapathy result: $gammopathyResult")
+
+        val polyStr = context.getString(R.string.gammopathy_polyclonal)
+        val monoStr = context.getString(R.string.gammopathy_monoclonal)
 
         when {
-            gammopathyResult.contains("poliklonalna", ignoreCase = true) -> {
+            gammopathyResult.contains(polyStr, ignoreCase = true) || gammopathyResult.contains("poliklonalna", ignoreCase = true) -> {
                 totalScore += gammopathyPoints
-                breakdown.add("✅ Gammapatia poliklonalna: <b>+$gammopathyPoints pkt</b> (bardzo sugestywna dla FIP)")
+                breakdown.add(context.getString(R.string.breakdown_gamma_poly, gammopathyPoints))
             }
-            gammopathyResult.contains("monoklonalna", ignoreCase = true) -> {
-                // Gammapatia monoklonalna jest mniej typowa dla FIP
+            gammopathyResult.contains(monoStr, ignoreCase = true) || gammopathyResult.contains("monoklonalna", ignoreCase = true) -> {
                 totalScore += gammopathyPoints / 2
-                breakdown.add("⚠️ Gammapatia monoklonalna: <b>+${gammopathyPoints/2} pkt</b> (może występować przy FIP, ale mniej typowa)")
+                breakdown.add(context.getString(R.string.breakdown_gamma_mono, gammopathyPoints / 2))
             }
             else -> {
-                breakdown.add("❌ Brak gammapatii: <b>+0 pkt</b>")
+                breakdown.add(context.getString(R.string.breakdown_gamma_none))
             }
         }
 
-
+        // Shape Analysis
         var shapePoints = 0
         if (shapeAnalysisScore != null) {
             shapePoints = ((shapeAnalysisScore / 100f) * SHAPE_ANALYSIS_MAX_POINTS).toInt()
@@ -239,15 +266,16 @@ object ElectrophoresisAnalyzer {
             maxScore += SHAPE_ANALYSIS_MAX_POINTS
 
             val shapeLevel = when {
-                shapePoints >= 25 -> "bardzo charakterystyczny"
-                shapePoints >= 20 -> "charakterystyczny"
-                shapePoints >= 15 -> "umiarkowanie sugestywny"
-                shapePoints >= 10 -> "słabo sugestywny"
-                else -> "niecharakterystyczny"
+                shapePoints >= 25 -> context.getString(R.string.level_very_characteristic)
+                shapePoints >= 20 -> context.getString(R.string.level_characteristic)
+                shapePoints >= 15 -> context.getString(R.string.level_moderately_suggestive)
+                shapePoints >= 10 -> context.getString(R.string.level_weakly_suggestive)
+                else -> context.getString(R.string.level_uncharacteristic)
             }
-            breakdown.add("📊 Analiza kształtu krzywej ($shapeLevel): <b>+$shapePoints/$SHAPE_ANALYSIS_MAX_POINTS pkt</b>")
+            breakdown.add(context.getString(R.string.breakdown_shape_analysis, shapeLevel, shapePoints, SHAPE_ANALYSIS_MAX_POINTS))
         }
 
+        // Pattern Analysis
         var patternPoints = 0
         if (patternAnalysisScore != null) {
             patternPoints = ((patternAnalysisScore / 100f) * PATTERN_ANALYSIS_MAX_POINTS).toInt()
@@ -255,38 +283,32 @@ object ElectrophoresisAnalyzer {
             maxScore += PATTERN_ANALYSIS_MAX_POINTS
 
             val patternLevel = when {
-                patternPoints >= 25 -> "bardzo typowy"
-                patternPoints >= 20 -> "typowy"
-                patternPoints >= 15 -> "częściowo typowy"
-                patternPoints >= 10 -> "słabo typowy"
-                else -> "nietypowy"
+                patternPoints >= 25 -> context.getString(R.string.level_very_typical)
+                patternPoints >= 20 -> context.getString(R.string.level_typical)
+                patternPoints >= 15 -> context.getString(R.string.level_partially_typical)
+                patternPoints >= 10 -> context.getString(R.string.level_weakly_typical)
+                else -> context.getString(R.string.level_atypical)
             }
-            breakdown.add("🔬 Profil wzorców laboratoryjnych ($patternLevel): <b>+$patternPoints/$PATTERN_ANALYSIS_MAX_POINTS pkt</b>")
+            breakdown.add(context.getString(R.string.breakdown_pattern_analysis, patternLevel, patternPoints, PATTERN_ANALYSIS_MAX_POINTS))
         }
 
-        // Obliczenie końcowego ryzyka
         var riskPercentage = if (maxScore > 0) ((totalScore.coerceIn(0, maxScore) * 150) / maxScore) else 0
         if (riskPercentage > 100) riskPercentage = 100
 
         val fipRiskComment = when {
-            riskPercentage >= 75 -> "<b><font color='#D32F2F'>BARDZO WYSOKIE RYZYKO FIP (${riskPercentage}%)</font></b>. Wyniki silnie wskazują na zakaźne zapalenie otrzewnej. Należy pilnie skonsultować się z lekarzem weterynarii w celu potwierdzenia diagnozy i wdrożenia leczenia."
-            riskPercentage >= 50 -> "<b><font color='#FFA000'>WYSOKIE RYZYKO FIP (${riskPercentage}%)</font></b>. Istnieje duże prawdopodobieństwo FIP. Wymagana dalsza diagnostyka."
-            riskPercentage >= 25 -> "<b><font color='#FBC02D'>ŚREDNIE RYZYKO FIP (${riskPercentage}%)</font></b>. FIP jest jedną z możliwych diagnoz. Należy rozważyć diagnostykę różnicową dla innych chorób zapalnych."
-            else -> "<b><font color='#388E3C'>NISKIE RYZYKO FIP (${riskPercentage}%)</font></b>. Na podstawie przedstawionych wyników FIP jest mało prawdopodobny, ale nie można go w 100% wykluczyć."
+            riskPercentage >= 75 -> context.getString(R.string.risk_comment_very_high, riskPercentage)
+            riskPercentage >= 50 -> context.getString(R.string.risk_comment_high, riskPercentage)
+            riskPercentage >= 25 -> context.getString(R.string.risk_comment_medium, riskPercentage)
+            else -> context.getString(R.string.risk_comment_low, riskPercentage)
         }
-
-        val furtherTests = "USG jamy brzusznej (ocena węzłów chłonnych krezkowych, nerek, wątroby), badanie płynu z jam ciała (jeśli obecny), RT-PCR w kierunku FCoV z płynu lub materiału z biopsji."
-        val supplements = "W zależności od stanu klinicznego: witaminy z grupy B, preparaty wspomagające odporność (np. beta-glukan), suplementy wspierające wątrobę (jeśli ALT/bilirubina podniesione)."
-        val consultation = "Pilna konsultacja z lekarzem weterynarii jest wskazana przy ryzyku średnim i wyższym. Rozważ konsultację u specjalisty chorób wewnętrznych lub chorób zakaźnych."
-
 
         return FipRiskResult(
             riskPercentage = riskPercentage,
             fipRiskComment = fipRiskComment,
             scoreBreakdown = breakdown,
-            furtherTestsAdvice = furtherTests,
-            supplementAdvice = supplements,
-            vetConsultationAdvice = consultation,
+            furtherTestsAdvice = context.getString(R.string.advice_further_tests),
+            supplementAdvice = context.getString(R.string.advice_supplements),
+            vetConsultationAdvice = context.getString(R.string.advice_consultation),
             shapeAnalysisPoints = shapePoints,
             patternAnalysisPoints = patternPoints
         )

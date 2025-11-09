@@ -2,7 +2,10 @@ package com.example.fipscan
 
 import android.content.ContentValues
 import android.content.Context
-import android.graphics.*
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import android.os.Build
 import android.os.Environment
@@ -11,10 +14,12 @@ import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.Log
 import java.io.File
-import java.io.FileOutputStream
 import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 class PdfReportGenerator(private val context: Context) {
     private val pageWidth = 595 // 595pt = 210mm (A4 width)
@@ -96,7 +101,7 @@ class PdfReportGenerator(private val context: Context) {
                 )
             }
 
-            // Sprawdź czy potrzebna nowa strona (ZMIENIONO)
+            // Sprawdź czy potrzebna nowa strona
             if (yPosition > pageHeight - bottomMargin - 200) {
                 pdfDocument.finishPage(currentPage)
                 pageNumber++
@@ -111,7 +116,7 @@ class PdfReportGenerator(private val context: Context) {
             // Szczegółowa analiza
             yPosition = drawScoreBreakdown(canvas, yPosition, scoreBreakdown, pdfDocument, pageNumber)
 
-            // Sprawdź czy potrzebna nowa strona dla zaleceń (ZMIENIONO)
+            // Sprawdź czy potrzebna nowa strona dla zaleceń
             if (yPosition > pageHeight - bottomMargin - 250) {
                 pdfDocument.finishPage(currentPage)
                 pageNumber++
@@ -129,7 +134,7 @@ class PdfReportGenerator(private val context: Context) {
                 supplementAdvice, vetConsultationAdvice
             )
 
-            // Sprawdź czy potrzebna nowa strona dla wyników (ZMIENIONO)
+            // Sprawdź czy potrzebna nowa strona dla wyników
             if (yPosition > pageHeight - bottomMargin - 200) {
                 pdfDocument.finishPage(currentPage)
                 pageNumber++
@@ -143,7 +148,6 @@ class PdfReportGenerator(private val context: Context) {
 
             // Wyniki poza normą
             if (abnormalResults.isNotEmpty()) {
-                // Sprawdź czy potrzebna nowa strona
                 if (yPosition > pageHeight - bottomMargin - 200) {
                     pdfDocument.finishPage(currentPage)
                     pageNumber++
@@ -155,14 +159,13 @@ class PdfReportGenerator(private val context: Context) {
                     drawFooter(canvas, pageNumber)
                 }
 
-                // Rysuj bezpośrednio tutaj, bez delegowania do funkcji która tworzy strony
                 val sectionPaint = TextPaint().apply {
                     color = primaryColor
                     textSize = 16f
                     typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                     isAntiAlias = true
                 }
-                canvas.drawText("WYNIKI POZA NORMĄ", margin, yPosition, sectionPaint)
+                canvas.drawText(context.getString(R.string.pdf_section_abnormal_results), margin, yPosition, sectionPaint)
                 yPosition += 30f
 
                 val resultPaint = TextPaint().apply {
@@ -175,7 +178,7 @@ class PdfReportGenerator(private val context: Context) {
                 val headerPaint = TextPaint(resultPaint).apply {
                     typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
                 }
-                canvas.drawText("Badanie | Wynik | Norma", margin, yPosition, headerPaint)
+                canvas.drawText(context.getString(R.string.pdf_table_header), margin, yPosition, headerPaint)
                 yPosition += 20f
 
                 val linePaint = Paint().apply {
@@ -186,7 +189,6 @@ class PdfReportGenerator(private val context: Context) {
                 yPosition += 10f
 
                 for (result in abnormalResults) {
-                    // Sprawdź czy potrzeba nowej strony
                     if (yPosition > pageHeight - bottomMargin - 30) {
                         pdfDocument.finishPage(currentPage)
                         pageNumber++
@@ -197,10 +199,9 @@ class PdfReportGenerator(private val context: Context) {
                         yPosition = margin
                         drawFooter(canvas, pageNumber)
 
-                        // Ponów nagłówek
-                        canvas.drawText("WYNIKI POZA NORMĄ (cd.)", margin, yPosition, sectionPaint)
+                        canvas.drawText(context.getString(R.string.pdf_section_abnormal_results_cont), margin, yPosition, sectionPaint)
                         yPosition += 30f
-                        canvas.drawText("Badanie | Wynik | Norma", margin, yPosition, headerPaint)
+                        canvas.drawText(context.getString(R.string.pdf_table_header), margin, yPosition, headerPaint)
                         yPosition += 20f
                         canvas.drawLine(margin, yPosition, pageWidth - margin, yPosition, linePaint)
                         yPosition += 10f
@@ -213,34 +214,32 @@ class PdfReportGenerator(private val context: Context) {
                 yPosition += 20f
             }
 
-            // Stopka na ostatniej stronie
             drawFooter(canvas, pageNumber)
-
             pdfDocument.finishPage(currentPage)
 
-            // Zapisz PDF
-            val fileName = "FIP_Raport_${patientName}_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}"
+            val prefix = context.getString(R.string.pdf_filename_prefix)
+            val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+            val fileName = "${prefix}${patientName}_$timeStamp"
+
             return savePdfToDownloads(pdfDocument, fileName)
 
         } catch (e: Exception) {
-            Log.e("PdfReportGenerator", "Błąd generowania PDF", e)
+            Log.e("PdfReportGenerator", "Error generating PDF", e)
             currentPage?.let { pdfDocument.finishPage(it) }
             return Pair(null, null)
         } finally {
             pdfDocument.close()
         }
     }
+
     private fun drawHeader(canvas: Canvas, patientName: String) {
-        // Zmieniony kolor nagłówka na bardziej stonowany
         val paint = Paint().apply {
             color = Color.parseColor("#1A237E")
             style = Paint.Style.FILL
         }
 
-        // Tło nagłówka
         canvas.drawRect(0f, 0f, pageWidth.toFloat(), 100f, paint)
 
-        // Tytuł
         val titlePaint = TextPaint().apply {
             color = Color.WHITE
             textSize = 20f
@@ -248,35 +247,33 @@ class PdfReportGenerator(private val context: Context) {
             isAntiAlias = true
         }
 
-        val title = "RAPORT DIAGNOSTYCZNY FIP"
+        val title = context.getString(R.string.pdf_report_title)
         val titleWidth = titlePaint.measureText(title)
         canvas.drawText(title, (pageWidth - titleWidth) / 2, 40f, titlePaint)
 
-        // Podtytuł
         val subtitlePaint = TextPaint().apply {
             color = Color.WHITE
             textSize = 16f
             isAntiAlias = true
         }
 
-        val subtitle = "Pacjent: $patientName"
+        val subtitle = context.getString(R.string.pdf_patient_prefix, patientName)
         val subtitleWidth = subtitlePaint.measureText(subtitle)
         canvas.drawText(subtitle, (pageWidth - subtitleWidth) / 2, 70f, subtitlePaint)
 
-        // Data generowania z GMT+2
         val datePaint = TextPaint().apply {
             color = Color.WHITE
             textSize = 10f
             isAntiAlias = true
         }
 
-        // Dodaj 2 godziny do aktualnego czasu
         val calendar = Calendar.getInstance()
         calendar.add(Calendar.HOUR_OF_DAY, 2)
         val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
-        val date = dateFormat.format(calendar.time)
+        val dateStr = dateFormat.format(calendar.time)
+        val generatedText = context.getString(R.string.pdf_generated_date, dateStr)
 
-        canvas.drawText("Wygenerowano: $date (GMT+2)", margin, 90f, datePaint)
+        canvas.drawText(generatedText, margin, 90f, datePaint)
     }
 
     private fun drawPatientInfo(
@@ -285,17 +282,15 @@ class PdfReportGenerator(private val context: Context) {
     ): Float {
         var y = startY
 
-        // Tytuł sekcji
         val sectionPaint = TextPaint().apply {
             color = primaryColor
             textSize = 16f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-        canvas.drawText("DANE PACJENTA", margin, y, sectionPaint)
+        canvas.drawText(context.getString(R.string.pdf_section_patient_data), margin, y, sectionPaint)
         y += 30f
 
-        // Ramka dla informacji
         val boxPaint = Paint().apply {
             color = backgroundColor
             style = Paint.Style.FILL
@@ -305,7 +300,6 @@ class PdfReportGenerator(private val context: Context) {
             10f, 10f, boxPaint
         )
 
-        // Tekst informacji
         val infoPaint = TextPaint().apply {
             color = Color.BLACK
             textSize = 12f
@@ -319,29 +313,31 @@ class PdfReportGenerator(private val context: Context) {
         val leftColumn = margin + 20f
         val rightColumn = pageWidth / 2f
 
-        canvas.drawText("Imię:", leftColumn, y, boldPaint)
-        canvas.drawText(name, leftColumn + 80f, y, infoPaint)
+        val notProvided = context.getString(R.string.pdf_value_not_provided)
 
-        canvas.drawText("Gatunek:", rightColumn, y, boldPaint)
-        canvas.drawText(species ?: "nie podano", rightColumn + 80f, y, infoPaint)
+        canvas.drawText(context.getString(R.string.pdf_label_name), leftColumn, y, boldPaint)
+        canvas.drawText(name, leftColumn + 100f, y, infoPaint)
+
+        canvas.drawText(context.getString(R.string.pdf_label_species), rightColumn, y, boldPaint)
+        canvas.drawText(species ?: notProvided, rightColumn + 100f, y, infoPaint)
         y += 25f
 
-        canvas.drawText("Wiek:", leftColumn, y, boldPaint)
-        canvas.drawText(age, leftColumn + 80f, y, infoPaint)
+        canvas.drawText(context.getString(R.string.pdf_label_age), leftColumn, y, boldPaint)
+        canvas.drawText(age, leftColumn + 100f, y, infoPaint)
 
-        canvas.drawText("Rasa:", rightColumn, y, boldPaint)
-        canvas.drawText(breed ?: "nie podano", rightColumn + 80f, y, infoPaint)
+        canvas.drawText(context.getString(R.string.pdf_label_breed), rightColumn, y, boldPaint)
+        canvas.drawText(breed ?: notProvided, rightColumn + 100f, y, infoPaint)
         y += 25f
 
-        canvas.drawText("Płeć:", leftColumn, y, boldPaint)
-        canvas.drawText(gender ?: "nie podano", leftColumn + 80f, y, infoPaint)
+        canvas.drawText(context.getString(R.string.pdf_label_gender), leftColumn, y, boldPaint)
+        canvas.drawText(gender ?: notProvided, leftColumn + 100f, y, infoPaint)
 
-        canvas.drawText("Umaszczenie:", rightColumn, y, boldPaint)
-        canvas.drawText(coat ?: "nie podano", rightColumn + 80f, y, infoPaint)
+        canvas.drawText(context.getString(R.string.pdf_label_coat), rightColumn, y, boldPaint)
+        canvas.drawText(coat ?: notProvided, rightColumn + 100f, y, infoPaint)
         y += 25f
 
-        canvas.drawText("Data badania:", leftColumn, y, boldPaint)
-        canvas.drawText(date ?: "brak daty", leftColumn + 80f, y, infoPaint)
+        canvas.drawText(context.getString(R.string.pdf_label_date), leftColumn, y, boldPaint)
+        canvas.drawText(date ?: context.getString(R.string.pdf_value_no_date), leftColumn + 100f, y, infoPaint)
 
         return y + 40f
     }
@@ -351,42 +347,31 @@ class PdfReportGenerator(private val context: Context) {
     ): Float {
         var y = startY
 
-        // Tytuł sekcji
         val sectionPaint = TextPaint().apply {
             color = primaryColor
             textSize = 20f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-        canvas.drawText("📊 GŁÓWNA OCENA RYZYKA FIP", margin, y, sectionPaint)
+        canvas.drawText(context.getString(R.string.pdf_section_risk_assessment), margin, y, sectionPaint)
         y += 35f
 
-        // Pasek postępu dla głównego wyniku
         val barHeight = 40f
         val barWidth = contentWidth
 
-        // Tło paska z ramką
         val bgPaint = Paint().apply {
             color = Color.LTGRAY
             style = Paint.Style.FILL
         }
-        canvas.drawRoundRect(
-            margin, y, pageWidth - margin, y + barHeight,
-            15f, 15f, bgPaint
-        )
+        canvas.drawRoundRect(margin, y, pageWidth - margin, y + barHeight, 15f, 15f, bgPaint)
 
-        // Ramka dla lepszej widoczności
         val borderPaint = Paint().apply {
             color = Color.DKGRAY
             style = Paint.Style.STROKE
             strokeWidth = 1f
         }
-        canvas.drawRoundRect(
-            margin, y, pageWidth - margin, y + barHeight,
-            15f, 15f, borderPaint
-        )
+        canvas.drawRoundRect(margin, y, pageWidth - margin, y + barHeight, 15f, 15f, borderPaint)
 
-        // Wypełnienie paska
         val fillColor = when {
             riskPercentage >= 75 -> dangerColor
             riskPercentage >= 50 -> warningColor
@@ -400,24 +385,18 @@ class PdfReportGenerator(private val context: Context) {
         }
 
         val fillWidth = (barWidth * riskPercentage / 100f)
-        canvas.drawRoundRect(
-            margin, y, margin + fillWidth, y + barHeight,
-            15f, 15f, fillPaint
-        )
+        canvas.drawRoundRect(margin, y, margin + fillWidth, y + barHeight, 15f, 15f, fillPaint)
 
-        // Tekst procentowy
         val percentPaint = TextPaint().apply {
             color = Color.WHITE
             textSize = 20f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-        val percentText = "$riskPercentage%"
-        canvas.drawText(percentText, margin + 25f, y + 26f, percentPaint)
+        canvas.drawText("$riskPercentage%", margin + 25f, y + 26f, percentPaint)
 
         y += barHeight + 25f
 
-        // Komentarz do ryzyka
         val commentPaint = TextPaint().apply {
             color = Color.BLACK
             textSize = 12f
@@ -446,14 +425,13 @@ class PdfReportGenerator(private val context: Context) {
         var currentCanvas = canvas
         var currentPage: PdfDocument.Page? = null
 
-        // Tytuł sekcji
         val sectionPaint = TextPaint().apply {
             color = primaryColor
             textSize = 16f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-        currentCanvas.drawText("SZCZEGÓŁOWA ANALIZA", margin, y, sectionPaint)
+        currentCanvas.drawText(context.getString(R.string.pdf_section_detailed_analysis), margin, y, sectionPaint)
         y += 30f
 
         val itemPaint = TextPaint().apply {
@@ -463,7 +441,6 @@ class PdfReportGenerator(private val context: Context) {
         }
 
         for (item in breakdown) {
-            // Sprawdź czy potrzebna nowa strona (ZMIENIONO)
             if (y > pageHeight - bottomMargin - 100) {
                 currentPage?.let { pdfDocument.finishPage(it) }
                 pageNumber++
@@ -482,7 +459,6 @@ class PdfReportGenerator(private val context: Context) {
                 .replace("❓", "?")
                 .replace("❔", "?")
 
-            // Rysuj element z wcięciem
             val layout = StaticLayout.Builder.obtain(
                 cleanItem, 0, cleanItem.length, itemPaint, (contentWidth - 20f).toInt()
             ).build()
@@ -504,14 +480,13 @@ class PdfReportGenerator(private val context: Context) {
     ): Float {
         var y = startY
 
-        // Tytuł sekcji
         val sectionPaint = TextPaint().apply {
             color = primaryColor
             textSize = 16f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-        canvas.drawText("ZALECENIA", margin, y, sectionPaint)
+        canvas.drawText(context.getString(R.string.pdf_section_recommendations), margin, y, sectionPaint)
         y += 30f
 
         val titlePaint = TextPaint().apply {
@@ -527,8 +502,7 @@ class PdfReportGenerator(private val context: Context) {
             isAntiAlias = true
         }
 
-        // Dalsze badania
-        canvas.drawText("🔬 Dalsze badania:", margin, y, titlePaint)
+        canvas.drawText(context.getString(R.string.pdf_rec_further_tests), margin, y, titlePaint)
         y += 20f
 
         val cleanTests = furtherTests.replace(Regex("<[^>]*>"), "")
@@ -542,8 +516,7 @@ class PdfReportGenerator(private val context: Context) {
         canvas.restore()
         y += testsLayout.height + 20f
 
-        // Suplementy
-        canvas.drawText("💊 Suplementy:", margin, y, titlePaint)
+        canvas.drawText(context.getString(R.string.pdf_rec_supplements), margin, y, titlePaint)
         y += 20f
 
         val cleanSupplements = supplements.replace(Regex("<[^>]*>"), "")
@@ -557,8 +530,7 @@ class PdfReportGenerator(private val context: Context) {
         canvas.restore()
         y += supplementsLayout.height + 20f
 
-        // Konsultacja
-        canvas.drawText("🏥 Konsultacja:", margin, y, titlePaint)
+        canvas.drawText(context.getString(R.string.pdf_rec_consultation), margin, y, titlePaint)
         y += 20f
 
         val cleanConsultation = consultation.replace(Regex("<[^>]*>"), "")
@@ -574,83 +546,6 @@ class PdfReportGenerator(private val context: Context) {
         return y + consultationLayout.height + 30f
     }
 
-    private fun drawAbnormalResults(
-        initialCanvas: Canvas,
-        startY: Float,
-        results: List<String>,
-        pdfDocument: PdfDocument,
-        initialPageNum: Int
-    ): Triple<Float, Int, Canvas> {  // ZMIANA: zwracamy Canvas zamiast PdfDocument.Page
-        var y = startY
-        var pageNumber = initialPageNum
-        var canvas = initialCanvas
-        var lastCreatedPage: PdfDocument.Page? = null
-
-        // Tytuł sekcji
-        val sectionPaint = TextPaint().apply {
-            color = primaryColor
-            textSize = 16f
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            isAntiAlias = true
-        }
-        canvas.drawText("WYNIKI POZA NORMĄ", margin, y, sectionPaint)
-        y += 30f
-
-        val resultPaint = TextPaint().apply {
-            color = Color.BLACK
-            textSize = 10f
-            typeface = Typeface.MONOSPACE
-            isAntiAlias = true
-        }
-
-        // Nagłówek tabeli
-        val headerPaint = TextPaint(resultPaint).apply {
-            typeface = Typeface.create(Typeface.MONOSPACE, Typeface.BOLD)
-        }
-        canvas.drawText("Badanie | Wynik | Norma", margin, y, headerPaint)
-        y += 20f
-
-        // Linia separująca
-        val linePaint = Paint().apply {
-            color = Color.GRAY
-            strokeWidth = 1f
-        }
-        canvas.drawLine(margin, y, pageWidth - margin, y, linePaint)
-        y += 10f
-
-        for (result in results) {
-            // Sprawdź czy potrzeba nowej strony
-            if (y > pageHeight - bottomMargin - 30) {
-                // Zamknij poprzednią stronę jeśli była otwarta przez nas
-                lastCreatedPage?.let { pdfDocument.finishPage(it) }
-
-                pageNumber++
-                lastCreatedPage = pdfDocument.startPage(
-                    PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
-                )
-                canvas = lastCreatedPage.canvas
-                y = margin
-                drawFooter(canvas, pageNumber)
-
-                // Ponów nagłówek na nowej stronie
-                canvas.drawText("WYNIKI POZA NORMĄ (cd.)", margin, y, sectionPaint)
-                y += 30f
-
-                // Ponów nagłówek tabeli
-                canvas.drawText("Badanie | Wynik | Norma", margin, y, headerPaint)
-                y += 20f
-                canvas.drawLine(margin, y, pageWidth - margin, y, linePaint)
-                y += 10f
-            }
-
-            canvas.drawText(result, margin, y, resultPaint)
-            y += 15f
-        }
-
-        // Zwróć canvas - NIE tworzymy dummy page
-        return Triple(y + 20f, pageNumber, canvas)
-    }
-
     private fun drawFooter(canvas: Canvas?, pageNumber: Int) {
         val footerPaint = TextPaint().apply {
             color = Color.GRAY
@@ -658,35 +553,24 @@ class PdfReportGenerator(private val context: Context) {
             isAntiAlias = true
         }
 
-        val footerText = "Strona $pageNumber | © ${Calendar.getInstance().get(Calendar.YEAR)} FIPScan"
+        val year = Calendar.getInstance().get(Calendar.YEAR)
+        val footerText = context.getString(R.string.pdf_footer_page, pageNumber, year)
         val footerWidth = footerPaint.measureText(footerText)
-        canvas?.drawText(
-            footerText,
-            (pageWidth - footerWidth) / 2,
-            pageHeight - 20f,
-            footerPaint
-        )
+        canvas?.drawText(footerText, (pageWidth - footerWidth) / 2, pageHeight - 20f, footerPaint)
 
-        // Disclaimer
         val disclaimerPaint = TextPaint().apply {
             color = Color.GRAY
             textSize = 8f
             isAntiAlias = true
         }
 
-        val disclaimer = "Raport ma charakter pomocniczy. Ostateczną diagnozę ustala lekarz weterynarii."
+        val disclaimer = context.getString(R.string.pdf_footer_disclaimer)
         val disclaimerWidth = disclaimerPaint.measureText(disclaimer)
-        canvas?.drawText(
-            disclaimer,
-            (pageWidth - disclaimerWidth) / 2,
-            pageHeight - 35f,
-            disclaimerPaint
-        )
+        canvas?.drawText(disclaimer, (pageWidth - disclaimerWidth) / 2, pageHeight - 35f, disclaimerPaint)
     }
 
     fun savePdfToDownloads(pdfDocument: PdfDocument, fileName: String): Pair<String?, String?> {
         return try {
-            // Najpierw zapisz lokalnie dla FTP
             val localDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
             localDir?.mkdirs()
             val localFile = File(localDir, "$fileName.pdf")
@@ -695,7 +579,6 @@ class PdfReportGenerator(private val context: Context) {
                 pdfDocument.writeTo(output)
             }
 
-            // Teraz zapisz do Downloads dla użytkownika
             val resolver = context.contentResolver
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, "$fileName.pdf")
@@ -706,9 +589,8 @@ class PdfReportGenerator(private val context: Context) {
             }
 
             val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
-                ?: throw Exception("Nie można utworzyć pliku w MediaStore")
+                ?: throw Exception("Cannot create file in MediaStore")
 
-            // Zapisz ponownie do Downloads
             FileInputStream(localFile).use { input ->
                 resolver.openOutputStream(uri)?.use { output ->
                     input.copyTo(output)
@@ -717,7 +599,7 @@ class PdfReportGenerator(private val context: Context) {
 
             Pair("$fileName.pdf", localFile.absolutePath)
         } catch (e: Exception) {
-            Log.e("PdfReportGenerator", "Błąd zapisu PDF", e)
+            Log.e("PdfReportGenerator", "Error saving PDF", e)
             Pair(null, null)
         }
     }
@@ -731,18 +613,16 @@ class PdfReportGenerator(private val context: Context) {
     ): Float {
         var y = startY
 
-        // Tytuł sekcji
         val sectionPaint = TextPaint().apply {
             color = primaryColor
             textSize = 16f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-        canvas.drawText("📈 ANALIZA KSZTAŁTU KRZYWEJ ELEKTROFOREZY", margin, y, sectionPaint)
+        canvas.drawText(context.getString(R.string.pdf_section_shape_analysis), margin, y, sectionPaint)
         y += 40f
 
-        // Punkty i pasek postępu
-        val scoreText = "Wynik: $points/$maxPoints punktów"
+        val scoreText = context.getString(R.string.pdf_score_format, points, maxPoints)
         val scorePaint = TextPaint().apply {
             color = Color.BLACK
             textSize = 14f
@@ -752,22 +632,16 @@ class PdfReportGenerator(private val context: Context) {
         canvas.drawText(scoreText, margin, y, scorePaint)
         y += 25f
 
-        // Pasek postępu dla analizy kształtu
         val barHeight = 20f
         val barWidth = contentWidth
         val percentage = (analysis.fipShapeScore).toInt()
 
-        // Tło paska
         val bgPaint = Paint().apply {
             color = Color.parseColor("#E0E0E0")
             style = Paint.Style.FILL
         }
-        canvas.drawRoundRect(
-            margin, y, pageWidth - margin, y + barHeight,
-            10f, 10f, bgPaint
-        )
+        canvas.drawRoundRect(margin, y, pageWidth - margin, y + barHeight, 10f, 10f, bgPaint)
 
-        // Wypełnienie
         val fillColor = when {
             percentage >= 70 -> Color.parseColor("#F44336")
             percentage >= 50 -> Color.parseColor("#FF9800")
@@ -781,12 +655,8 @@ class PdfReportGenerator(private val context: Context) {
         }
 
         val fillWidth = (barWidth * percentage / 100f)
-        canvas.drawRoundRect(
-            margin, y, margin + fillWidth, y + barHeight,
-            10f, 10f, fillPaint
-        )
+        canvas.drawRoundRect(margin, y, margin + fillWidth, y + barHeight, 10f, 10f, fillPaint)
 
-        // Procent na pasku
         val percentPaint = TextPaint().apply {
             color = Color.WHITE
             textSize = 12f
@@ -797,19 +667,23 @@ class PdfReportGenerator(private val context: Context) {
 
         y += barHeight + 20f
 
-        // Szczegóły analizy
         val detailsPaint = TextPaint().apply {
             color = Color.BLACK
             textSize = 12f
             isAntiAlias = true
         }
 
-        val details = """
-            Wzorzec: ${analysis.overallPattern}
-            Stosunek albumin/gamma: ${String.format("%.2f", analysis.albumin.height / analysis.gamma.height)}
-            Szerokość piku gamma: ${(analysis.gamma.width * 100).toInt()}%
-            Mostek beta-gamma: ${if (analysis.betaGammaBridge.present) "obecny" else "nieobecny"}
-        """.trimIndent()
+        val bridgeStatus = if (analysis.betaGammaBridge.present)
+            context.getString(R.string.pdf_bridge_present)
+        else
+            context.getString(R.string.pdf_bridge_absent)
+
+        val details = buildString {
+            append(context.getString(R.string.pdf_shape_pattern, analysis.overallPattern)).append("\n")
+            append(context.getString(R.string.pdf_shape_ag_ratio, String.format(Locale.getDefault(), "%.2f", analysis.albumin.height / analysis.gamma.height))).append("\n")
+            append(context.getString(R.string.pdf_shape_gamma_width, (analysis.gamma.width * 100).toInt())).append("\n")
+            append(context.getString(R.string.pdf_shape_bridge, bridgeStatus))
+        }
 
         val detailsLayout = StaticLayout.Builder.obtain(
             details, 0, details.length, detailsPaint, contentWidth.toInt()
@@ -832,18 +706,16 @@ class PdfReportGenerator(private val context: Context) {
     ): Float {
         var y = startY
 
-        // Tytuł sekcji
         val sectionPaint = TextPaint().apply {
             color = primaryColor
             textSize = 16f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-        canvas.drawText("🔬 PROFIL WZORCÓW LABORATORYJNYCH", margin, y, sectionPaint)
+        canvas.drawText(context.getString(R.string.pdf_section_pattern_analysis), margin, y, sectionPaint)
         y += 30f
 
-        // Punkty
-        val scoreText = "Wynik: $points/$maxPoints punktów"
+        val scoreText = context.getString(R.string.pdf_score_format, points, maxPoints)
         val scorePaint = TextPaint().apply {
             color = Color.BLACK
             textSize = 14f
@@ -853,21 +725,15 @@ class PdfReportGenerator(private val context: Context) {
         canvas.drawText(scoreText, margin, y, scorePaint)
         y += 25f
 
-        // Pasek postępu
         val barHeight = 20f
         val percentage = analysis.patternStrength.toInt()
 
-        // Tło paska
         val bgPaint = Paint().apply {
             color = Color.parseColor("#E0E0E0")
             style = Paint.Style.FILL
         }
-        canvas.drawRoundRect(
-            margin, y, pageWidth - margin, y + barHeight,
-            10f, 10f, bgPaint
-        )
+        canvas.drawRoundRect(margin, y, pageWidth - margin, y + barHeight, 10f, 10f, bgPaint)
 
-        // Wypełnienie
         val fillColor = when {
             percentage >= 70 -> Color.parseColor("#F44336")
             percentage >= 50 -> Color.parseColor("#FF9800")
@@ -880,12 +746,8 @@ class PdfReportGenerator(private val context: Context) {
         }
 
         val fillWidth = (contentWidth * percentage / 100f)
-        canvas.drawRoundRect(
-            margin, y, margin + fillWidth, y + barHeight,
-            10f, 10f, fillPaint
-        )
+        canvas.drawRoundRect(margin, y, margin + fillWidth, y + barHeight, 10f, 10f, fillPaint)
 
-        // Procent
         val percentPaint = TextPaint().apply {
             color = Color.WHITE
             textSize = 12f
@@ -896,16 +758,16 @@ class PdfReportGenerator(private val context: Context) {
 
         y += barHeight + 20f
 
-        // Profil i opis
-        val profileName = when (analysis.primaryProfile) {
-            FipPatternAnalyzer.FipProfile.INFLAMMATORY_ACUTE -> "Ostry profil zapalny"
-            FipPatternAnalyzer.FipProfile.INFLAMMATORY_CHRONIC -> "Przewlekły profil zapalny"
-            FipPatternAnalyzer.FipProfile.EFFUSIVE_CLASSIC -> "Klasyczny wysiękowy"
-            FipPatternAnalyzer.FipProfile.DRY_NEUROLOGICAL -> "Suchy neurologiczny"
-            FipPatternAnalyzer.FipProfile.MIXED_PATTERN -> "Profil mieszany"
-            FipPatternAnalyzer.FipProfile.ATYPICAL -> "Profil nietypowy"
-            FipPatternAnalyzer.FipProfile.NON_FIP -> "Profil nie-FIP"
+        val profileNameResId = when (analysis.primaryProfile) {
+            FipPatternAnalyzer.FipProfile.INFLAMMATORY_ACUTE -> R.string.pdf_profile_acute
+            FipPatternAnalyzer.FipProfile.INFLAMMATORY_CHRONIC -> R.string.pdf_profile_chronic
+            FipPatternAnalyzer.FipProfile.EFFUSIVE_CLASSIC -> R.string.pdf_profile_effusive
+            FipPatternAnalyzer.FipProfile.DRY_NEUROLOGICAL -> R.string.pdf_profile_neuro
+            FipPatternAnalyzer.FipProfile.MIXED_PATTERN -> R.string.pdf_profile_mixed
+            FipPatternAnalyzer.FipProfile.ATYPICAL -> R.string.pdf_profile_atypical
+            FipPatternAnalyzer.FipProfile.NON_FIP -> R.string.pdf_profile_non_fip
         }
+        val profileName = context.getString(profileNameResId)
 
         val profilePaint = TextPaint().apply {
             color = Color.BLACK
@@ -913,10 +775,9 @@ class PdfReportGenerator(private val context: Context) {
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-        canvas.drawText("Główny profil: $profileName", margin, y, profilePaint)
+        canvas.drawText(context.getString(R.string.pdf_profile_label, profileName), margin, y, profilePaint)
         y += 25f
 
-        // Kluczowe obserwacje
         if (analysis.keyFindings.isNotEmpty()) {
             val findingsPaint = TextPaint().apply {
                 color = Color.BLACK
@@ -924,10 +785,10 @@ class PdfReportGenerator(private val context: Context) {
                 isAntiAlias = true
             }
 
-            canvas.drawText("Kluczowe obserwacje:", margin, y, findingsPaint)
+            canvas.drawText(context.getString(R.string.pdf_key_findings), margin, y, findingsPaint)
             y += 20f
 
-            for (finding in analysis.keyFindings.take(3)) { // Max 3 najważniejsze
+            for (finding in analysis.keyFindings.take(3)) {
                 val cleanFinding = finding.replace(Regex("[✅❌⚠️🔸❓]"), "•")
                 canvas.drawText(cleanFinding, margin + 10f, y, findingsPaint)
                 y += 18f

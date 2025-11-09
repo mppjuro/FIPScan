@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.example.fipscan.ElectrophoresisAnalyzer
+import com.example.fipscan.R
 import com.example.fipscan.ResultEntity
 import com.example.fipscan.databinding.ItemRecentHistoryBinding
 import com.google.gson.Gson
@@ -26,11 +27,13 @@ class RecentHistoryAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val result = results[position]
+        val context = holder.itemView.context
+
         holder.binding.textPatientName.text = result.patientName
         holder.binding.textAge.text = result.age
 
         val dateText = if (!result.collectionDate.isNullOrBlank())
-            "📅 Data pobrania: ${result.collectionDate}"
+            context.getString(R.string.recent_history_date_format, result.collectionDate)
         else
             ""
         holder.binding.textDate.text = dateText
@@ -41,18 +44,20 @@ class RecentHistoryAdapter(
             result.rawDataJson?.let {
                 val extractedData = Gson().fromJson(it, Map::class.java) as? Map<String, Any>
                 if (extractedData != null) {
+                    // Pobierz domyślną wartość z zasobów (pierwsza opcja w tablicy), aby zachować spójność z HomeFragment
+                    val defaultRivalta = context.resources.getStringArray(R.array.rivalta_options)[0]
                     val electroResult = ElectrophoresisAnalyzer.assessFipRisk(
                         extractedData,
-                        result.rivaltaStatus ?: "nie wykonano, płyn obecny"
+                        result.rivaltaStatus ?: defaultRivalta
                     )
                     riskPercentage = electroResult.riskPercentage
                 }
             }
         } catch (e: Exception) {
-            Log.e("RecentHistoryAdapter", "Błąd obliczania ryzyka", e)
+            Log.e("RecentHistoryAdapter", "Error calculating risk", e)
         }
 
-        holder.binding.textRiskIndicator.text = "$riskPercentage%"
+        holder.binding.textRiskIndicator.text = context.getString(R.string.risk_percentage_format, riskPercentage)
         val bgColor = calculateBackgroundColor(riskPercentage)
         holder.binding.textRiskIndicator.backgroundTintList = ColorStateList.valueOf(bgColor)
 

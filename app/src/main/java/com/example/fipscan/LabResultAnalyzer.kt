@@ -1,5 +1,8 @@
 package com.example.fipscan
 
+import android.content.Context
+import java.util.Locale
+
 object LabResultAnalyzer {
     data class AnalysisResult(
         val diagnosticComment: String,
@@ -7,46 +10,40 @@ object LabResultAnalyzer {
         val vetConsultationAdvice: String
     )
 
-    fun analyzeLabData(labData: Map<String, Any>): AnalysisResult {
-        // Funkcje pomocnicze do konwersji wartości tekstowych (z przecinkami, znakami "<" ">") na liczby
+    fun analyzeLabData(labData: Map<String, Any>, context: Context): AnalysisResult {
+        // Funkcje pomocnicze
         fun toDoubleValue(str: String?): Double? {
             if (str == null) return null
-            val cleaned = str.replace(Regex("[<>]"), "").replace(",", ".").trim()
-            return cleaned.toDoubleOrNull()
+            return try {
+                str.replace(Regex("[<>]"), "").replace(",", ".").trim().toDoubleOrNull()
+            } catch (e: Exception) {
+                null
+            }
         }
-        fun isValueHigh(value: Double?, maxNorm: Double?): Boolean {
-            return value != null && maxNorm != null && value > maxNorm
-        }
-        fun isValueLow(value: Double?, minNorm: Double?): Boolean {
-            return value != null && minNorm != null && value < minNorm
-        }
+
         fun findKeyContains(name: String): String? {
             return labData.keys.find { it.contains(name, ignoreCase = true) }
         }
 
-        // Przygotowanie struktur wynikowych
         val diagnosticComments = mutableListOf<String>()
         val supplementRecommendations = mutableListOf<String>()
         var vetConsultationNeeded = false
-        var specialistType: String? = null  // np. "hepatologiem" gdy wskazana konsultacja u hepatologa
+        var specialistTypeResId: Int? = null
 
-        // 1. Stosunek albumina/globuliny (A/G)
-        // Najpierw szukamy bezpośrednio obliczonego stosunku A/G w wynikach
-        val agRatioKey = findKeyContains("Stosunek") // np. "Stosunek: albuminy / globuliny"
+        // 1. Stosunek A/G
         var agRatio: Double? = null
-
-        // Sprawdź czy mamy bezpośrednio stosunek A/G
+        val agRatioKey = findKeyContains("Stosunek")
         if (agRatioKey != null && agRatioKey.contains("albumin", ignoreCase = true)) {
             agRatio = toDoubleValue(labData[agRatioKey] as? String)
         }
 
-        // Jeśli nie znaleziono bezpośredniego stosunku, oblicz go
         if (agRatio == null) {
             var albuminVal: Double? = null
             var globulinsVal: Double? = null
             val albuminKey = findKeyContains("Albumin") ?: findKeyContains("Albumina")
             val totalProteinKey = findKeyContains("Białko całkowite") ?: findKeyContains("Total Protein")
             val globulinKey = findKeyContains("Globulin")
+
             if (albuminKey != null) albuminVal = toDoubleValue(labData[albuminKey] as? String)
             if (globulinKey != null) {
                 globulinsVal = toDoubleValue(labData[globulinKey] as? String)
@@ -60,147 +57,168 @@ object LabResultAnalyzer {
         }
 
         if (agRatio != null) {
+            val formattedRatio = String.format(Locale.getDefault(), "%.2f", agRatio)
             if (agRatio < 0.6) {
-                diagnosticComments.add("Niski stosunek albumina/globuliny (A/G = ${"%.2f".format(agRatio)}) – wynik silnie podejrzany w kierunku FIP.")
+                diagnosticComments.add(context.getString(R.string.lab_ag_ratio_low, formattedRatio))
             } else if (agRatio < 0.8) {
-                diagnosticComments.add("Obniżony stosunek albumina/globuliny (A/G = ${"%.2f".format(agRatio)}) – może wskazywać na przewlekły stan zapalny (np. FIP), choć nie jest jednoznaczny.")
+                diagnosticComments.add(context.getString(R.string.lab_ag_ratio_moderate, formattedRatio))
             }
         }
 
-        // 2. Hipergammaglobulinemia (wysokie gamma-globuliny)
-        val gammaKey = findKeyContains("Gamma")  // np. "Globuliny gamma"
-        val alpha2Key = findKeyContains("Alfa2") ?: findKeyContains("Alpha2")
-        val betaKey = findKeyContains("Beta")
+        // 2. Hipergammaglobulinemia
+        val gammaKey = findKeyContains("Gamma")
         val gammaVal = toDoubleValue(labData[gammaKey] as? String)
         val gammaMax = toDoubleValue(labData["${gammaKey}RangeMax"] as? String)
         if (gammaVal != null && gammaMax != null && gammaVal > gammaMax) {
-            diagnosticComments.add("Hipergammaglobulinemia (podwyższone gamma-globuliny) – charakterystyczna dla przewlekłych zapaleń, w tym FIP.")
+            diagnosticComments.add(context.getString(R.string.lab_hypergammaglobulinemia))
         }
 
-        // 3. Pojedyncze odchylenia (ALT, bilirubina, morfologia)
-        // ALT (AlAT)
+        // 3. Pojedyncze odchylenia
+        // ALT
         val altKey = findKeyContains("ALT") ?: findKeyContains("AlAT")
         if (altKey != null) {
             val altVal = toDoubleValue(labData[altKey] as? String)
             val altMax = toDoubleValue(labData["${altKey}RangeMax"] as? String)
+            val unit = labData["${altKey}Unit"] as? String ?: ""
             if (altVal != null && altMax != null && altVal > altMax) {
                 val fold = if (altMax > 0) altVal / altMax else Double.POSITIVE_INFINITY
                 if (fold <= 2) {
-                    diagnosticComments.add("ALT nieznacznie podwyższony (${altVal}${labData["${altKey}Unit"] ?: ""}) – łagodne uszkodzenie wątroby.")
-                    supplementRecommendations.add("Hepatiale Forte – wsparcie wątroby przy niewielkim wzroście ALT.")
+                    diagnosticComments.add(context.getString(R.string.lab_alt_mild, altVal, unit))
+                    supplementRecommendations.add(context.getString(R.string.supp_hepatiale_forte))
                 } else {
-                    diagnosticComments.add("ALT znacznie podwyższony (${altVal}${labData["${altKey}Unit"] ?: ""}) – wskazuje na poważniejsze uszkodzenie wątroby.")
-                    supplementRecommendations.add("Hepatiale Forte **Advanced** – silniejsze wsparcie wątroby przy wysokim ALT.")
+                    diagnosticComments.add(context.getString(R.string.lab_alt_severe, altVal, unit))
+                    supplementRecommendations.add(context.getString(R.string.supp_hepatiale_forte_advanced))
                     vetConsultationNeeded = true
-                    specialistType = "hepatologiem"
+                    specialistTypeResId = R.string.specialist_hepatologist
                 }
             }
         }
+
         // Bilirubina
         val biliKey = findKeyContains("Bilirubina") ?: findKeyContains("Bilirubin")
         if (biliKey != null) {
             val biliVal = toDoubleValue(labData[biliKey] as? String)
             val biliMax = toDoubleValue(labData["${biliKey}RangeMax"] as? String)
+            val unit = labData["${biliKey}Unit"] as? String ?: ""
             if (biliVal != null && biliMax != null && biliVal > biliMax) {
-                diagnosticComments.add("Podwyższona bilirubina (${biliVal}${labData["${biliKey}Unit"] ?: ""}) – możliwe uszkodzenie wątroby lub hemoliza (obserwowane m.in. przy FIP).")
+                diagnosticComments.add(context.getString(R.string.lab_bilirubin_high, biliVal, unit))
                 if (biliVal / biliMax > 2) {
                     vetConsultationNeeded = true
-                    if (specialistType == null) specialistType = "internistą"
+                    if (specialistTypeResId == null) specialistTypeResId = R.string.specialist_internist
                 }
             }
         }
-        // Leukocyty (WBC)
+
+        // WBC
         val wbcKey = findKeyContains("Leukocyty") ?: findKeyContains("WBC")
         if (wbcKey != null) {
             val wbcVal = toDoubleValue(labData[wbcKey] as? String)
             val wbcMax = toDoubleValue(labData["${wbcKey}RangeMax"] as? String)
             val wbcMin = toDoubleValue(labData["${wbcKey}RangeMin"] as? String)
             if (wbcVal != null && wbcMax != null && wbcVal > wbcMax) {
-                diagnosticComments.add("Leukocytoza (WBC = $wbcVal, powyżej normy) – wskazuje na stan zapalny lub infekcję.")
+                diagnosticComments.add(context.getString(R.string.lab_leukocytosis, wbcVal))
             } else if (wbcVal != null && wbcMin != null && wbcVal < wbcMin) {
-                diagnosticComments.add("Leukopenia (WBC = $wbcVal, poniżej normy) – może świadczyć o immunosupresji lub chorobie szpiku.")
+                diagnosticComments.add(context.getString(R.string.lab_leukopenia, wbcVal))
             }
         }
+
         // Neutrofile i limfocyty
-        val neutKey = findKeyContains("Neutro") // "Neutrofile" lub skrót w danych
-        val lymphKey = findKeyContains("Limfocy") // "Limfocyty"
+        val neutKey = findKeyContains("Neutro")
+        val lymphKey = findKeyContains("Limfocy")
         if (neutKey != null && lymphKey != null) {
             val neutVal = toDoubleValue(labData[neutKey] as? String)
             val neutMax = toDoubleValue(labData["${neutKey}RangeMax"] as? String)
             val lymphVal = toDoubleValue(labData[lymphKey] as? String)
             val lymphMin = toDoubleValue(labData["${lymphKey}RangeMin"] as? String)
+
             if (neutVal != null && neutMax != null && neutVal > neutMax &&
                 lymphVal != null && lymphMin != null && lymphVal < lymphMin) {
-                diagnosticComments.add("Neutrofilia z limfopenią – podwyższone neutrofile i obniżone limfocyty (częsty obraz przy FIP).")
+                diagnosticComments.add(context.getString(R.string.lab_stress_leukogram))
             }
         }
-        // Hematokryt (HCT) / niedokrwistość
+
+        // HCT
         val hctKey = findKeyContains("Hematokryt") ?: findKeyContains("HCT")
         if (hctKey != null) {
             val hctVal = toDoubleValue(labData[hctKey] as? String)
             val hctMin = toDoubleValue(labData["${hctKey}RangeMin"] as? String)
             if (hctVal != null && hctMin != null && hctVal < hctMin) {
-                diagnosticComments.add("Obniżony hematokryt (HCT = $hctVal) – niedokrwistość, która często towarzyszy przewlekłym chorobom (np. FIP).")
+                diagnosticComments.add(context.getString(R.string.lab_anemia, hctVal))
             }
         }
 
-        // 4. Wynik FCoV (ELISA)
+        // 4. FCoV ELISA
         val fcovKey = labData.keys.find { it.contains("FCoV", ignoreCase = true) && it.contains("ELISA", ignoreCase = true) }
         if (fcovKey != null) {
-            val fcovValue = labData[fcovKey] as? String  // np. "1:400" lub "Pozytywny"
-            val fcovResultText = labData["${fcovKey}RangeMax"] as? String  // może zawierać opis "dodatni/ujemny"
+            val fcovValue = labData[fcovKey] as? String
+            // Sprawdzamy też wartość referencyjną, bo czasem tam jest opis wyniku
+            val fcovResultText = (labData["${fcovKey}RangeMax"] as? String ?: "") + (fcovValue ?: "")
+
             if (!fcovValue.isNullOrBlank()) {
-                val resultText = (fcovResultText ?: fcovValue).lowercase()
+                val resultLower = fcovResultText.lowercase(Locale.getDefault())
+
+                // Pobieramy lokalne odpowiedniki "pozytywny/negatywny" do sprawdzenia
+                // (Dla uproszczenia zakładamy, że w PDF mogą być różne wersje językowe,
+                // ale sprawdzamy główne słowa kluczowe)
+                val isPositive = resultLower.contains("dodatni") || resultLower.contains("pozytywny") || resultLower.contains("positive")
+                val isNegative = resultLower.contains("ujemny") || resultLower.contains("negatywny") || resultLower.contains("negative")
+
                 when {
-                    resultText.contains("dodatni") || resultText.contains("pozytywny") -> {
-                        diagnosticComments.add("Test FCoV ELISA: **dodatni** – wykryto przeciwciała przeciw koronawirusowi. To zwiększa podejrzenie FIP (choć wiele zdrowych kotów również ma pozytywny wynik).")
+                    isPositive -> {
+                        diagnosticComments.add(context.getString(R.string.lab_fcov_positive))
                     }
-                    resultText.contains("ujemny") || resultText.contains("negatywny") -> {
-                        diagnosticComments.add("Test FCoV ELISA: **ujemny** – nie wykryto przeciwciał przeciw FCoV. Ujemny wynik czyni FIP mało prawdopodobnym (choć nie wyklucza go całkowicie).")
+                    isNegative -> {
+                        diagnosticComments.add(context.getString(R.string.lab_fcov_negative))
                     }
                     fcovValue.contains(":") -> {
-                        // Interpretacja miana przeciwciał
-                        val titerValue = runCatching { fcovValue.split(":").last().replace(",", ".").toDouble() }.getOrNull()
+                        val titerValue = try {
+                            fcovValue.split(":").last().replace(",", ".").trim().toDoubleOrNull()
+                        } catch (e: Exception) { null }
+
                         if (titerValue != null) {
                             if (titerValue >= 400) {
-                                diagnosticComments.add("Wysokie miano przeciwciał FCoV ($fcovValue) – tak wysoki poziom przeciwciał często występuje u kotów z FIP (należy potwierdzić FIP innymi badaniami).")
+                                diagnosticComments.add(context.getString(R.string.lab_fcov_titer_high, fcovValue))
                             } else if (titerValue >= 100) {
-                                diagnosticComments.add("Umiarkowane miano przeciwciał FCoV ($fcovValue) – kot jest nosicielem koronawirusa; w połączeniu z objawami to umiarkowanie nasila podejrzenie FIP.")
+                                diagnosticComments.add(context.getString(R.string.lab_fcov_titer_moderate, fcovValue))
                             } else {
-                                diagnosticComments.add("Niskie miano przeciwciał FCoV ($fcovValue) – niski poziom przeciwciał; FIP jest mniej prawdopodobny, choć w szczególnych przypadkach nadal możliwy.")
+                                diagnosticComments.add(context.getString(R.string.lab_fcov_titer_low, fcovValue))
                             }
                         } else {
-                            diagnosticComments.add("Wynik FCoV ELISA: $fcovValue – interpretacja zależy od kontekstu (dodatni wynik wspiera podejrzenie FIP, ujemny czyni FIP mniej prawdopodobnym).")
+                            diagnosticComments.add(context.getString(R.string.lab_fcov_result, fcovValue))
                         }
                     }
                 }
             }
         }
 
-        // 5. Podsumowanie i zalecenia
+        // 5. Podsumowanie
         if (diagnosticComments.isEmpty()) {
-            diagnosticComments.add("Wyniki mieszczą się w granicach normy – brak odchyleń sugerujących FIP lub inne poważne schorzenia.")
+            diagnosticComments.add(context.getString(R.string.lab_results_normal))
         } else {
-            if (diagnosticComments.any { it.contains("FIP", ignoreCase = true) }) {
-                diagnosticComments.add("Podobne odchylenia mogą wystąpić także przy innych chorobach (np. przewlekłych infekcjach, chorobach autoimmunologicznych lub nowotworach immunologicznych).")
+            // Sprawdzamy, czy któryś komentarz zawiera "FIP" (w dowolnej wielkości liter)
+            val fipMentioned = diagnosticComments.any { it.contains("FIP", ignoreCase = true) }
+            if (fipMentioned) {
+                diagnosticComments.add(context.getString(R.string.lab_disclaimer_other_diseases))
             }
-        }
-        val vetAdvice = if (vetConsultationNeeded) {
-            if (specialistType != null) {
-                "Zalecana szybka konsultacja z lekarzem weterynarii (specjalistą $specialistType) w celu dalszej diagnostyki i leczenia."
-            } else {
-                "Zalecana konsultacja z lekarzem weterynarii w celu potwierdzenia diagnozy i omówienia leczenia."
-            }
-        } else {
-            "Brak pilnej potrzeby konsultacji – zalecana obserwacja i stosowanie się do powyższych zaleceń."
         }
 
-        // Połączenie list w teksty
+        val vetAdvice = if (vetConsultationNeeded) {
+            if (specialistTypeResId != null) {
+                val specialist = context.getString(specialistTypeResId)
+                context.getString(R.string.lab_consult_specialist, specialist)
+            } else {
+                context.getString(R.string.lab_consult_general)
+            }
+        } else {
+            context.getString(R.string.lab_consult_none)
+        }
+
         val commentText = diagnosticComments.joinToString(" ")
         val supplementText = if (supplementRecommendations.isNotEmpty())
-            supplementRecommendations.joinToString("; ") else "Brak zaleceń suplementacji."
-        val consultationText = vetAdvice
+            supplementRecommendations.joinToString("; ")
+        else
+            context.getString(R.string.lab_supplements_none)
 
-        return AnalysisResult(commentText, supplementText, consultationText)
+        return AnalysisResult(commentText, supplementText, vetAdvice)
     }
 }
