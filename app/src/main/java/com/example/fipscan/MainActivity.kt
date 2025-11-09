@@ -3,6 +3,7 @@ package com.example.fipscan
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import androidx.lifecycle.lifecycleScope
@@ -11,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import com.example.fipscan.databinding.ActivityMainBinding
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
@@ -19,13 +21,20 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val sharedPreferences = getSharedPreferences("AppPreferences", MODE_PRIVATE)
-        val isDarkModeEnabled = sharedPreferences.getBoolean("dark_mode", false)
 
+        // Apply dark mode preference
+        val isDarkModeEnabled = sharedPreferences.getBoolean("dark_mode", false)
         if (isDarkModeEnabled) {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
         } else {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         }
+
+        // Apply language preference
+        val languageCode = sharedPreferences.getString("app_language", "pl") ?: "pl"
+        val locale = Locale(languageCode)
+        val localeList = LocaleListCompat.create(locale)
+        AppCompatDelegate.setApplicationLocales(localeList)
 
         super.onCreate(savedInstanceState)
 
@@ -43,7 +52,7 @@ class MainActivity : AppCompatActivity() {
     private fun setupNavigation() {
         val navView: BottomNavigationView = binding.navView
         val navHostFragment = supportFragmentManager
-            .findFragmentById(com.example.fipscan.R.id.nav_host_fragment_activity_main) as? NavHostFragment
+            .findFragmentById(R.id.nav_host_fragment_activity_main) as? NavHostFragment
 
         val navController = navHostFragment?.navController
 
@@ -56,7 +65,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onSupportNavigateUp(): Boolean {
         val navHostFragment = supportFragmentManager
-            .findFragmentById(com.example.fipscan.R.id.nav_host_fragment_activity_main) as? NavHostFragment
+            .findFragmentById(R.id.nav_host_fragment_activity_main) as? NavHostFragment
         val navController = navHostFragment?.navController
         return navController?.navigateUp() ?: false || super.onSupportNavigateUp()
     }
