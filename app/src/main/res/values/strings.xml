@@ -126,7 +126,7 @@
 
     <string name="breakdown_ag_very_low">✅ A/G Ratio &lt; 0.4: <b>+%1$d pts</b> (strongly suggestive)</string>
     <string name="breakdown_ag_low">⚠️ A/G Ratio &lt; 0.6: <b>+%1$d pts</b> (moderately suggestive)</string>
-    <string name="breakdown_ag_high">❌ A/G Ratio &gt; 0.8: <b>%1$d pts</b> (argues against FIP)</string>
+    <string name="breakdown_ag_high">❌ A/G Ratio &gt; 0.8: <b>+%1$d pts</b> (argues against FIP)</string>
     <string name="breakdown_ag_grey">❔ A/G Ratio in \'grey zone\' (0.6-0.8): <b>+0 pts</b></string>
     <string name="breakdown_ag_missing">❓ A/G Ratio missing: <b>+0 pts</b></string>
 
@@ -334,8 +334,8 @@
     <string name="ostrzezenie_pomocnicze">NOTE: This application is an auxiliary tool only. Final diagnosis must always be made by a qualified veterinarian based on complete clinical picture.</string>
     <string name="tryb_ciemny">Dark mode</string>
     <string name="wybierz_jezyk">Select language</string>
-    <string name="lang_german">Deutsch</string>
-    <string name="lang_french">Français</string>
+    <string name="lang_german">Deutsch (German)</string>
+    <string name="lang_french">Français (French)</string>
     <string name="pacjent">Patient:</string>
     <string name="wiek">Age:</string>
     <string name="data_nieznana">Unknown date</string>

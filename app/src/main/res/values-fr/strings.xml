@@ -127,7 +127,7 @@
 
     <string name="breakdown_ag_very_low">✅ Rapport A/G &lt; 0,4 : <b>+%1$d pts</b> (fortement suggestif)</string>
     <string name="breakdown_ag_low">⚠️ Rapport A/G &lt; 0,6 : <b>+%1$d pts</b> (modérément suggestif)</string>
-    <string name="breakdown_ag_high">❌ Rapport A/G &gt; 0,8 : <b>%1$d pts</b> (argument contre la PIF)</string>
+    <string name="breakdown_ag_high">❌ Rapport A/G &gt; 0,8 : <b>+%1$d pts</b> (argument contre la PIF)</string>
     <string name="breakdown_ag_grey">❔ Rapport A/G dans la \'zone grise\' (0,6-0,8) : <b>+0 pts</b></string>
     <string name="breakdown_ag_missing">❓ Rapport A/G manquant : <b>+0 pts</b></string>
 
