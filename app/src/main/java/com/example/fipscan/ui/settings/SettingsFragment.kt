@@ -101,9 +101,6 @@ class SettingsFragment : Fragment() {
     }
 
     private fun setupEasterEgg() {
-        // Używamy tekstu z layoutu jako wyzwalacza, zakładając, że jest tam jakiś TextView
-        // Jeśli binding.textHistory to nagłówek historii w settings, upewnij się, że ID się zgadza.
-        // W typowym SettingsFragment często klika się np. w wersję aplikacji.
         binding.textHistory.setOnClickListener {
             clickCount++
             if (clickCount >= EASTER_EGG_CLICKS) {
