@@ -3,7 +3,7 @@ ROZBUDOWAĆ:
 - analizę kształtu krzywej i pola pod nią - analiza wykresu
 - zapisywać info z powyższych również w raporcie PDF i wydruku
 - profil wzorców laboratoryjnych oraz analizę kształtu krzywej elektroforezy mają być składowymi oceny głównej ryzyka FIP
-- języki - angielski i polski do wyboru w ustawieniach
+=>>> języki - angielski i polski do wyboru w ustawieniach
 =>>> zapisać napisy (WSZYSTKIE) w pliku strings.xml
 - kalkulator dawki leku
 OK - Easter Egg - kontakt do autora programu - np. pięcioklik na ustawienia, link do githuba oraz pliku .apk

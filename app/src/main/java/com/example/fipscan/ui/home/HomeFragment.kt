@@ -140,6 +140,7 @@ class HomeFragment : Fragment() {
         binding.buttonLoadPdfLarge.visibility = View.VISIBLE
         binding.recentHistoryLabel.visibility = View.VISIBLE
         binding.recentHistoryRecyclerView.visibility = View.VISIBLE
+        binding.disclaimerTextView.visibility = View.VISIBLE
     }
 
     private fun showResultsState() {
@@ -152,8 +153,9 @@ class HomeFragment : Fragment() {
         binding.buttonLoadPdfLarge.visibility = View.GONE
         binding.recentHistoryLabel.visibility = View.GONE
         binding.recentHistoryRecyclerView.visibility = View.GONE
+        // Ukryj ostrzeżenie, gdy wyświetlane są wyniki (ScrollView automatycznie zajmie miejsce)
+        binding.disclaimerTextView.visibility = View.GONE
 
-        // Upewnij się, że niektóre elementy wyników są nadal ukryte, jeśli nie ma danych
         if (binding.chartImageView.drawable == null) {
             binding.chartImageView.visibility = View.GONE
         }
