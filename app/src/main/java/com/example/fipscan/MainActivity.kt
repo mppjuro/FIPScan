@@ -1,18 +1,17 @@
 package com.example.fipscan
 
 import android.os.Bundle
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
-import androidx.lifecycle.lifecycleScope
-import androidx.activity.viewModels
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import com.example.fipscan.databinding.ActivityMainBinding
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
@@ -22,7 +21,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         val sharedPreferences = getSharedPreferences("AppPreferences", MODE_PRIVATE)
 
-        // Apply dark mode preference
         val isDarkModeEnabled = sharedPreferences.getBoolean("dark_mode", false)
         if (isDarkModeEnabled) {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
@@ -30,10 +28,8 @@ class MainActivity : AppCompatActivity() {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         }
 
-        // Apply language preference
         val languageCode = sharedPreferences.getString("app_language", "pl") ?: "pl"
-        val locale = Locale(languageCode)
-        val localeList = LocaleListCompat.create(locale)
+        val localeList = LocaleListCompat.forLanguageTags(languageCode)
         AppCompatDelegate.setApplicationLocales(localeList)
 
         super.onCreate(savedInstanceState)

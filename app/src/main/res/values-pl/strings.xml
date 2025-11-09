@@ -1,24 +1,19 @@
 <resources>
-    <!-- Nazwa aplikacji -->
     <string name="app_name">FIPscan</string>
 
-    <!-- Tytuły nawigacji -->
     <string name="title_home">Skanuj</string>
     <string name="title_history">Historia</string>
     <string name="title_settings">Ustawienia</string>
     <string name="diagnoza">Diagnoza</string>
 
-    <!-- Wybór języka -->
     <string name="wybierz_jezyk">Wybierz język:</string>
     <string name="lang_polish">Polski (Polish)</string>
     <string name="lang_english">English</string>
     <string name="lang_german">Deutsch (German) - Wkrótce</string>
     <string name="lang_french">Français (French) - Wkrótce</string>
 
-    <!-- Ustawienia -->
     <string name="tryb_ciemny">Tryb ciemny</string>
 
-    <!-- Informacje o pacjencie -->
     <string name="pacjent">Pacjent</string>
     <string name="wiek">Wiek</string>
     <string name="gatunek">Gatunek</string>
@@ -30,13 +25,11 @@
     <string name="data_badania">Data badania</string>
     <string name="data_pobrania">📅 Data pobrania: %s</string>
 
-    <!-- Przyciski -->
     <string name="wgraj_pdf">Wgraj PDF</string>
     <string name="zapisz_oryg">Zapisz oryginał</string>
     <string name="pobierz_diagnoze">Pobierz Diagnozę</string>
     <string name="drukuj_diagnoze">Drukuj Diagnozę</string>
 
-    <!-- Ekran główny -->
     <string name="skanuj">Skanuj</string>
     <string name="historia_badan">Historia badań</string>
     <string name="ostatnie_badania">Ostatnie badania:</string>
@@ -47,7 +40,6 @@
     <string name="ryzyko_fip">Ryzyko FIP: %d%%</string>
     <string name="wykres_diagnostyczny">Wykres diagnostyczny</string>
 
-    <!-- Diagnoza -->
     <string name="diagnoza_tytul">Diagnoza: %s</string>
     <string name="komentarz_diagnostyczny">Komentarz diagnostyczny...</string>
     <string name="szczegolowa_analiza">SZCZEGÓŁOWA ANALIZA</string>
@@ -61,7 +53,6 @@
     <string name="badanie_wynik_norma">Badanie | Wynik | Norma</string>
     <string name="wszystkie_w_normie">✅ Wszystkie wyniki w normie</string>
 
-    <!-- Ocena ryzyka -->
     <string name="ocena_ryzyka_fip">📊 GŁÓWNA OCENA RYZYKA FIP</string>
     <string name="sila_dopasowania">Siła dopasowania: %d%%</string>
     <string name="profil_wzorow">🔬 PROFIL WZORCÓW LABORATORYJNYCH</string>
@@ -71,13 +62,11 @@
     <string name="sugestie_postepowania">Sugestie postępowania:</string>
     <string name="wynik_punkty">Wynik: %d/%d punktów</string>
 
-    <!-- Poziomy ryzyka -->
     <string name="bardzo_wysokie_ryzyko">BARDZO WYSOKIE RYZYKO FIP (%d%%)</string>
     <string name="wysokie_ryzyko">WYSOKIE RYZYKO FIP (%d%%)</string>
     <string name="srednie_ryzyko">ŚREDNIE RYZYKO FIP (%d%%)</string>
     <string name="niskie_ryzyko">NISKIE RYZYKO FIP (%d%%)</string>
 
-    <!-- Komunikaty -->
     <string name="brak_danych">Brak danych do analizy</string>
     <string name="wprowadz_dane">Wprowadź dane do analizy\n\nAby zobaczyć diagnozę:\n• Przejdź do zakładki \'Skanuj\' i wgraj plik PDF z wynikami\n• Lub wybierz rekord z \'Historii\' badań</string>
     <string name="brak_pdf">Brak pliku PDF</string>
@@ -91,10 +80,8 @@
     <string name="raport_wyslano_ftp">Raport wysłany na serwer FTP</string>
     <string name="blad_wyslania_ftp">Błąd wysyłania raportu na FTP</string>
 
-    <!-- Ostrzeżenie -->
     <string name="ostrzezenie_pomocnicze">Program ma charakter pomocniczy. Ostateczną diagnozę ustala lekarz weterynarii</string>
 
-    <!-- Profile analizy wzorców -->
     <string name="profil_ostry_zapalny">⚠️ OSTRY PROFIL ZAPALNY</string>
     <string name="profil_przewlekly_zapalny">⚠️ PRZEWLEKŁY PROFIL ZAPALNY</string>
     <string name="profil_klasyczny_wysiekowy">🔴 KLASYCZNY WYSIĘKOWY</string>
@@ -103,7 +90,6 @@
     <string name="profil_nietypowy">❓ PROFIL NIETYPOWY</string>
     <string name="profil_nie_fip">✅ PROFIL NIE-FIP</string>
 
-    <!-- Analiza kształtu -->
     <string name="wzorzec">Wzorzec: %s</string>
     <string name="stosunek_ag">Stosunek albumin/gamma: %.2f</string>
     <string name="szerokosc_piku_gamma">Szerokość piku gamma: %d%%</string>
@@ -116,7 +102,6 @@
     <string name="gamma_wysokosc">Gamma: wysokość %d%%, szerokość %d%%</string>
     <string name="mostek_szczegoly">Mostek β-γ: %s</string>
 
-    <!-- Easter egg -->
     <string name="o_aplikacji">🐱 O Aplikacji</string>
     <string name="autor">Autor: %s</string>
     <string name="kontakt">Kontakt: %s</string>
@@ -125,7 +110,6 @@
     <string name="zeskanuj_qr">Zeskanuj kod QR aby pobrać najnowszą wersję:</string>
     <string name="kod_qr_releases">Kod QR do pobrania najnowszej wersji aplikacji</string>
 
-    <!-- Wyświetlanie informacji o pacjencie -->
     <string name="info_pacjent">🐱 Pacjent: %s</string>
     <string name="info_gatunek">🐾 Gatunek: %s</string>
     <string name="info_rasa">🏷️ Rasa: %s</string>
@@ -136,11 +120,9 @@
     <string name="nie_podano">nie podano</string>
     <string name="brak_daty">brak daty</string>
 
-    <!-- Wyniki -->
     <string name="wyniki">Wyniki: %s</string>
     <string name="wyniki_poza_norma_lista">📊 Wyniki poza normą:\nBadanie: wynik (norma) jednostka\n%s</string>
 
-    <!-- Wspólne -->
     <string name="ok">OK</string>
     <string name="anuluj">Anuluj</string>
     <string name="tak">Tak</string>
@@ -150,7 +132,6 @@
     <string name="edytuj">Edytuj</string>
     <string name="zamknij">Zamknij</string>
 
-    <!-- Nieużywane stringi (zachowane dla kompatybilności) -->
     <string name="todo">DO ZROBIENIA</string>
     <string name="wykres">wykres</string>
     <string name="przycisk">przycisk</string>
