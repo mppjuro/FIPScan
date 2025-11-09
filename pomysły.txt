@@ -3,12 +3,11 @@ ROZBUDOWAĆ:
 - analizę kształtu krzywej i pola pod nią - analiza wykresu
 - zapisywać info z powyższych również w raporcie PDF i wydruku
 - profil wzorców laboratoryjnych oraz analizę kształtu krzywej elektroforezy mają być składowymi oceny głównej ryzyka FIP
-=>>> języki - angielski i polski do wyboru w ustawieniach
-=>>> zapisać napisy (WSZYSTKIE) w pliku strings.xml
+=>>> języki - EN, PL, FR, DE do wyboru w ustawieniach, zapisać napisy (WSZYSTKIE) w pliku strings.xml
 - kalkulator dawki leku
 OK - Easter Egg - kontakt do autora programu - np. pięcioklik na ustawienia, link do githuba oraz pliku .apk
 =>>> zmniejszyć czułość wykrywania gammapatii monoklonalnej (żeby częściej była poliklonalna)
-=>>> usunąć "program ma char. pom..." gdy już wybierzemy kota lub wczytamy wynik na ekranie skanuj
+=>>> usunąć wszystkie warningi w IDE
 
 Sprawdzenie ile pliki mają linii:
 for dir in app/src/main/java/com/example/fipscan app/src/main/res/layout app/src/main/res/values app/src/main/res/values-night app/src/main/res/values-pl app/src/main/res/navigation app/src/main/res/menu; do echo "=== $dir ==="; git ls-files "$dir" | xargs wc -l; done

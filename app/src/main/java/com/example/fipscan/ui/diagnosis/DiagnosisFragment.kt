@@ -25,6 +25,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.cardview.widget.CardView
+import androidx.collection.emptyLongSet
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
@@ -122,6 +123,8 @@ class DiagnosisFragment : Fragment() {
 
     private fun setupUI() {
         val currentResult = result ?: return
+        // Pobieramy context raz, aby użyć go w wielu miejscach
+        val context = requireContext()
 
         binding.textDiagnosis.text = getString(R.string.diagnosis_patient_title, currentResult.patientName)
         binding.reportButtonsContainer.visibility = View.VISIBLE
@@ -157,9 +160,10 @@ class DiagnosisFragment : Fragment() {
             return
         }
 
-        val labResult = LabResultAnalyzer.analyzeLabData(extractedMap)
+        // POPRAWKA: Przekazanie context do analizatorów
+        val labResult = LabResultAnalyzer.analyzeLabData(extractedMap, context)
         val rivaltaStatus = currentResult.rivaltaStatus ?: getString(R.string.rivalta_not_performed)
-        val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap, rivaltaStatus)
+        val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap, rivaltaStatus, context)
 
         currentRiskPercentage = electroResult.riskPercentage
         currentRiskComment = electroResult.fipRiskComment
@@ -186,7 +190,8 @@ class DiagnosisFragment : Fragment() {
             if (chartFile.exists()) {
                 val bitmap = BitmapFactory.decodeFile(imagePath)
                 val redColumns = listOf(100, 300, 500)
-                val shapeAnalysis = ElectrophoresisShapeAnalyzer.analyzeElectrophoresisShape(bitmap, redColumns)
+                // POPRAWKA: Przekazanie context do analizy kształtu
+                val shapeAnalysis = ElectrophoresisShapeAnalyzer.analyzeElectrophoresisShape(bitmap, redColumns, context)
 
                 shapeAnalysis?.let { analysis ->
                     val shapeCard = createShapeAnalysisCard(analysis)
@@ -203,7 +208,8 @@ class DiagnosisFragment : Fragment() {
             }
         }
 
-        val patternAnalysis = FipPatternAnalyzer.analyzeParameterPatterns(extractedMap)
+        // POPRAWKA: Przekazanie context do analizy wzorców
+        val patternAnalysis = FipPatternAnalyzer.analyzeParameterPatterns(extractedMap, context)
         val patternCard = createPatternAnalysisCard(patternAnalysis)
 
         try {
@@ -239,7 +245,6 @@ class DiagnosisFragment : Fragment() {
 
     private fun prepareAbnormalResults(extractedMap: Map<String, Any>): List<String> {
         val abnormalResults = mutableListOf<String>()
-        // Te klucze MUSZĄ pozostać hardcoded, bo odnoszą się do kluczy w surowych danych JSON z parsera
         val metadataKeys = setOf("Data", "Właściciel", "Pacjent", "Gatunek", "Rasa",
             "Płeć", "Wiek", "Lecznica", "Lekarz", "Rodzaj próbki",
             "Umaszczenie", "Mikrochip", "results", "GammopathyResult")
@@ -309,8 +314,7 @@ class DiagnosisFragment : Fragment() {
             FileInputStream(file).use { fis ->
                 if (!ftpClient.storeFile(file.name, fis)) {
                     return@use false
-                }
-                true
+                } else true
             }
             return true
         } catch (ex: Exception) {
@@ -592,18 +596,19 @@ class DiagnosisFragment : Fragment() {
         }
         content.addView(title)
 
-        val profileTextId = when (analysis.primaryProfile) {
-            FipPatternAnalyzer.FipProfile.INFLAMMATORY_ACUTE -> R.string.profile_inflammatory_acute
-            FipPatternAnalyzer.FipProfile.INFLAMMATORY_CHRONIC -> R.string.profile_inflammatory_chronic
-            FipPatternAnalyzer.FipProfile.EFFUSIVE_CLASSIC -> R.string.profile_effusive_classic
-            FipPatternAnalyzer.FipProfile.DRY_NEUROLOGICAL -> R.string.profile_dry_neurological
-            FipPatternAnalyzer.FipProfile.MIXED_PATTERN -> R.string.profile_mixed
-            FipPatternAnalyzer.FipProfile.ATYPICAL -> R.string.profile_atypical
-            FipPatternAnalyzer.FipProfile.NON_FIP -> R.string.profile_non_fip
+        // Używamy opisów z FipPatternAnalyzer, które teraz są zlokalizowane
+        val primaryDesc = when (analysis.primaryProfile) {
+            FipPatternAnalyzer.FipProfile.INFLAMMATORY_ACUTE -> getString(R.string.profile_inflammatory_acute)
+            FipPatternAnalyzer.FipProfile.INFLAMMATORY_CHRONIC -> getString(R.string.profile_inflammatory_chronic)
+            FipPatternAnalyzer.FipProfile.EFFUSIVE_CLASSIC -> getString(R.string.profile_effusive_classic)
+            FipPatternAnalyzer.FipProfile.DRY_NEUROLOGICAL -> getString(R.string.profile_dry_neurological)
+            FipPatternAnalyzer.FipProfile.MIXED_PATTERN -> getString(R.string.profile_mixed)
+            FipPatternAnalyzer.FipProfile.ATYPICAL -> getString(R.string.profile_atypical)
+            FipPatternAnalyzer.FipProfile.NON_FIP -> getString(R.string.profile_non_fip)
         }
 
         val profile = TextView(requireContext()).apply {
-            text = getString(profileTextId)
+            text = primaryDesc
             textSize = 16f
             setTypeface(null, Typeface.BOLD)
             setPadding(0, 8, 0, 4)
