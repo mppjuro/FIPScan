@@ -237,24 +237,22 @@ object ElectrophoresisAnalyzer {
         // 9. Gammapatia
         val gammopathyPoints = pointsMap["++++"]!!
         maxScore += gammopathyPoints
-        // Pobieramy surowy wynik (np. "monoclonal")
         val gammopathyResult = labData["GammopathyResult"] as? String ?: ""
 
         Log.d("FIP_ANALYSIS", "Gammapathy internal result: $gammopathyResult")
 
-        // --- ZMODYFIKOWANO: Sprawdzanie stałych zamiast tłumaczeń ---
-        when (gammopathyResult) {
-            BarChartLevelAnalyzer.RESULT_POLYCLONAL -> {
+        // ZMIANA: Używamy 'when' bez argumentu i sprawdzamy 'contains',
+        // aby "monoclonal gammopathy" zostało poprawnie wykryte jako RESULT_MONOCLONAL ("monoclonal")
+        when {
+            gammopathyResult.contains(BarChartLevelAnalyzer.RESULT_POLYCLONAL, ignoreCase = true) -> {
                 totalScore += gammopathyPoints
-                // Tu nadal używamy R.string do wyświetlenia użytkownikowi w jego języku
                 breakdown.add(context.getString(R.string.breakdown_gamma_poly, gammopathyPoints))
             }
-            BarChartLevelAnalyzer.RESULT_MONOCLONAL -> {
+            gammopathyResult.contains(BarChartLevelAnalyzer.RESULT_MONOCLONAL, ignoreCase = true) -> {
                 totalScore += gammopathyPoints / 2
                 breakdown.add(context.getString(R.string.breakdown_gamma_mono, gammopathyPoints / 2))
             }
             else -> {
-                // Obejmuje RESULT_NONE oraz puste/nieznane wartości
                 breakdown.add(context.getString(R.string.breakdown_gamma_none))
             }
         }
