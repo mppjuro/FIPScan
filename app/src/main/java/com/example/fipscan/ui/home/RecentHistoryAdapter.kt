@@ -12,6 +12,7 @@ import com.example.fipscan.ResultEntity
 import com.example.fipscan.databinding.ItemRecentHistoryBinding
 import com.google.gson.Gson
 import kotlin.math.min
+import com.google.gson.reflect.TypeToken
 
 class RecentHistoryAdapter(
     private val results: List<ResultEntity>,
@@ -42,7 +43,8 @@ class RecentHistoryAdapter(
         var riskPercentage = 0
         try {
             result.rawDataJson?.let {
-                val extractedData = Gson().fromJson(it, Map::class.java) as? Map<String, Any>
+                val type = object : TypeToken<Map<String, Any>>() {}.type
+                val extractedData = Gson().fromJson<Map<String, Any>>(it, type)
                 if (extractedData != null) {
                     // Pobierz domyślną wartość z zasobów (pierwsza opcja w tablicy), aby zachować spójność z HomeFragment
                     val defaultRivalta = context.resources.getStringArray(R.array.rivalta_options)[0]

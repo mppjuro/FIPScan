@@ -16,6 +16,10 @@ object ElectrophoresisShapeAnalyzer {
     private const val PATTERN_NORMAL = "normal"
     private const val PATTERN_NONSPECIFIC = "nonspecific"
 
+    // Stałe punktacji dla lepszej czytelności i łatwiejszych modyfikacji
+    const val SHAPE_ANALYSIS_MAX_POINTS = 30
+    const val PATTERN_ANALYSIS_MAX_POINTS = 30
+
     data class PeakCharacteristics(
         val height: Float,
         val width: Float,
@@ -54,6 +58,11 @@ object ElectrophoresisShapeAnalyzer {
         }
 
         val sections = extractSectionProfiles(bitmap, redColumnIndices)
+        // Zakładamy, że mamy 4 sekcje: Albuminy, Alfa, Beta, Gamma
+        if (sections.size < 4) {
+            Log.e("ShapeAnalyzer", "Not enough sections extracted")
+            return null
+        }
         val albuminPeak = analyzePeak(sections[0])
         val alphaPeak = analyzePeak(sections[1])
         val betaPeak = analyzePeak(sections[2])
@@ -62,16 +71,16 @@ object ElectrophoresisShapeAnalyzer {
         val betaGammaBridge = analyzeBridge(sections[2], sections[3])
         val alphaBetaBridge = analyzeBridge(sections[1], sections[2])
 
-        // Wewnętrzny identyfikator wzorca (angielski)
-        val internalPattern = classifyPattern(albuminPeak, alphaPeak, betaPeak, gammaPeak, betaGammaBridge)
+        // Wewnętrzny identyfikator wzorca
+        val internalPattern = classifyPattern(albuminPeak, alphaPeak, gammaPeak, betaGammaBridge)
 
         val fipScore = calculateFIPShapeScore(
-            albuminPeak, alphaPeak, betaPeak, gammaPeak,
-            betaGammaBridge, alphaBetaBridge, internalPattern
+            albuminPeak, alphaPeak, gammaPeak,
+            betaGammaBridge, internalPattern
         )
 
         val description = generateShapeDescription(
-            albuminPeak, alphaPeak, betaPeak, gammaPeak,
+            albuminPeak, gammaPeak,
             betaGammaBridge, internalPattern, fipScore, context
         )
 
@@ -102,16 +111,23 @@ object ElectrophoresisShapeAnalyzer {
         val width = bitmap.width
         val sections = mutableListOf<List<Float>>()
 
+        // Zabezpieczenie przed wyjściem poza zakres bitmapy
+        val safeRedColumns = redColumns.map { it.coerceIn(0, width) }.sorted()
+
         val boundaries = listOf(
-            0 to redColumns[0],
-            redColumns[0] to redColumns[1],
-            redColumns[1] to redColumns[2],
-            redColumns[2] to width
+            0 to safeRedColumns[0],
+            safeRedColumns[0] to safeRedColumns[1],
+            safeRedColumns[1] to safeRedColumns[2],
+            safeRedColumns[2] to width
         )
 
         for ((start, end) in boundaries) {
             val profile = mutableListOf<Float>()
             val sectionWidth = end - start
+            if (sectionWidth <= 0) {
+                sections.add(emptyList())
+                continue
+            }
             val step = max(1, sectionWidth / 50)
 
             for (x in start until end step step) {
@@ -144,7 +160,8 @@ object ElectrophoresisShapeAnalyzer {
         while (leftIndex > 0 && profile[leftIndex] > halfHeight) leftIndex--
         while (rightIndex < profile.size - 1 && profile[rightIndex] > halfHeight) rightIndex++
 
-        val width = (rightIndex - leftIndex).toFloat() / profile.size
+        val widthPx = (rightIndex - leftIndex).coerceAtLeast(1)
+        val width = widthPx.toFloat() / profile.size.coerceAtLeast(1)
         val symmetry = calculateSymmetry(profile, maxIndex)
         val sharpness = if (width > 0) maxHeight / width else 0f
 
@@ -173,6 +190,7 @@ object ElectrophoresisShapeAnalyzer {
             val leftVal = leftSide[leftSide.size - 1 - i]
             val rightVal = rightSide[i]
             val diff = abs(leftVal - rightVal)
+            // Używamy coerceAtLeast, aby uniknąć dzielenia przez zero
             symmetrySum += 1f - (diff / max(leftVal, rightVal).coerceAtLeast(0.01f))
         }
 
@@ -184,8 +202,8 @@ object ElectrophoresisShapeAnalyzer {
             return BridgeCharacteristics(false, 0f, 0f)
         }
 
-        val leftEnd = leftSection.takeLast(10).average().toFloat()
-        val rightStart = rightSection.take(10).average().toFloat()
+        val leftEnd = leftSection.takeLast(min(10, leftSection.size)).average().toFloat()
+        val rightStart = rightSection.take(min(10, rightSection.size)).average().toFloat()
         val valleyDepth = min(leftEnd, rightStart)
 
         val leftMax = leftSection.maxOrNull() ?: 0f
@@ -197,9 +215,11 @@ object ElectrophoresisShapeAnalyzer {
 
         val bridgeWidth = if (bridgePresent) {
             val threshold = avgMax * 0.3f
-            val leftBridge = leftSection.count { it > threshold }.toFloat() / leftSection.size
-            val rightBridge = rightSection.count { it > threshold }.toFloat() / rightSection.size
-            (leftBridge + rightBridge) / 2
+            val leftBridgeCount = leftSection.count { it > threshold }
+            val rightBridgeCount = rightSection.count { it > threshold }
+            val leftRatio = if (leftSection.isNotEmpty()) leftBridgeCount.toFloat() / leftSection.size else 0f
+            val rightRatio = if (rightSection.isNotEmpty()) rightBridgeCount.toFloat() / rightSection.size else 0f
+            (leftRatio + rightRatio) / 2
         } else 0f
 
         return BridgeCharacteristics(
@@ -212,7 +232,7 @@ object ElectrophoresisShapeAnalyzer {
     private fun classifyPattern(
         albumin: PeakCharacteristics,
         alpha: PeakCharacteristics,
-        beta: PeakCharacteristics,
+        // beta removed as currently unused in simple classification
         gamma: PeakCharacteristics,
         betaGammaBridge: BridgeCharacteristics
     ): String {
@@ -234,10 +254,10 @@ object ElectrophoresisShapeAnalyzer {
     private fun calculateFIPShapeScore(
         albumin: PeakCharacteristics,
         alpha: PeakCharacteristics,
-        beta: PeakCharacteristics,
+        // beta removed
         gamma: PeakCharacteristics,
         betaGammaBridge: BridgeCharacteristics,
-        alphaBetaBridge: BridgeCharacteristics,
+        // alphaBetaBridge removed
         pattern: String
     ): Float {
         var score = 0f
@@ -248,7 +268,7 @@ object ElectrophoresisShapeAnalyzer {
             PATTERN_NORMAL -> score -= 20f
         }
 
-        val agRatio = if (gamma.height > 0) albumin.height / gamma.height else 999f
+        val agRatio = if (gamma.height > 0.01f) albumin.height / gamma.height else 999f
         when {
             agRatio < 0.6f -> score += 30f
             agRatio < 0.8f -> score += 20f
@@ -272,8 +292,7 @@ object ElectrophoresisShapeAnalyzer {
 
     private fun generateShapeDescription(
         albumin: PeakCharacteristics,
-        alpha: PeakCharacteristics,
-        beta: PeakCharacteristics,
+        // alpha, beta removed as unused in text generation
         gamma: PeakCharacteristics,
         betaGammaBridge: BridgeCharacteristics,
         pattern: String,
@@ -293,7 +312,7 @@ object ElectrophoresisShapeAnalyzer {
         }
 
         // Opis stosunku albumin/globulin
-        val agRatio = if (gamma.height > 0) albumin.height / gamma.height else 999f
+        val agRatio = if (gamma.height > 0.01f) albumin.height / gamma.height else 999f
         when {
             agRatio < 0.6f -> descriptions.add(context.getString(R.string.desc_ag_very_low))
             agRatio < 0.8f -> descriptions.add(context.getString(R.string.desc_ag_low))
@@ -325,6 +344,6 @@ object ElectrophoresisShapeAnalyzer {
         val r = Color.red(color)
         val g = Color.green(color)
         val b = Color.blue(color)
-        return r > 240 && g > 240 && b > 240
+        return r > 230 && g > 230 && b > 230
     }
 }

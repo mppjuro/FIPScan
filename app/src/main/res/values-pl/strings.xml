@@ -341,4 +341,5 @@
     <string name="wiek">Wiek:</string>
     <string name="data_nieznana">Data nieznana</string>
     <string name="diagnoza">Diagnoza</string>
+    <string name="pdf_gammopathy_label">Gammapatia:</string>
 </resources>
