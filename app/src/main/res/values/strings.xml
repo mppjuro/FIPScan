@@ -341,4 +341,6 @@
     <string name="data_nieznana">Unknown date</string>
     <string name="diagnoza">Diagnosis</string>
     <string name="pdf_gammopathy_label">Gammopathy:</string>
+    <string name="action_download_diagnosis">Download Diagnosis</string>
+    <string name="action_print_diagnosis">Print Diagnosis</string>
 </resources>

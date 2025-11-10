@@ -342,4 +342,6 @@
     <string name="data_nieznana">Date inconnue</string>
     <string name="diagnoza">Diagnostic</string>
     <string name="pdf_gammopathy_label">Gammopathie:</string>
+    <string name="action_download_diagnosis">Télécharger le diagnostic</string>
+    <string name="action_print_diagnosis">Imprimer le diagnostic</string>
 </resources>

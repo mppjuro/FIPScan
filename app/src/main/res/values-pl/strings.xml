@@ -342,4 +342,6 @@
     <string name="data_nieznana">Data nieznana</string>
     <string name="diagnoza">Diagnoza</string>
     <string name="pdf_gammopathy_label">Gammapatia:</string>
+    <string name="action_download_diagnosis">Pobierz Diagnozę</string>
+    <string name="action_print_diagnosis">Drukuj Diagnozę</string>
 </resources>
