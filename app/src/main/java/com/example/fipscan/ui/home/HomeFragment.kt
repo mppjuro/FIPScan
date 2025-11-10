@@ -264,8 +264,7 @@ class HomeFragment : Fragment() {
                             extractionResult.barSections?.let { sections ->
                                 viewModel.diagnosisText = BarChartLevelAnalyzer.analyzeGammapathy(
                                     sections.section1,
-                                    sections.section4,
-                                    requireContext()
+                                    sections.section4
                                 )
                                 Log.d("GAMMOPATHY", "Wynik analizy gammapatii: ${viewModel.diagnosisText}")
                             } ?: run {
@@ -389,7 +388,8 @@ class HomeFragment : Fragment() {
         activity?.runOnUiThread {
             showResultsState()
 
-            val patientInfo = getString(R.string.patient_info_full,
+            val patientInfo = getString(
+                R.string.patient_info_full,
                 viewModel.collectionDate,
                 viewModel.patientName,
                 viewModel.patientSpecies,
@@ -410,9 +410,18 @@ class HomeFragment : Fragment() {
 
             binding.buttonSaveOriginal.setOnClickListener {
                 pdfFile?.absolutePath?.let { filePath ->
-                    val fileName = "${viewModel.patientName}_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}"
+                    val fileName = "${viewModel.patientName}_${
+                        SimpleDateFormat(
+                            "yyyyMMdd_HHmmss",
+                            Locale.getDefault()
+                        ).format(Date())
+                    }"
                     savePdfToDownloadsUsingMediaStore(filePath, fileName)
-                } ?: Toast.makeText(requireContext(), getString(R.string.toast_no_pdf), Toast.LENGTH_SHORT).show()
+                } ?: Toast.makeText(
+                    requireContext(),
+                    getString(R.string.toast_no_pdf),
+                    Toast.LENGTH_SHORT
+                ).show()
             }
 
             binding.resultsTextView.text = patientInfo + resultsText
@@ -437,7 +446,6 @@ class HomeFragment : Fragment() {
             )
             sharedViewModel.setSelectedResult(tempResult)
         }
-
         displayImage(chartImagePath)
         saveCurrentResult()
     }
