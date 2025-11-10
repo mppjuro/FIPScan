@@ -17,6 +17,7 @@ import com.example.fipscan.ExtractData
 import com.google.gson.Gson
 import androidx.fragment.app.activityViewModels
 import com.example.fipscan.SharedResultViewModel
+import com.google.gson.reflect.TypeToken
 
 class HistoryFragment : Fragment() {
     private val sharedViewModel: SharedResultViewModel by activityViewModels()
@@ -37,7 +38,8 @@ class HistoryFragment : Fragment() {
                 binding.recyclerView.adapter = HistoryAdapter(results) { result ->
 
                     result.rawDataJson?.let { json ->
-                        val map = Gson().fromJson(json, Map::class.java) as? Map<String, Any>
+                        val type = object : TypeToken<Map<String, Any>>() {}.type
+                        val map = Gson().fromJson<Map<String, Any>>(json, type)
                         if (map != null) {
                             ExtractData.lastExtracted = map
                         }

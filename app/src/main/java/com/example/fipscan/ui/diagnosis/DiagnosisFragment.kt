@@ -50,6 +50,7 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import java.util.Properties
+import com.google.gson.reflect.TypeToken
 
 class DiagnosisFragment : Fragment() {
     private var _binding: FragmentDiagnosisBinding? = null
@@ -148,7 +149,8 @@ class DiagnosisFragment : Fragment() {
 
         val extractedMap = currentResult.rawDataJson?.let {
             try {
-                Gson().fromJson(it, Map::class.java) as? Map<String, Any> ?: emptyMap()
+                val type = object : TypeToken<Map<String, Any>>() {}.type
+                Gson().fromJson<Map<String, Any>>(it, type) ?: emptyMap()
             } catch (e: Exception) {
                 Log.e("DiagnosisFragment", "Error parsing JSON", e)
                 emptyMap()

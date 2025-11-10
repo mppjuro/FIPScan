@@ -52,6 +52,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.Properties
 import kotlin.math.min
+import com.google.gson.reflect.TypeToken
 
 class HomeFragment : Fragment() {
     private val sharedViewModel: SharedResultViewModel by activityViewModels()
@@ -188,7 +189,8 @@ class HomeFragment : Fragment() {
             withContext(Dispatchers.Main) {
                 recentHistoryAdapter = RecentHistoryAdapter(recentResults) { result ->
                     result.rawDataJson?.let { json ->
-                        val map = Gson().fromJson(json, Map::class.java) as? Map<String, Any>
+                        val type = object : TypeToken<Map<String, Any>>() {}.type
+                        val map = Gson().fromJson<Map<String, Any>>(json, type)
                         if (map != null) {
                             ExtractData.lastExtracted = map
                         }
@@ -461,7 +463,7 @@ class HomeFragment : Fragment() {
                 for (table in tables) {
                     for (row in table.rows) {
                         val rowData = row.map {
-                            (it as? technology.tabula.RectangularTextContainer<*>)?.text?.replace("\r", " ")?.trim() ?: ""
+                            (it as technology.tabula.RectangularTextContainer<*>).text?.replace("\r", " ")?.trim() ?: ""
                         }.filter { it.isNotBlank() }
                         if (rowData.isNotEmpty()) {
                             outputData.add(rowData)
@@ -710,8 +712,8 @@ class HomeFragment : Fragment() {
                 binding.rivaltaSpinner.setSelection(position)
             }
 
-            val extractedData = Gson().fromJson(result.rawDataJson, Map::class.java) as? Map<String, Any>
-                ?: emptyMap()
+            val type = object : TypeToken<Map<String, Any>>() {}.type
+            val extractedData = Gson().fromJson<Map<String, Any>>(result.rawDataJson, type) ?: emptyMap()
 
             val electroResult = ElectrophoresisAnalyzer.assessFipRisk(
                 extractedData,
@@ -730,7 +732,8 @@ class HomeFragment : Fragment() {
     private fun recalculateRiskAndUpdateUI() {
         val rawDataJson = viewModel.rawDataJson
         if (rawDataJson != null) {
-            val extractedData = Gson().fromJson(rawDataJson, Map::class.java) as? MutableMap<String, Any>
+            val type = object : TypeToken<MutableMap<String, Any>>() {}.type
+            val extractedData = Gson().fromJson<MutableMap<String, Any>>(rawDataJson, type)
             if (extractedData != null) {
                 extractedData["GammopathyResult"] = viewModel.diagnosisText ?: getString(R.string.no_data)
                 val electroResult = ElectrophoresisAnalyzer.assessFipRisk(

@@ -87,7 +87,8 @@ object ExtractData {
                                 val value = matcher.group(2)?.trim()?.replace(',', '.') ?: "-"
                                 val rangeStr = matcher.group(3)?.trim() ?: "-"
                                 val rangeParts = rangeStr.split("-").map { it.trim().replace(",", ".") }
-                                val minRange = rangeParts.getOrNull(0) ?: "-"
+                                // FIX: split zawsze zwraca co najmniej jeden element, więc getOrNull(0) nie zwróci null, jeśli rangeParts nie jest puste (a nie jest).
+                                val minRange = rangeParts[0]
                                 val maxRange = rangeParts.getOrNull(1) ?: "-"
                                 val unit = ""
 
@@ -99,14 +100,13 @@ object ExtractData {
                                 results.add("$name: $value (norma $minRange - $maxRange)")
                             }
                             1 -> {
-                                val name = lastTestName ?: "Wynik Nienazwany" // Użyj poprzedniej linii jako nazwy
+                                val name = lastTestName ?: "Wynik Nienazwany"
                                 val value = matcher.group(1)?.trim()?.replace(',', '.') ?: "-"
                                 var unit = matcher.group(2)?.trim() ?: ""
                                 val rangeStr = matcher.group(3)?.trim() ?: "-"
-                                // Oczyszczenie jednostki z opcjonalnych części w nawiasach (proste)
                                 unit = unit.replace(Regex("\\s*\\([^)]*\\)"), "").trim()
                                 val rangeParts = rangeStr.split("-").map { it.trim().replace(",", ".") }
-                                val minRange = rangeParts.getOrNull(0) ?: "-"
+                                val minRange = rangeParts[0]
                                 val maxRange = rangeParts.getOrNull(1) ?: "-"
 
                                 extractedData[name] = value
@@ -124,7 +124,7 @@ object ExtractData {
                                 val flag = matcher.group(5)?.trim() ?: ""
                                 unit = unit.replace(Regex("\\s*\\([^)]*\\)"), "").trim()
                                 val rangeParts = rangeStr.split("-").map { it.trim().replace(",", ".") }
-                                val minRange = rangeParts.getOrNull(0) ?: "-"
+                                val minRange = rangeParts[0]
                                 val maxRange = rangeParts.getOrNull(1) ?: "-"
 
                                 extractedData[name] = value
@@ -181,9 +181,10 @@ object ExtractData {
                             }
 
                             val value = valuePart.replace(',', '.')
-                            unit = unit.replace(Regex("""\([^)]*\)"""), "").trim() // Usuń nawiasy z jednostki
+                            unit = unit.replace(Regex("""\([^)]*\)"""), "").trim()
                             val rangeParts = rangeStr.split("-").map { it.trim().replace(",", ".") }
-                            val minRange = rangeParts.getOrNull(0)?.replace(Regex("[<>]"), "") ?: "-" // Usuń < > z zakresu
+                            // FIX: split zawsze zwraca listę, element 0 jest bezpieczny.
+                            val minRange = rangeParts[0].replace(Regex("[<>]"), "")
                             val maxRange = rangeParts.getOrNull(1)?.replace(Regex("[<>]"), "") ?: "-"
 
                             if (!resolvedName.equals("Badanie", ignoreCase = true) && !resolvedName.contains("Norma") && !resolvedName.contains("Jedn.")) {
@@ -193,7 +194,7 @@ object ExtractData {
                                 extractedData["${resolvedName}RangeMax"] = maxRange
                                 Log.d("DATA", "(Fallback) $resolvedName: $value ($minRange - $maxRange) $unit")
                                 results.add("$resolvedName: $value (norma $minRange - $maxRange) $unit")
-                                lastTestName = null // Resetuj nazwę po użyciu/przetworzeniu
+                                lastTestName = null
                             } else {
                                 Log.d("ExtractData", "(Fallback) Ignorowanie linii nagłówka/niesparowanej: $line")
                             }
@@ -239,7 +240,7 @@ object ExtractData {
                 }
 
                 val value = remainingText.substring(valueStartIndex, valueEndIndex).trim()
-                val cleanKey = key.removeSuffix(":").trim() // Klucz bez dwukropka
+                val cleanKey = key.removeSuffix(":").trim()
 
                 if (value.isNotEmpty() && !data.containsKey(cleanKey)) {
                     data[cleanKey] = value
