@@ -157,7 +157,7 @@ object ExtractData {
                         val (namePart, valuePart) = parseParameterName(parts[0])
 
                         val resolvedName = if (namePart.equals("Wynik", ignoreCase = true) && lastTestName != null) {
-                            lastTestName ?: "Wynik Nienazwany"
+                            lastTestName
                         } else {
                             namePart
                         }

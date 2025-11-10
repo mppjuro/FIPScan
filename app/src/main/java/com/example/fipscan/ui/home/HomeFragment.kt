@@ -339,13 +339,7 @@ class HomeFragment : Fragment() {
 
         extractedData["GammopathyResult"] = viewModel.diagnosisText ?: getString(R.string.no_data)
 
-        // ElectrophoresisAnalyzer używa wewnętrznie hardcodowanych stringów do analizy (np. nazw parametrów z PDF).
-        // Zakładamy, że PDFy są zawsze w tym samym języku (polskim), więc klucze "Data", "Pacjent" itp. zostają.
-        val electroResult = ElectrophoresisAnalyzer.assessFipRisk(
-            extractedData,
-            rivaltaStatus,
-            requireContext()
-        )
+        ElectrophoresisAnalyzer.assessFipRisk(extractedData,rivaltaStatus,requireContext())
 
         viewModel.collectionDate = extractedData["Data"] as? String ?: getString(R.string.default_no_date)
         viewModel.patientName = extractedData["Pacjent"] as? String ?: getString(R.string.default_unknown)

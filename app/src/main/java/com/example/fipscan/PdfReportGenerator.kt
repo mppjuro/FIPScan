@@ -70,7 +70,6 @@ class PdfReportGenerator(private val context: Context) {
                 PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
             )
             canvas = currentPage.canvas
-            yPosition = margin
 
             drawHeader(canvas, patientName)
             yPosition = 120f
@@ -110,7 +109,7 @@ class PdfReportGenerator(private val context: Context) {
                 drawFooter(canvas, pageNumber)
             }
 
-            yPosition = drawScoreBreakdown(canvas, yPosition, scoreBreakdown, pdfDocument, pageNumber)
+            yPosition = drawScoreBreakdown(canvas, yPosition, scoreBreakdown)
 
             if (yPosition > pageHeight - bottomMargin - 250) {
                 pdfDocument.finishPage(currentPage)
@@ -388,13 +387,10 @@ class PdfReportGenerator(private val context: Context) {
     }
 
     private fun drawScoreBreakdown(
-        canvas: Canvas, startY: Float, breakdown: List<String>,
-        pdfDocument: PdfDocument, currentPageNum: Int
+        canvas: Canvas, startY: Float, breakdown: List<String>
     ): Float {
         var y = startY
-        var pageNumber = currentPageNum
         var currentCanvas = canvas
-        var currentPage: PdfDocument.Page? = null
 
         val sectionPaint = TextPaint().apply {
             color = primaryColor
