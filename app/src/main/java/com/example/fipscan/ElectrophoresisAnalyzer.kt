@@ -239,21 +239,19 @@ object ElectrophoresisAnalyzer {
         maxScore += gammopathyPoints
         val gammopathyResult = labData["GammopathyResult"] as? String ?: ""
 
-        Log.d("FIP_ANALYSIS", "Gammapathy result: $gammopathyResult")
+        Log.d("FIP_ANALYSIS", "Gammapathy internal result: $gammopathyResult")
 
-        val polyStr = context.getString(R.string.gammopathy_polyclonal)
-        val monoStr = context.getString(R.string.gammopathy_monoclonal)
-
-        when {
-            gammopathyResult.contains(polyStr, ignoreCase = true) || gammopathyResult.contains("poliklonalna", ignoreCase = true) -> {
+        when (gammopathyResult) {
+            BarChartLevelAnalyzer.RESULT_POLYCLONAL -> {
                 totalScore += gammopathyPoints
                 breakdown.add(context.getString(R.string.breakdown_gamma_poly, gammopathyPoints))
             }
-            gammopathyResult.contains(monoStr, ignoreCase = true) || gammopathyResult.contains("monoklonalna", ignoreCase = true) -> {
+            BarChartLevelAnalyzer.RESULT_MONOCLONAL -> {
                 totalScore += gammopathyPoints / 2
                 breakdown.add(context.getString(R.string.breakdown_gamma_mono, gammopathyPoints / 2))
             }
             else -> {
+                // RESULT_NONE lub brak danych
                 breakdown.add(context.getString(R.string.breakdown_gamma_none))
             }
         }

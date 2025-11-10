@@ -25,11 +25,11 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.cardview.widget.CardView
-import androidx.collection.emptyLongSet
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
+import com.example.fipscan.BarChartLevelAnalyzer
 import com.example.fipscan.ElectrophoresisAnalyzer
 import com.example.fipscan.ElectrophoresisShapeAnalyzer
 import com.example.fipscan.FipPatternAnalyzer
@@ -707,6 +707,15 @@ class DiagnosisFragment : Fragment() {
                 android.R.attr.colorBackgroundFloating -> Color.parseColor("#F8F8F8")
                 else -> Color.BLACK
             }
+        }
+    }
+
+    fun getLocalizedGammopathyResult(context: Context, internalResult: String?): String {
+        return when (internalResult) {
+            BarChartLevelAnalyzer.RESULT_MONOCLONAL -> context.getString(R.string.gammopathy_monoclonal)
+            BarChartLevelAnalyzer.RESULT_POLYCLONAL -> context.getString(R.string.gammopathy_polyclonal)
+            BarChartLevelAnalyzer.RESULT_NONE -> context.getString(R.string.gammopathy_none)
+            else -> context.getString(R.string.gammopathy_none)
         }
     }
 

@@ -9,7 +9,9 @@ import kotlin.math.min
 import kotlin.math.abs
 
 object BarChartLevelAnalyzer {
-
+    const val RESULT_NONE = "none"
+    const val RESULT_MONOCLONAL = "monoclonal"
+    const val RESULT_POLYCLONAL = "polyclonal"
     data class AnalysisResult(
         val barHeights: List<Double>,
         val imageWidth: Int,
@@ -84,15 +86,14 @@ object BarChartLevelAnalyzer {
         return r > 200 && g < 100 && b < 100
     }
 
-    // Dodano parametr context: Context
-    fun analyzeGammapathy(section1: List<Float>, section4: List<Float>, context: Context): String {
+    fun analyzeGammapathy(section1: List<Float>, section4: List<Float>): String {
         val sum1 = section1.sum()
         val sum4 = section4.sum()
         val ratioThreshold = sum1 * 9f / 7f
 
         if (sum4 <= ratioThreshold) {
             Log.d("GAMMOPATHY_ANALYSIS", "Suma gamma ($sum4) <= próg ($ratioThreshold) - brak gammapatii")
-            return context.getString(R.string.gammopathy_none)
+            return RESULT_NONE
         }
 
         // Sprawdź, czy jest ostry pik (monoklonalna)
@@ -106,7 +107,7 @@ object BarChartLevelAnalyzer {
 
             if (leftDiff > 2f && rightDiff > 2f) {
                 Log.d("GAMMOPATHY_ANALYSIS", "Wykryto ostry pik - gammapatia monoklonalna")
-                return context.getString(R.string.gammopathy_monoclonal)
+                return RESULT_MONOCLONAL
             }
 
             // Sprawdź sąsiednie pary
@@ -120,14 +121,13 @@ object BarChartLevelAnalyzer {
 
                 if (avgSurrounding > 0f && peakAvg > avgSurrounding * 2f) {
                     Log.d("GAMMOPATHY_ANALYSIS", "Wykryto lokalny pik - gammapatia monoklonalna")
-                    return context.getString(R.string.gammopathy_monoclonal)
+                    return RESULT_MONOCLONAL
                 }
             }
         }
-
         // Jeśli nie ma ostrych pików, ale jest szerokie podniesienie – poliklonalna
         Log.d("GAMMOPATHY_ANALYSIS", "Szerokie podniesienie bez ostrych pików - gammapatia poliklonalna")
-        return context.getString(R.string.gammopathy_polyclonal)
+        return RESULT_POLYCLONAL
     }
 
 }
