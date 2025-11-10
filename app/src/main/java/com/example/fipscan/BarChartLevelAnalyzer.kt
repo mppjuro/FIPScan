@@ -125,9 +125,9 @@ object BarChartLevelAnalyzer {
                 }
             }
         }
+
         // Jeśli nie ma ostrych pików, ale jest szerokie podniesienie – poliklonalna
         Log.d("GAMMOPATHY_ANALYSIS", "Szerokie podniesienie bez ostrych pików - gammapatia poliklonalna")
         return RESULT_POLYCLONAL
     }
-
 }
