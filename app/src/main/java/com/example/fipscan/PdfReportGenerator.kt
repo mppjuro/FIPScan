@@ -52,17 +52,15 @@ class PdfReportGenerator(private val context: Context) {
         abnormalResults: List<String>,
         gammopathyResult: String?,
         shapeAnalysis: ElectrophoresisShapeAnalyzer.ShapeAnalysisResult? = null,
-        // NOWE POLA
         gammaAnalysisDetails: ElectrophoresisShapeAnalyzer.GammaAnalysisResult? = null,
         aucMetrics: Map<String, Double>? = null,
-        // KONIEC NOWYCH PÓL
+        widthRatios: ElectrophoresisShapeAnalyzer.WidthRatioAnalysis? = null, // <-- DODANY PARAMETR
         patternAnalysis: FipPatternAnalyzer.PatternAnalysisResult? = null,
         shapeAnalysisPoints: Int = 0,
         patternAnalysisPoints: Int = 0,
         maxShapePoints: Int = 30,
         maxPatternPoints: Int = 30
     ): Pair<String?, String?> {
-
         val pdfDocument = PdfDocument()
         var currentPage: PdfDocument.Page?
         var canvas: Canvas
@@ -103,8 +101,8 @@ class PdfReportGenerator(private val context: Context) {
             }
 
             // SEKCJA DLA AUC I WARIANCJI
-            if (gammaAnalysisDetails != null || aucMetrics != null) {
-                if (yPosition > pageHeight - bottomMargin - 150) { // Sprawdzenie miejsca
+            if (gammaAnalysisDetails != null || aucMetrics != null || widthRatios != null) { // <-- ZMODYFIKOWANY WARUNEK
+                if (yPosition > pageHeight - bottomMargin - 200) { // Zwiększono margines sprawdzania miejsca
                     drawFooter(canvas, pageNumber) // Dodajemy stopkę przed zamknięciem
                     pdfDocument.finishPage(currentPage)
                     pageNumber++
@@ -116,7 +114,9 @@ class PdfReportGenerator(private val context: Context) {
                 }
                 yPosition = drawAdvancedAnalysisSection(
                     canvas, yPosition,
-                    gammaAnalysisDetails, aucMetrics
+                    gammaAnalysisDetails,
+                    aucMetrics,
+                    widthRatios
                 )
             }
 
@@ -502,11 +502,11 @@ class PdfReportGenerator(private val context: Context) {
         return y + consultationLayout.height + 30f
     }
 
-    // --- FUNKCJA ZAKTUALIZOWANA O STRINGI ---
     private fun drawAdvancedAnalysisSection(
         canvas: Canvas, startY: Float,
         gammaAnalysis: ElectrophoresisShapeAnalyzer.GammaAnalysisResult?,
-        aucMetrics: Map<String, Double>?
+        aucMetrics: Map<String, Double>?,
+        widthRatios: ElectrophoresisShapeAnalyzer.WidthRatioAnalysis? // <-- DODANY PARAMETR
     ): Float {
         var y = startY
         val sectionPaint = TextPaint().apply {
@@ -515,7 +515,6 @@ class PdfReportGenerator(private val context: Context) {
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-        // 1. Użycie stringa tytułu
         val title = context.getString(R.string.pdf_advanced_chart_analysis_title)
         canvas.drawText(title, margin, y, sectionPaint)
         y += 30f
@@ -529,9 +528,11 @@ class PdfReportGenerator(private val context: Context) {
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
 
-        // 2. Rysowanie wszystkich danych analizy piku Gamma (Używa stringów)
+        // 1. Rysowanie wszystkich danych analizy piku Gamma (Używa stringów)
         if (gammaAnalysis != null && gammaAnalysis.totalMass > 0) {
+            // ... (istniejący kod rysowania variance, stdDev, meanIndex, peakHeight) ...
 
+            // Dodano stringi, ale kod jest ten sam
             val varianceLabel = context.getString(R.string.pdf_gamma_peak_variance)
             val varianceValue = String.format(Locale.getDefault(), "%.2f", gammaAnalysis.variance)
             canvas.drawText("$varianceLabel $varianceValue", margin + 10f, y, detailsPaint)
@@ -550,22 +551,56 @@ class PdfReportGenerator(private val context: Context) {
             val peakHeightLabel = context.getString(R.string.pdf_gamma_peak_height)
             val peakHeightValue = "${gammaAnalysis.peakHeight}"
             canvas.drawText("$peakHeightLabel $peakHeightValue", margin + 10f, y, detailsPaint)
+
             y += 20f // Dodatkowy odstęp
         }
 
-        // 3. Rysowanie danych AUC z tłumaczeniem (Używa stringów)
+        // 2. Rysowanie danych AUC z tłumaczeniem (Używa stringów)
         if (aucMetrics != null && aucMetrics.isNotEmpty()) {
-            canvas.drawText(context.getString(R.string.pdf_calculated_fractions_title), margin, y, boldDetailsPaint)
+            canvas.drawText(
+                context.getString(R.string.pdf_calculated_fractions_title),
+                margin,
+                y,
+                boldDetailsPaint
+            )
             y += 18f
 
             aucMetrics.forEach { (fractionKey, percentage) ->
                 if (fractionKey != "TotalAUC_Pixels") {
                     val translatedName = getTranslatedFractionName(fractionKey)
-                    val formattedLine = "$translatedName: ${String.format(Locale.getDefault(), "%.1f", percentage)} %"
+                    val formattedLine = "$translatedName: ${
+                        String.format(
+                            Locale.getDefault(),
+                            "%.1f",
+                            percentage
+                        )
+                    } %"
                     canvas.drawText(formattedLine, margin + 20f, y, detailsPaint)
                     y += 15f
                 }
             }
+        }
+
+        // --- POCZĄTEK MODYFIKACJI ---
+        // 3. Rysowanie proporcji szerokości
+        if (widthRatios != null) {
+            canvas.drawText(context.getString(R.string.pdf_width_ratios_title), margin, y, boldDetailsPaint)
+            y += 18f
+
+            val locale = Locale.getDefault()
+            val val70b = String.format(locale, "%.1f", widthRatios.gamma70ToBeta)
+            val val50b = String.format(locale, "%.1f", widthRatios.gamma50ToBeta)
+            val val30b = String.format(locale, "%.1f", widthRatios.gamma30ToBeta)
+            val val7030 = String.format(locale, "%.1f", widthRatios.gamma70ToGamma30)
+
+            canvas.drawText(context.getString(R.string.pdf_ratio_g70_beta, val70b), margin + 20f, y, detailsPaint)
+            y += 15f
+            canvas.drawText(context.getString(R.string.pdf_ratio_g50_beta, val50b), margin + 20f, y, detailsPaint)
+            y += 15f
+            canvas.drawText(context.getString(R.string.pdf_ratio_g30_beta, val30b), margin + 20f, y, detailsPaint)
+            y += 15f
+            canvas.drawText(context.getString(R.string.pdf_ratio_g70_g30, val7030), margin + 20f, y, detailsPaint)
+            y += 15f
         }
         return y + 20f
     }
@@ -620,7 +655,6 @@ class PdfReportGenerator(private val context: Context) {
         }
     }
 
-    // --- ZAKTUALIZOWANA FUNKCJA ---
     private fun drawShapeAnalysisSection(canvas: Canvas, startY: Float, analysis: ElectrophoresisShapeAnalyzer.ShapeAnalysisResult, points: Int, maxPoints: Int): Float {
         var y = startY
         val sectionPaint = TextPaint().apply { color = primaryColor; textSize = 16f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); isAntiAlias = true }
@@ -642,20 +676,33 @@ class PdfReportGenerator(private val context: Context) {
         val detailsPaint = TextPaint().apply { color = Color.BLACK; textSize = 12f; isAntiAlias = true }
         val bridgeStatus = if (analysis.betaGammaBridge.present) context.getString(R.string.pdf_bridge_present) else context.getString(R.string.pdf_bridge_absent)
 
-        // ZMIANA TUTAJ: Użycie .width50 zamiast .width
+
+        // --- POCZĄTEK POPRAWKI BŁĘDU (naprawa width50) ---
+        // Obliczamy procentową szerokość gamma (FWHM) względem jej zakresu
+        val gammaWidthPx50 = analysis.gamma.widthPxMap[50]?.toFloat() ?: 0f
+        // Zabezpieczenie przed dzieleniem przez zero, jeśli zakres ma 0px
+        val gammaRangeSize = analysis.gamma.rangeSize.toFloat().coerceAtLeast(1f)
+        val gammaWidth50Percent = (gammaWidthPx50 / gammaRangeSize) * 100f
+
+        // Zabezpieczenie przed dzieleniem przez zero dla A/G Ratio
+        val agRatioValue = if (analysis.gamma.height > 0.01f) {
+            analysis.albumin.height / analysis.gamma.height
+        } else {
+            0.0f // Zwracamy 0.0 lub inną domyślną wartość, gdy gamma = 0
+        }
+
         val details = buildString {
             append(context.getString(R.string.pdf_shape_pattern, analysis.overallPattern)).append("\n")
-            append(context.getString(R.string.pdf_shape_ag_ratio, String.format(Locale.getDefault(), "%.2f", analysis.albumin.height / analysis.gamma.height))).append("\n")
-            append(context.getString(R.string.pdf_shape_gamma_width, (analysis.gamma.width50 * 100).toInt())).append("\n") // <-- ZMIANA
+            append(context.getString(R.string.pdf_shape_ag_ratio, String.format(Locale.getDefault(), "%.2f", agRatioValue))).append("\n")
+            append(context.getString(R.string.pdf_shape_gamma_width, gammaWidth50Percent.toInt())).append("\n") // <-- ZASTOSOWANIE POPRAWKI
             append(context.getString(R.string.pdf_shape_bridge, bridgeStatus))
         }
-        // --- KONIEC ZMIANY ---
 
         val detailsLayout = StaticLayout.Builder.obtain(details, 0, details.length, detailsPaint, contentWidth.toInt()).build()
         canvas.save(); canvas.translate(margin, y); detailsLayout.draw(canvas); canvas.restore()
         return y + detailsLayout.height + 30f
     }
-    // --- KONIEC ZAKTUALIZOWANEJ FUNKCJI ---
+
 
     private fun drawPatternAnalysisSection(canvas: Canvas, startY: Float, analysis: FipPatternAnalyzer.PatternAnalysisResult, points: Int, maxPoints: Int): Float {
         var y = startY
