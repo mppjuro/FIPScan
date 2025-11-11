@@ -6,7 +6,6 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
@@ -18,7 +17,6 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresApi
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
@@ -36,6 +34,7 @@ import com.example.fipscan.SharedResultViewModel
 import com.example.fipscan.databinding.FragmentHomeBinding
 import com.example.fipscan.ui.history.HistoryFragmentDirections
 import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import kotlinx.coroutines.Dispatchers
@@ -52,7 +51,6 @@ import java.util.Date
 import java.util.Locale
 import java.util.Properties
 import kotlin.math.min
-import com.google.gson.reflect.TypeToken
 
 class HomeFragment : Fragment() {
     private val sharedViewModel: SharedResultViewModel by activityViewModels()
@@ -115,11 +113,9 @@ class HomeFragment : Fragment() {
 
                 sharedViewModel.setSelectedResult(result)
 
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    showResultsState()
-                    displayExistingResult(result)
-                    dataRestored = true
-                }
+                showResultsState()
+                displayExistingResult(result)
+                dataRestored = true
             }
         }
 
@@ -359,12 +355,11 @@ class HomeFragment : Fragment() {
                 continue
             }
 
-            val testName = key
-            val value = extractedData[testName] as? String ?: continue
-            val unit = extractedData["${testName}Unit"] as? String ?: ""
+            val value = extractedData[key] as? String ?: continue
+            val unit = extractedData["${key}Unit"] as? String ?: ""
 
-            val minRangeStr = extractedData["${testName}RangeMin"] as? String
-            val maxRangeStr = extractedData["${testName}RangeMax"] as? String
+            val minRangeStr = extractedData["${key}RangeMin"] as? String
+            val maxRangeStr = extractedData["${key}RangeMax"] as? String
 
             if (minRangeStr == null && maxRangeStr == null) {
                 continue
@@ -373,7 +368,8 @@ class HomeFragment : Fragment() {
             val maxRange = maxRangeStr ?: minRange
 
             if (isOutOfRange(value, minRange, maxRange)) {
-                abnormalResults.add(getString(R.string.abnormal_result_format, testName, value, unit, minRange, maxRange))
+                abnormalResults.add(getString(R.string.abnormal_result_format,
+                    key, value, unit, minRange, maxRange))
             }
         }
 
@@ -524,7 +520,7 @@ class HomeFragment : Fragment() {
                     if (loggedIn) ftpClient.logout()
                     ftpClient.disconnect()
                 }
-            } catch (ioe: IOException) { }
+            } catch (_: IOException) { }
         }
     }
 
@@ -560,7 +556,7 @@ class HomeFragment : Fragment() {
             if (minVal != null && v < minVal) return true
             if (maxVal != null && v > maxVal) return true
             return false
-        } catch (e: Exception) { return false }
+        } catch (_: Exception) { return false }
     }
 
     private fun saveResultToDatabase(
@@ -573,8 +569,8 @@ class HomeFragment : Fragment() {
         val db = AppDatabase.getDatabase(currentContext)
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                var r = db.resultDao().getResultByNameAge(patient, age)
-                var result = ResultEntity(
+                val r = db.resultDao().getResultByNameAge(patient, age)
+                val result = ResultEntity(
                     patientName = patient,
                     age = age,
                     testResults = if (results.isNullOrEmpty()) r.testResults else results,
@@ -615,20 +611,15 @@ class HomeFragment : Fragment() {
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, "$fileName.pdf")
                 put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                }
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
             }
             val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
                 ?: throw Exception("Cannot create file in MediaStore")
             resolver.openOutputStream(uri)?.use { output ->
                 FileInputStream(sourceFile).use { input -> input.copyTo(output) }
             }
-            val pathHint = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val pathHint =
                 "${Environment.DIRECTORY_DOWNLOADS}/$fileName.pdf"
-            } else {
-                getString(R.string.downloads_folder_name)
-            }
             Toast.makeText(currentContext, getString(R.string.toast_pdf_saved, pathHint), Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
             Toast.makeText(currentContext, getString(R.string.error_pdf_save_generic, e.message), Toast.LENGTH_SHORT).show()
@@ -657,7 +648,6 @@ class HomeFragment : Fragment() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.Q)
     private fun displayExistingResult(result: ResultEntity) {
         showResultsState()
         _binding?.let { binding ->

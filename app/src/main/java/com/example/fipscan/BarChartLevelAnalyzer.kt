@@ -1,12 +1,12 @@
 package com.example.fipscan
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
 import android.util.Log
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.abs
+import androidx.core.graphics.get
 
 object BarChartLevelAnalyzer {
     const val RESULT_NONE = "none"
@@ -32,7 +32,7 @@ object BarChartLevelAnalyzer {
 
             for (x in xStart until xEnd) {
                 for (y in 0 until height) {
-                    val color = bitmap.getPixel(x, y)
+                    val color = bitmap[x, y]
                     if (isBarPixel(color)) {
                         totalBarPixels++
                     }
@@ -47,7 +47,7 @@ object BarChartLevelAnalyzer {
         }
 
         val redPixelCounts = IntArray(origBitmap.width) { x ->
-            (0 until origBitmap.height).count { y -> isRedPixel(origBitmap.getPixel(x, y)) }
+            (0 until origBitmap.height).count { y -> isRedPixel(origBitmap[x, y]) }
         }
 
         val sortedIndices = redPixelCounts.withIndex()

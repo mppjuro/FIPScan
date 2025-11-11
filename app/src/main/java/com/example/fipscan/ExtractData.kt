@@ -61,14 +61,13 @@ object ExtractData {
 
                     val elisaValue = parts.getOrNull(0)?.replace(",", ".") ?: "-"
                     val elisaUnit = parts.getOrNull(1) ?: ""
-                    val elisaRange = resultLine
 
                     extractedData["FCoV (ELISA)"] = elisaValue
                     extractedData["FCoV (ELISA)Unit"] = elisaUnit
-                    extractedData["FCoV (ELISA)Range"] = elisaRange
+                    extractedData["FCoV (ELISA)Range"] = resultLine
 
-                    Log.d("DATA", "FCoV (ELISA): $elisaValue ($elisaRange) $elisaUnit")
-                    results.add("FCoV (ELISA): $elisaValue ($elisaRange) $elisaUnit")
+                    Log.d("DATA", "FCoV (ELISA): $elisaValue ($resultLine) $elisaUnit")
+                    results.add("FCoV (ELISA): $elisaValue ($resultLine) $elisaUnit")
 
                     i += 3
                     continue
@@ -173,8 +172,8 @@ object ExtractData {
                                 rangeStr = remainingParts[rangePartIndex]
                                 if (rangePartIndex > 0) {
                                     unit = remainingParts[rangePartIndex - 1]
-                                } else if (remainingParts.size > rangePartIndex + 1) {
-                                    unit = remainingParts[rangePartIndex + 1]
+                                } else if (remainingParts.size > 1) {
+                                    unit = remainingParts[1]
                                 }
                             } else if (remainingParts.isNotEmpty()) {
                                 unit = remainingParts[0]
@@ -223,7 +222,7 @@ object ExtractData {
     private fun extractPatientData(text: String, data: MutableMap<String, Any>) {
         val keys = listOf("Właściciel:", "Pacjent:", "Gatunek:", "Rasa:", "Płeć:", "Wiek:", "Umaszczenie:", "Mikrochip:", "Lecznica:", "Lekarz:", "Rodzaj próbki:")
 
-        var remainingText = text.replace("\n", " ").replace(";", " ")
+        val remainingText = text.replace("\n", " ").replace(";", " ")
 
         keys.forEach { key ->
             val keyIndex = remainingText.indexOf(key, ignoreCase = true)

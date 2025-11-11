@@ -54,7 +54,7 @@
     <string name="no_date">brak daty</string>
     <string name="rivalta_not_performed">nie wykonano, płyn obecny</string>
     <string name="patient_info_template">🐱 Pacjent: %1$s\n📅 Wiek: %2$s\n🐾 Gatunek: %3$s\n🏷️ Rasa: %4$s\n⚥ Płeć: %5$s\n🎨 Umaszczenie: %6$s\n📆 Data badania: %7$s</string>
-    <string name="risk_breakdown_html"><b>Szczegółowa analiza ryzyka FIP:</b><br />%1$s</string>
+    <string name="risk_breakdown_html"><b>Szczegółowa analiza ryzyka FIP:</b>%1$s</string>
     <string name="further_tests_html"><b>🔬 Dalsze badania:</b> %1$s</string>
     <string name="supplements_fip_html"><b>💊 Suplementy (kontekst FIP):</b> %1$s</string>
     <string name="consult_fip_html"><b>🏥 Konsultacja (kontekst FIP):</b> %1$s</string>

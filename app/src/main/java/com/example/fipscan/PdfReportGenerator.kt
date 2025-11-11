@@ -7,12 +7,13 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
-import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.text.StaticLayout
 import android.text.TextPaint
 import android.util.Log
+import androidx.core.graphics.toColorInt
+import androidx.core.graphics.withTranslation
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -28,11 +29,11 @@ class PdfReportGenerator(private val context: Context) {
     private val bottomMargin = 70f
     private val contentWidth = pageWidth - (2 * margin)
 
-    private val primaryColor = Color.parseColor("#1976D2")
-    private val dangerColor = Color.parseColor("#D32F2F")
-    private val warningColor = Color.parseColor("#FFA000")
-    private val successColor = Color.parseColor("#388E3C")
-    private val backgroundColor = Color.parseColor("#F9F9F9")
+    private val primaryColor = "#1976D2".toColorInt()
+    private val dangerColor = "#D32F2F".toColorInt()
+    private val warningColor = "#FFA000".toColorInt()
+    private val successColor = "#388E3C".toColorInt()
+    private val backgroundColor = "#F9F9F9".toColorInt()
 
     fun generateReport(
         patientName: String,
@@ -224,7 +225,6 @@ class PdfReportGenerator(private val context: Context) {
                     canvas.drawText(result, margin, yPosition, resultPaint)
                     yPosition += 15f
                 }
-                yPosition += 20f
             }
 
             drawFooter(canvas, pageNumber)
@@ -246,7 +246,7 @@ class PdfReportGenerator(private val context: Context) {
 
     private fun drawHeader(canvas: Canvas, patientName: String) {
         val paint = Paint().apply {
-            color = Color.parseColor("#1A237E")
+            color = "#1A237E".toColorInt()
             style = Paint.Style.FILL
         }
         canvas.drawRect(0f, 0f, pageWidth.toFloat(), 100f, paint)
@@ -360,7 +360,7 @@ class PdfReportGenerator(private val context: Context) {
         val fillColor = when {
             riskPercentage >= 75 -> dangerColor
             riskPercentage >= 50 -> warningColor
-            riskPercentage >= 25 -> Color.parseColor("#FBC02D")
+            riskPercentage >= 25 -> "#FBC02D".toColorInt()
             else -> successColor
         }
         val fillPaint = Paint().apply { color = fillColor; style = Paint.Style.FILL }
@@ -384,7 +384,7 @@ class PdfReportGenerator(private val context: Context) {
                 typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
                 isAntiAlias = true
             }
-            val label = try { context.getString(R.string.pdf_gammopathy_label) } catch (e: Exception) { "Gammapatia:" }
+            val label = try { context.getString(R.string.pdf_gammopathy_label) } catch (_: Exception) { "Gammapatia:" }
             canvas.drawText("$label $gammopathyResult", margin, y, gammopathyPaint)
             y += 20f
         }
@@ -399,10 +399,9 @@ class PdfReportGenerator(private val context: Context) {
             cleanComment, 0, cleanComment.length, commentPaint, contentWidth.toInt()
         ).build()
 
-        canvas.save()
-        canvas.translate(margin, y)
-        commentLayout.draw(canvas)
-        canvas.restore()
+        canvas.withTranslation(margin, y) {
+            commentLayout.draw(this)
+        }
 
         return y + commentLayout.height + 30f
     }
@@ -425,10 +424,9 @@ class PdfReportGenerator(private val context: Context) {
         for (item in breakdown) {
             val cleanItem = item.replace(Regex("<[^>]*>"), "").replace("✅", "✓").replace("❌", "✗").replace("⚠️", "!").replace("?", "?")
             val layout = StaticLayout.Builder.obtain(cleanItem, 0, cleanItem.length, itemPaint, (contentWidth - 20f).toInt()).build()
-            canvas.save()
-            canvas.translate(margin + 20f, y)
-            layout.draw(canvas)
-            canvas.restore()
+            canvas.withTranslation(margin + 20f, y) {
+                layout.draw(this)
+            }
             y += layout.height + 10f
         }
         return y + 20f
@@ -456,10 +454,9 @@ class PdfReportGenerator(private val context: Context) {
             val diagnosticLayout = StaticLayout.Builder.obtain(
                 cleanDiagnostic, 0, cleanDiagnostic.length, textPaint, contentWidth.toInt()
             ).build()
-            canvas.save()
-            canvas.translate(margin, y)
-            diagnosticLayout.draw(canvas)
-            canvas.restore()
+            canvas.withTranslation(margin, y) {
+                diagnosticLayout.draw(this)
+            }
             y += diagnosticLayout.height + 25f
         }
 
@@ -474,30 +471,27 @@ class PdfReportGenerator(private val context: Context) {
         y += 20f
         val cleanTests = furtherTests.replace(Regex("<[^>]*>"), "")
         val testsLayout = StaticLayout.Builder.obtain(cleanTests, 0, cleanTests.length, textPaint, (contentWidth - 20f).toInt()).build()
-        canvas.save()
-        canvas.translate(margin + 20f, y)
-        testsLayout.draw(canvas)
-        canvas.restore()
+        canvas.withTranslation(margin + 20f, y) {
+            testsLayout.draw(this)
+        }
         y += testsLayout.height + 20f
 
         canvas.drawText(context.getString(R.string.pdf_rec_supplements), margin, y, titlePaint)
         y += 20f
         val cleanSupplements = supplements.replace(Regex("<[^>]*>"), "")
         val supplementsLayout = StaticLayout.Builder.obtain(cleanSupplements, 0, cleanSupplements.length, textPaint, (contentWidth - 20f).toInt()).build()
-        canvas.save()
-        canvas.translate(margin + 20f, y)
-        supplementsLayout.draw(canvas)
-        canvas.restore()
+        canvas.withTranslation(margin + 20f, y) {
+            supplementsLayout.draw(this)
+        }
         y += supplementsLayout.height + 20f
 
         canvas.drawText(context.getString(R.string.pdf_rec_consultation), margin, y, titlePaint)
         y += 20f
         val cleanConsultation = consultation.replace(Regex("<[^>]*>"), "")
         val consultationLayout = StaticLayout.Builder.obtain(cleanConsultation, 0, cleanConsultation.length, textPaint, (contentWidth - 20f).toInt()).build()
-        canvas.save()
-        canvas.translate(margin + 20f, y)
-        consultationLayout.draw(canvas)
-        canvas.restore()
+        canvas.withTranslation(margin + 20f, y) {
+            consultationLayout.draw(this)
+        }
 
         return y + consultationLayout.height + 30f
     }
@@ -579,13 +573,20 @@ class PdfReportGenerator(private val context: Context) {
             val val30b = String.format(locale, "%.1f", widthRatios.gamma30ToBeta)
             val val7030 = String.format(locale, "%.1f", widthRatios.gamma70ToGamma30)
 
-            canvas.drawText(context.getString(R.string.pdf_ratio_g70_beta, val70b), margin + 20f, y, detailsPaint)
+            var label = context.getString(R.string.pdf_ratio_g70_beta)
+            canvas.drawText("$label$val70b %", margin + 20f, y, detailsPaint)
             y += 15f
-            canvas.drawText(context.getString(R.string.pdf_ratio_g50_beta, val50b), margin + 20f, y, detailsPaint)
+
+            label = context.getString(R.string.pdf_ratio_g50_beta)
+            canvas.drawText("$label$val50b %", margin + 20f, y, detailsPaint)
             y += 15f
-            canvas.drawText(context.getString(R.string.pdf_ratio_g30_beta, val30b), margin + 20f, y, detailsPaint)
+
+            label = context.getString(R.string.pdf_ratio_g30_beta)
+            canvas.drawText("$label$val30b %", margin + 20f, y, detailsPaint)
             y += 15f
-            canvas.drawText(context.getString(R.string.pdf_ratio_g70_g30, val7030), margin + 20f, y, detailsPaint)
+
+            label = context.getString(R.string.pdf_ratio_g70_g30)
+            canvas.drawText("$label$val7030 %", margin + 20f, y, detailsPaint)
             y += 15f
         }
         return y + 20f
@@ -628,9 +629,7 @@ class PdfReportGenerator(private val context: Context) {
             val contentValues = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, "$fileName.pdf")
                 put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-                }
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
             }
             val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues) ?: throw Exception("Cannot create file")
             FileInputStream(localFile).use { input -> resolver.openOutputStream(uri)?.use { output -> input.copyTo(output) } }
@@ -651,9 +650,9 @@ class PdfReportGenerator(private val context: Context) {
         canvas.drawText(scoreText, margin, y, scorePaint)
         y += 25f
         val barHeight = 20f; val barWidth = contentWidth; val percentage = (analysis.fipShapeScore).toInt()
-        val bgPaint = Paint().apply { color = Color.parseColor("#E0E0E0"); style = Paint.Style.FILL }
+        val bgPaint = Paint().apply { color = "#E0E0E0".toColorInt(); style = Paint.Style.FILL }
         canvas.drawRoundRect(margin, y, pageWidth - margin, y + barHeight, 10f, 10f, bgPaint)
-        val fillColor = when { percentage >= 70 -> Color.parseColor("#F44336"); percentage >= 50 -> Color.parseColor("#FF9800"); percentage >= 30 -> Color.parseColor("#FFC107"); else -> Color.parseColor("#4CAF50") }
+        val fillColor = when { percentage >= 70 -> "#F44336".toColorInt(); percentage >= 50 -> "#FF9800".toColorInt(); percentage >= 30 -> "#FFC107".toColorInt(); else -> "#4CAF50".toColorInt() }
         val fillPaint = Paint().apply { color = fillColor; style = Paint.Style.FILL }
         canvas.drawRoundRect(margin, y, margin + (barWidth * percentage / 100f), y + barHeight, 10f, 10f, fillPaint)
         val percentPaint = TextPaint().apply { color = Color.WHITE; textSize = 12f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); isAntiAlias = true }
@@ -685,7 +684,8 @@ class PdfReportGenerator(private val context: Context) {
         }
 
         val detailsLayout = StaticLayout.Builder.obtain(details, 0, details.length, detailsPaint, contentWidth.toInt()).build()
-        canvas.save(); canvas.translate(margin, y); detailsLayout.draw(canvas); canvas.restore()
+        canvas.save()
+        canvas.translate(margin, y); detailsLayout.draw(canvas); canvas.restore()
         return y + detailsLayout.height + 30f
     }
 
@@ -700,9 +700,10 @@ class PdfReportGenerator(private val context: Context) {
         canvas.drawText(scoreText, margin, y, scorePaint)
         y += 25f
         val barHeight = 20f; val percentage = analysis.patternStrength.toInt()
-        val bgPaint = Paint().apply { color = Color.parseColor("#E0E0E0"); style = Paint.Style.FILL }
+        val bgPaint = Paint().apply { color = "#E0E0E0".toColorInt(); style = Paint.Style.FILL }
         canvas.drawRoundRect(margin, y, pageWidth - margin, y + barHeight, 10f, 10f, bgPaint)
-        val fillColor = when { percentage >= 70 -> Color.parseColor("#F44336"); percentage >= 50 -> Color.parseColor("#FF9800"); else -> Color.parseColor("#4CAF50") }
+        val fillColor = when { percentage >= 70 -> "#F44336".toColorInt(); percentage >= 50 -> "#FF9800".toColorInt(); else -> "#4CAF50".toColorInt()
+        }
         val fillPaint = Paint().apply { color = fillColor; style = Paint.Style.FILL }
         canvas.drawRoundRect(margin, y, margin + (contentWidth * percentage / 100f), y + barHeight, 10f, 10f, fillPaint)
         val percentPaint = TextPaint().apply { color = Color.WHITE; textSize = 12f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); isAntiAlias = true }
