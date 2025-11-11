@@ -358,4 +358,16 @@
     <string name="pdf_fraction_alpha2">Alpha-2</string>
     <string name="pdf_fraction_beta">Beta</string>
     <string name="pdf_fraction_gamma">Gamma</string>
+
+    <string name="diag_width_ratios_title">Width Ratio Analysis</string>
+    <string name="diag_ratio_g70_beta">Gamma (70% H) / Beta Region: %s %%</string>
+    <string name="diag_ratio_g50_beta">Gamma (50% H) / Beta Region: %s %%</string>
+    <string name="diag_ratio_g30_beta">Gamma (30% H) / Beta Region: %s %%</string>
+    <string name="diag_ratio_g70_g30">Gamma (70% H) / Gamma (30% H): %s %%</string>
+
+    <string name="pdf_width_ratios_title">Gamma Peak Width Ratio Analysis</string>
+    <string name="pdf_ratio_g70_beta">Ratio Gamma (70% H) to Beta Region: %s %%</string>
+    <string name="pdf_ratio_g50_beta">Ratio Gamma (50% H) to Beta Region: %s %%</string>
+    <string name="pdf_ratio_g30_beta">Ratio Gamma (30% H) to Beta Region: %s %%</string>
+    <string name="pdf_ratio_g70_g30">Ratio Gamma (70% H) to Gamma (30% H): %s %%</string>
 </resources>

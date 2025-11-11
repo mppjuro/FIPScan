@@ -17,8 +17,6 @@ object ElectrophoresisShapeAnalyzer {
     private const val PATTERN_BRIDGING = "bridging"
     private const val PATTERN_NORMAL = "normal"
     private const val PATTERN_NONSPECIFIC = "nonspecific"
-
-    // --- ZMIENNE STANU ---
     private var curveData: IntArray = IntArray(0)
     private var baselineY: Int = 0
     private var fractionRanges: List<IntRange> = emptyList()
@@ -39,6 +37,13 @@ object ElectrophoresisShapeAnalyzer {
         val variance: Double,
         val stdDev: Double,
         val totalMass: Double
+    )
+
+    data class WidthRatioAnalysis(
+        val gamma70ToBeta: Float,    // Proporcja Gamma (70%) do Beta (region)
+        val gamma50ToBeta: Float,    // Proporcja Gamma (50%) do Beta (region)
+        val gamma30ToBeta: Float,    // Proporcja Gamma (30%) do Beta (region)
+        val gamma70ToGamma30: Float  // Proporcja Gamma (70%) do Gamma (30%)
     )
 
     /**
@@ -388,87 +393,6 @@ object ElectrophoresisShapeAnalyzer {
         )
     }
 
-    // --- WEWNĘTRZNE FUNKCJE ANALITYCZNE ---
-
-    /**
-     * ZMODYFIKOWANA funkcja analizująca pik, zwraca bezwzględne szerokości w pikselach
-     * na 9 poziomach (10% do 90%).
-     */
-    private fun analyzePeak(range: IntRange): PeakCharacteristics {
-        val defaultPeak = PeakCharacteristics(0f, emptyMap(), 0f, 0f, 0, 0)
-        if (curveData.isEmpty() || range.first < 0 || range.last >= curveData.size || range.first >= range.last) {
-            return defaultPeak
-        }
-
-        val profileSize = (range.last - range.first + 1).coerceAtLeast(1)
-        var maxHeight = 0
-        var maxIndex = range.first
-
-        // Znajdź wysokość i pozycję piku w danym zakresie
-        for (i in range) {
-            if (curveData[i] > maxHeight) {
-                maxHeight = curveData[i]
-                maxIndex = i
-            }
-        }
-
-        if (maxHeight == 0) {
-            return defaultPeak.copy(rangeSize = profileSize)
-        }
-
-        // Oblicz szerokości na 9 poziomach
-        val levels = (10..90 step 10) // 10, 20, ..., 90
-        val heightThresholds = levels.associateWith { maxHeight * (it / 100.0) }
-
-        val leftIndices = mutableMapOf<Int, Int>()
-        val rightIndices = mutableMapOf<Int, Int>()
-        levels.forEach { level ->
-            leftIndices[level] = maxIndex
-            rightIndices[level] = maxIndex
-        }
-
-        // Skanuj w lewo od piku
-        for (i in maxIndex downTo range.first) {
-            val h = curveData[i]
-            for (level in levels) {
-                if (h >= heightThresholds[level]!!) {
-                    leftIndices[level] = i
-                }
-            }
-        }
-        // Skanuj w prawo od piku
-        for (i in maxIndex..range.last) {
-            val h = curveData[i]
-            for (level in levels) {
-                if (h >= heightThresholds[level]!!) {
-                    rightIndices[level] = i
-                }
-            }
-        }
-
-        // Zbuduj mapę szerokości w pikselach
-        val widthPxMap = mutableMapOf<Int, Int>()
-        levels.forEach { level ->
-            val widthPx = (rightIndices[level]!! - leftIndices[level]!!).coerceAtLeast(1)
-            widthPxMap[level] = widthPx
-        }
-
-        // Oblicz ostrość (sharpness) na podstawie szerokości na 50% (FWHM)
-        val widthPx50 = widthPxMap[50] ?: 1
-        val width50Percent = widthPx50.toFloat() / profileSize.toFloat()
-        val sharpness = if (width50Percent > 0.001f) maxHeight.toFloat() / width50Percent else 0f
-        val symmetry = calculateSymmetry(range, maxIndex)
-
-        return PeakCharacteristics(
-            height = maxHeight.toFloat(),
-            widthPxMap = widthPxMap,
-            symmetry = symmetry,
-            sharpness = sharpness,
-            position = maxIndex,
-            rangeSize = profileSize
-        )
-    }
-
     private fun calculateSymmetry(range: IntRange, peakIndex: Int): Float {
         if (peakIndex <= range.first || peakIndex >= range.last) {
             return 0f
@@ -653,5 +577,143 @@ object ElectrophoresisShapeAnalyzer {
             area += (h1 + h2) / 2.0
         }
         return area
+    }
+
+    fun calculateWidthRatios(): WidthRatioAnalysis? {
+        if (fractionRanges.size < 4) {
+            Log.e("ShapeAnalyzer", "Brak granic frakcji, nie można obliczyć proporcji szerokości.")
+            return null
+        }
+
+        val betaRange = fractionRanges[2]
+        val gammaRange = fractionRanges[3]
+
+        // Szerokość regionu beta to odległość między czerwonymi liniami
+        val betaRegionWidth = (betaRange.last - betaRange.first + 1).toFloat()
+        if (betaRegionWidth <= 0f) {
+            Log.e("ShapeAnalyzer", "Szerokość regionu Beta wynosi 0, nie można obliczyć proporcji.")
+            return null
+        }
+
+        // Analizujemy pik gamma, aby uzyskać jego bezwzględne szerokości w pikselach
+        // Ta funkcja (analyzePeak) teraz także loguje 9 wartości
+        val gammaPeak = analyzePeak(gammaRange)
+        if (gammaPeak.height == 0f) {
+            Log.w("ShapeAnalyzer", "Pik Gamma ma wysokość 0, proporcje będą wynosić 0.")
+            return WidthRatioAnalysis(0f, 0f, 0f, 0f)
+        }
+
+        // Pobierz wymagane szerokości w pikselach
+        val gammaWidthPx70 = gammaPeak.widthPxMap[70]?.toFloat() ?: 1f
+        val gammaWidthPx50 = gammaPeak.widthPxMap[50]?.toFloat() ?: 1f
+        val gammaWidthPx30 = gammaPeak.widthPxMap[30]?.toFloat() ?: 1f
+
+        // Oblicz proporcje
+        val ratio70ToBeta = (gammaWidthPx70 / betaRegionWidth) * 100f
+        val ratio50ToBeta = (gammaWidthPx50 / betaRegionWidth) * 100f
+        val ratio30ToBeta = (gammaWidthPx30 / betaRegionWidth) * 100f
+
+        // Zabezpieczenie przed dzieleniem przez zero, jeśli szerokość 30% wynosi 0
+        val ratio70To30 = if (gammaWidthPx30 > 0.01f) {
+            (gammaWidthPx70 / gammaWidthPx30) * 100f
+        } else {
+            0f // Zwracamy 0, gdy mianownik jest zerowy
+        }
+
+        Log.d("ShapeAnalyzer", "Obliczono proporcje: 70/Beta=${ratio70ToBeta}%, 50/Beta=${ratio50ToBeta}%, 30/Beta=${ratio30ToBeta}%, 70/30=${ratio70To30}%")
+
+        return WidthRatioAnalysis(
+            gamma70ToBeta = ratio70ToBeta,
+            gamma50ToBeta = ratio50ToBeta,
+            gamma30ToBeta = ratio30ToBeta,
+            gamma70ToGamma30 = ratio70To30
+        )
+    }
+
+    private fun analyzePeak(range: IntRange): PeakCharacteristics {
+        val defaultPeak = PeakCharacteristics(0f, emptyMap(), 0f, 0f, 0, 0)
+        if (curveData.isEmpty() || range.first < 0 || range.last >= curveData.size || range.first >= range.last) {
+            return defaultPeak
+        }
+
+        val profileSize = (range.last - range.first + 1).coerceAtLeast(1)
+        var maxHeight = 0
+        var maxIndex = range.first
+
+        // Znajdź wysokość i pozycję piku w danym zakresie
+        for (i in range) {
+            if (curveData[i] > maxHeight) {
+                maxHeight = curveData[i]
+                maxIndex = i
+            }
+        }
+
+        if (maxHeight == 0) {
+            return defaultPeak.copy(rangeSize = profileSize)
+        }
+
+        // Oblicz szerokości na 9 poziomach
+        val levels = (10..90 step 10) // 10, 20, ..., 90
+        val heightThresholds = levels.associateWith { maxHeight * (it / 100.0) }
+
+        val leftIndices = mutableMapOf<Int, Int>()
+        val rightIndices = mutableMapOf<Int, Int>()
+        levels.forEach { level ->
+            leftIndices[level] = maxIndex
+            rightIndices[level] = maxIndex
+        }
+
+        // Skanuj w lewo od piku
+        for (i in maxIndex downTo range.first) {
+            val h = curveData[i]
+            for (level in levels) {
+                if (h >= heightThresholds[level]!!) {
+                    leftIndices[level] = i
+                }
+            }
+        }
+        // Skanuj w prawo od piku
+        for (i in maxIndex..range.last) {
+            val h = curveData[i]
+            for (level in levels) {
+                if (h >= heightThresholds[level]!!) {
+                    rightIndices[level] = i
+                }
+            }
+        }
+
+        // Zbuduj mapę szerokości w pikselach
+        val widthPxMap = mutableMapOf<Int, Int>()
+        levels.forEach { level ->
+            val widthPx = (rightIndices[level]!! - leftIndices[level]!!).coerceAtLeast(1)
+            widthPxMap[level] = widthPx
+        }
+
+        // --- POCZĄTEK MODYFIKACJI: Logowanie szerokości piku ---
+        // Logujemy tylko, gdy funkcja jest wywoływana dla zakresu gamma
+        // Sprawdzamy, czy `fractionRanges` jest zainicjalizowane i czy zakres pasuje
+        if (fractionRanges.isNotEmpty() && range == fractionRanges.getOrNull(3)) {
+            Log.d("ShapeAnalyzer", "--- Analiza szerokości piku Gamma (w Px) ---")
+            widthPxMap.toSortedMap().forEach { (level, width) ->
+                Log.d("ShapeAnalyzer", "  Poziom: ${level}% H, Szerokość: ${width}px")
+            }
+            Log.d("ShapeAnalyzer", "------------------------------------------")
+        }
+        // --- KONIEC MODYFIKACJI ---
+
+        // Oblicz ostrość (sharpness) na podstawie szerokości na 50% (FWHM)
+        val widthPx50 = widthPxMap[50] ?: 1
+        val width50Percent = widthPx50.toFloat() / profileSize.toFloat()
+        val sharpness = if (width50Percent > 0.001f) maxHeight.toFloat() / width50Percent else 0f
+        val symmetry = calculateSymmetry(range, maxIndex)
+
+        return PeakCharacteristics(
+            height = maxHeight.toFloat(),
+            widthPxMap = widthPxMap,
+            symmetry = symmetry,
+            sharpness = sharpness,
+            position = maxIndex,
+            rangeSize = profileSize
+        )
     }
 }
