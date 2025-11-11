@@ -312,13 +312,13 @@
     <string name="pdf_fraction_beta">Bêta</string>
     <string name="pdf_fraction_gamma">Gamma</string>
     <string name="diag_width_ratios_title">Analyse des Rapports de Largeur</string>
-    <string name="diag_ratio_g70_beta">Gamma (70% H) / Région Bêta: %s %%</string>
-    <string name="diag_ratio_g50_beta">Gamma (50% H) / Région Bêta: %s %%</string>
-    <string name="diag_ratio_g30_beta">Gamma (30% H) / Région Bêta: %s %%</string>
-    <string name="diag_ratio_g70_g30">Gamma (70% H) / Gamma (30% H): %s %%</string>
     <string name="pdf_width_ratios_title">Analyse du Rapport de Largeur du Pic Gamma</string>
-    <string name="pdf_ratio_g70_beta">Rapport Gamma (70% H) / Région Bêta: %s %%</string>
-    <string name="pdf_ratio_g50_beta">Rapport Gamma (50% H) / Région Bêta: %s %%</string>
-    <string name="pdf_ratio_g30_beta">Rapport Gamma (30% H) / Région Bêta: %s %%</string>
-    <string name="pdf_ratio_g70_g30">Rapport Gamma (70% H) / Gamma (30% H): %s %%</string>
+    <string name="diag_ratio_g70_beta">Gamma (70% H) / Région Bêta: </string>
+    <string name="diag_ratio_g50_beta">Gamma (50% H) / Région Bêta: </string>
+    <string name="diag_ratio_g30_beta">Gamma (30% H) / Région Bêta: </string>
+    <string name="diag_ratio_g70_g30">Gamma (70% H) / Gamma (30% H): </string>
+    <string name="pdf_ratio_g70_beta">Rapport Gamma (70% H) / Région Bêta: </string>
+    <string name="pdf_ratio_g50_beta">Rapport Gamma (50% H) / Région Bêta: </string>
+    <string name="pdf_ratio_g30_beta">Rapport Gamma (30% H) / Région Bêta: </string>
+    <string name="pdf_ratio_g70_g30">Rapport Gamma (70% H) / Gamma (30% H): </string>
 </resources>

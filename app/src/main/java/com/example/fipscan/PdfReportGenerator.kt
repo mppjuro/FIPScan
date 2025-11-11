@@ -506,7 +506,7 @@ class PdfReportGenerator(private val context: Context) {
         canvas: Canvas, startY: Float,
         gammaAnalysis: ElectrophoresisShapeAnalyzer.GammaAnalysisResult?,
         aucMetrics: Map<String, Double>?,
-        widthRatios: ElectrophoresisShapeAnalyzer.WidthRatioAnalysis? // <-- DODANY PARAMETR
+        widthRatios: ElectrophoresisShapeAnalyzer.WidthRatioAnalysis?
     ): Float {
         var y = startY
         val sectionPaint = TextPaint().apply {
@@ -530,9 +530,7 @@ class PdfReportGenerator(private val context: Context) {
 
         // 1. Rysowanie wszystkich danych analizy piku Gamma (Używa stringów)
         if (gammaAnalysis != null && gammaAnalysis.totalMass > 0) {
-            // ... (istniejący kod rysowania variance, stdDev, meanIndex, peakHeight) ...
 
-            // Dodano stringi, ale kod jest ten sam
             val varianceLabel = context.getString(R.string.pdf_gamma_peak_variance)
             val varianceValue = String.format(Locale.getDefault(), "%.2f", gammaAnalysis.variance)
             canvas.drawText("$varianceLabel $varianceValue", margin + 10f, y, detailsPaint)
@@ -557,31 +555,19 @@ class PdfReportGenerator(private val context: Context) {
 
         // 2. Rysowanie danych AUC z tłumaczeniem (Używa stringów)
         if (aucMetrics != null && aucMetrics.isNotEmpty()) {
-            canvas.drawText(
-                context.getString(R.string.pdf_calculated_fractions_title),
-                margin,
-                y,
-                boldDetailsPaint
-            )
+            canvas.drawText(context.getString(R.string.pdf_calculated_fractions_title), margin, y, boldDetailsPaint)
             y += 18f
 
             aucMetrics.forEach { (fractionKey, percentage) ->
                 if (fractionKey != "TotalAUC_Pixels") {
                     val translatedName = getTranslatedFractionName(fractionKey)
-                    val formattedLine = "$translatedName: ${
-                        String.format(
-                            Locale.getDefault(),
-                            "%.1f",
-                            percentage
-                        )
-                    } %"
+                    val formattedLine = "$translatedName: ${String.format(Locale.getDefault(), "%.1f", percentage)} %"
                     canvas.drawText(formattedLine, margin + 20f, y, detailsPaint)
                     y += 15f
                 }
             }
         }
 
-        // --- POCZĄTEK MODYFIKACJI ---
         // 3. Rysowanie proporcji szerokości
         if (widthRatios != null) {
             canvas.drawText(context.getString(R.string.pdf_width_ratios_title), margin, y, boldDetailsPaint)
@@ -694,7 +680,7 @@ class PdfReportGenerator(private val context: Context) {
         val details = buildString {
             append(context.getString(R.string.pdf_shape_pattern, analysis.overallPattern)).append("\n")
             append(context.getString(R.string.pdf_shape_ag_ratio, String.format(Locale.getDefault(), "%.2f", agRatioValue))).append("\n")
-            append(context.getString(R.string.pdf_shape_gamma_width, gammaWidth50Percent.toInt())).append("\n") // <-- ZASTOSOWANIE POPRAWKI
+            append(context.getString(R.string.pdf_shape_gamma_width, gammaWidth50Percent.toInt())).append("\n")
             append(context.getString(R.string.pdf_shape_bridge, bridgeStatus))
         }
 
