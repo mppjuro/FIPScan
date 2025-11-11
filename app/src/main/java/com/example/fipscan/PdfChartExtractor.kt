@@ -19,14 +19,18 @@ data class BarChartSectionHeights(
     val section4: List<Float>
 )
 
+// 1. ZMODYFIKOWANA DATA CLASS
 data class ChartExtractionResult(
     val imagePaths: List<String>,
-    val barSections: BarChartSectionHeights?
+    val barSections: BarChartSectionHeights?,
+    // NOWE POLA
+    val gammaAnalysis: ElectrophoresisShapeAnalyzer.GammaAnalysisResult?,
+    val aucMetrics: Map<String, Double>?
 )
+
 class PdfChartExtractor(private val context: Context) {
     private val topMarginPercent = 0.2
     private val paddingPercent = 0.01
-
     fun extractChartFromPDF(pdfFile: File?): ChartExtractionResult? {
         if (pdfFile == null || !pdfFile.exists()) {
             Log.e("PDF_PROCESSING", "Plik PDF nie istnieje")
@@ -72,6 +76,24 @@ class PdfChartExtractor(private val context: Context) {
                     finalBitmap.compress(Bitmap.CompressFormat.PNG, 100, fos)
                 }
 
+                // --- 2. NOWA LOGIKA ANALIZY KSZTAŁTU ---
+                Log.d("SHAPE_ANALYSIS", "Rozpoczęcie zaawansowanej analizy kształtu...")
+                // Używamy 'finalBitmap' - to jest oryginalny, przycięty wykres
+                // Wywołujemy metody z obiektu ElectrophoresisShapeAnalyzer
+                val analyzer = ElectrophoresisShapeAnalyzer.analyzeChartBitmap(finalBitmap)
+                val gammaAnalysis = analyzer.analyzeGammaPeak()
+                val aucMetrics = analyzer.getFractionsAUC()
+
+                if (gammaAnalysis != null && aucMetrics.isNotEmpty()) {
+                    Log.d("SHAPE_ANALYSIS", "✅ Analiza numeryczna zakończona.")
+                    Log.d("SHAPE_ANALYSIS", "Wariancja Gamma: ${gammaAnalysis.variance}")
+                    Log.d("SHAPE_ANALYSIS", "AUC Gamma %: ${aucMetrics["Gamma"]}")
+                } else {
+                    Log.w("SHAPE_ANALYSIS", "⚠️ Analiza numeryczna nie zwróciła wyników.")
+                }
+                // --- KONIEC NOWEJ LOGIKI ---
+
+
                 val croppedBitmap = cropAboveDominantLine(finalBitmap)
                 val dominantColor = getDominantNonWhiteColor(croppedBitmap)
                 val recoloredBitmap = replaceNonWhiteWithDominant(croppedBitmap, dominantColor)
@@ -102,9 +124,13 @@ class PdfChartExtractor(private val context: Context) {
                 pdfRenderer.close()
                 fileDescriptor.close()
 
+                // 3. ZMODYFIKOWANY RETURN
                 return ChartExtractionResult(
                     imagePaths = listOf(outputFile.absolutePath, barChartFile.absolutePath),
-                    barSections = sectionHeights
+                    barSections = sectionHeights,
+                    // Przekazanie nowych wyników
+                    gammaAnalysis = gammaAnalysis,
+                    aucMetrics = aucMetrics
                 )
             }
 

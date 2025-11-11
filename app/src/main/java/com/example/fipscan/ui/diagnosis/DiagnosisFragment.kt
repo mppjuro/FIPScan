@@ -51,6 +51,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.util.Properties
 import com.google.gson.reflect.TypeToken
+import java.util.Locale
 
 class DiagnosisFragment : Fragment() {
     private var _binding: FragmentDiagnosisBinding? = null
@@ -68,6 +69,10 @@ class DiagnosisFragment : Fragment() {
     private var currentGammopathyResult: String? = null
     private var currentShapeAnalysis: ElectrophoresisShapeAnalyzer.ShapeAnalysisResult? = null
     private var currentPatternAnalysis: FipPatternAnalyzer.PatternAnalysisResult? = null
+
+    // NOWE ZMIENNE do przechowywania wyników analizy AUC i Wariancji
+    private var currentGammaAnalysis: ElectrophoresisShapeAnalyzer.GammaAnalysisResult? = null
+    private var currentAucAnalysis: Map<String, Double>? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -162,7 +167,6 @@ class DiagnosisFragment : Fragment() {
             return
         }
 
-        // POPRAWKA: Przekazanie context do analizatorów
         val labResult = LabResultAnalyzer.analyzeLabData(extractedMap, context)
         val rivaltaStatus = currentResult.rivaltaStatus ?: getString(R.string.rivalta_not_performed)
         val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap, rivaltaStatus, context)
@@ -191,9 +195,20 @@ class DiagnosisFragment : Fragment() {
             val chartFile = File(imagePath)
             if (chartFile.exists()) {
                 val bitmap = BitmapFactory.decodeFile(imagePath)
-                val redColumns = listOf(100, 300, 500)
-                // POPRAWKA: Przekazanie context do analizy kształtu
-                val shapeAnalysis = ElectrophoresisShapeAnalyzer.analyzeElectrophoresisShape(bitmap, redColumns, context)
+
+                // --- ZMODYFIKOWANA LOGIKA ANALIZY ---
+                // 1. Ustaw wewnętrzny stan analizatora (curveData i fractionRanges)
+                // To jest jedyne miejsce, gdzie przekazujemy bitmapę.
+                ElectrophoresisShapeAnalyzer.analyzeChartBitmap(bitmap)
+
+                // 2. Pobierz nowe wyniki (AUC i Wariancja)
+                currentGammaAnalysis = ElectrophoresisShapeAnalyzer.analyzeGammaPeak()
+                currentAucAnalysis = ElectrophoresisShapeAnalyzer.getFractionsAUC()
+
+                // 3. Pobierz stare wyniki (ShapeAnalysisResult) używając nowej sygnatury
+                // Ta funkcja teraz używa wewnętrznego stanu ustawionego w kroku 1.
+                val shapeAnalysis = ElectrophoresisShapeAnalyzer.analyzeElectrophoresisShape(context)
+                // --- KONIEC ZMODYFIKOWANEJ LOGIKI ---
 
                 shapeAnalysis?.let { analysis ->
                     val shapeCard = createShapeAnalysisCard(analysis)
@@ -344,11 +359,11 @@ class DiagnosisFragment : Fragment() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             val shapePoints = currentShapeAnalysis?.let {
-                ((it.fipShapeScore / 100f) * ElectrophoresisAnalyzer.SHAPE_ANALYSIS_MAX_POINTS).toInt()
+                ((it.fipShapeScore / 100f) * ElectrophoresisShapeAnalyzer.SHAPE_ANALYSIS_MAX_POINTS).toInt()
             } ?: 0
 
             val patternPoints = currentPatternAnalysis?.let {
-                ((it.patternStrength / 100f) * ElectrophoresisAnalyzer.PATTERN_ANALYSIS_MAX_POINTS).toInt()
+                ((it.patternStrength / 100f) * ElectrophoresisShapeAnalyzer.PATTERN_ANALYSIS_MAX_POINTS).toInt()
             } ?: 0
 
             val (fileName, localPath) = generator.generateReport(
@@ -369,11 +384,13 @@ class DiagnosisFragment : Fragment() {
                 abnormalResults = currentAbnormalResults,
                 gammopathyResult = currentGammopathyResult,
                 shapeAnalysis = currentShapeAnalysis,
+                gammaAnalysisDetails = currentGammaAnalysis,
+                aucMetrics = currentAucAnalysis,
                 patternAnalysis = currentPatternAnalysis,
                 shapeAnalysisPoints = shapePoints,
                 patternAnalysisPoints = patternPoints,
-                maxShapePoints = ElectrophoresisAnalyzer.SHAPE_ANALYSIS_MAX_POINTS,
-                maxPatternPoints = ElectrophoresisAnalyzer.PATTERN_ANALYSIS_MAX_POINTS
+                maxShapePoints = ElectrophoresisShapeAnalyzer.SHAPE_ANALYSIS_MAX_POINTS,
+                maxPatternPoints = ElectrophoresisShapeAnalyzer.PATTERN_ANALYSIS_MAX_POINTS
             )
 
             withContext(Dispatchers.Main) {
@@ -402,11 +419,11 @@ class DiagnosisFragment : Fragment() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             val shapePoints = currentShapeAnalysis?.let {
-                ((it.fipShapeScore / 100f) * ElectrophoresisAnalyzer.SHAPE_ANALYSIS_MAX_POINTS).toInt()
+                ((it.fipShapeScore / 100f) * ElectrophoresisShapeAnalyzer.SHAPE_ANALYSIS_MAX_POINTS).toInt()
             } ?: 0
 
             val patternPoints = currentPatternAnalysis?.let {
-                ((it.patternStrength / 100f) * ElectrophoresisAnalyzer.PATTERN_ANALYSIS_MAX_POINTS).toInt()
+                ((it.patternStrength / 100f) * ElectrophoresisShapeAnalyzer.PATTERN_ANALYSIS_MAX_POINTS).toInt()
             } ?: 0
 
             val (fileName, localPath) = generator.generateReport(
@@ -427,11 +444,15 @@ class DiagnosisFragment : Fragment() {
                 abnormalResults = currentAbnormalResults,
                 gammopathyResult = currentGammopathyResult,
                 shapeAnalysis = currentShapeAnalysis,
+                // NOWE POLA
+                gammaAnalysisDetails = currentGammaAnalysis,
+                aucMetrics = currentAucAnalysis,
+                // KONIEC NOWYCH PÓL
                 patternAnalysis = currentPatternAnalysis,
                 shapeAnalysisPoints = shapePoints,
                 patternAnalysisPoints = patternPoints,
-                maxShapePoints = ElectrophoresisAnalyzer.SHAPE_ANALYSIS_MAX_POINTS,
-                maxPatternPoints = ElectrophoresisAnalyzer.PATTERN_ANALYSIS_MAX_POINTS
+                maxShapePoints = ElectrophoresisShapeAnalyzer.SHAPE_ANALYSIS_MAX_POINTS,
+                maxPatternPoints = ElectrophoresisShapeAnalyzer.PATTERN_ANALYSIS_MAX_POINTS
             )
 
             withContext(Dispatchers.Main) {
@@ -561,11 +582,13 @@ class DiagnosisFragment : Fragment() {
         else
             getString(R.string.absent)
 
+        // --- POPRAWKA BŁĘDU (użycie width50) ---
         val details = getString(R.string.shape_details_template,
             (analysis.albumin.height * 100).toInt(), (analysis.albumin.symmetry * 100).toInt(),
-            (analysis.gamma.height * 100).toInt(), (analysis.gamma.width * 100).toInt(),
+            (analysis.gamma.height * 100).toInt(), (analysis.gamma.width50 * 100).toInt(), // Zmieniono .width na .width50
             bridgeStatus
         )
+        // --- KONIEC POPRAWKI ---
 
         val detailsText = TextView(requireContext()).apply {
             text = details

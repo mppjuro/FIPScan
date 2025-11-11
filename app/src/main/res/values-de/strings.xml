@@ -67,7 +67,7 @@
     <string name="no_date">kein Datum</string>
     <string name="rivalta_not_performed">nicht durchgeführt, Flüssigkeit vorhanden</string>
     <string name="patient_info_template">🐱 Patient: %1$s\n📅 Alter: %2$s\n🐾 Spezies: %3$s\n🏷️ Rasse: %4$s\n⚥ Geschlecht: %5$s\n🎨 Fellfarbe: %6$s\n📆 Datum: %7$s</string>
-    <string name="risk_breakdown_html"><b>Detaillierte FIP-Risikoanalyse:</b><br></br>%1$s</string>
+    <string name="risk_breakdown_html"><b>Detaillierte FIP-Risikoanalyse:</b><br />%1$s</string>
     <string name="further_tests_html"><b>🔬 Weitere Tests:</b> %1$s</string>
     <string name="supplements_fip_html"><b>💊 Nahrungsergänzung (FIP-Kontext):</b> %1$s</string>
     <string name="consult_fip_html"><b>🏥 Konsultation (FIP-Kontext):</b> %1$s</string>
@@ -128,7 +128,7 @@
     <string name="breakdown_ag_very_low">✅ A/G-Quotient &lt; 0,4: <b>+%1$d Pkt.</b> (stark suggestiv)</string>
     <string name="breakdown_ag_low">⚠️ A/G-Quotient &lt; 0,6: <b>+%1$d Pkt.</b> (mäßig suggestiv)</string>
     <string name="breakdown_ag_high">❌ A/G-Quotient &gt; 0,8: <b>+%1$d Pkt.</b> (spricht gegen FIP)</string>
-    <string name="breakdown_ag_grey">❔ A/G-Quotient in \'Grauzone\' (0,6-0,8): <b>+0 Pkt.</b></string>
+    <string name="breakdown_ag_grey">❔ A/G–Quotient in \'Grauzone\' (0,6–0,8): <b>+0 Pkt.</b></string>
     <string name="breakdown_ag_missing">❓ A/G-Quotient fehlt: <b>+0 Pkt.</b></string>
 
     <string name="breakdown_lym_low">✅ Lymphopenie: <b>+%1$d Pkt.</b> (mäßig suggestiv)</string>
@@ -241,7 +241,7 @@
     <string name="sugg_complex_diagnostics">⚠️ Komplexes Bild - erfordert detaillierte Diagnostik</string>
     <string name="sugg_comprehensive_imaging">📋 Umfassende Diagnostik: Bildgebung + Labor</string>
     <string name="sugg_differential_diagnosis">❓ Atypisches Bild - Differentialdiagnose</string>
-    <string name="sugg_repeat_tests">📋 Tests in 2-4 Wochen wiederholen, Panel erweitern</string>
+    <string name="sugg_repeat_tests">📋 Tests in 2–4 Wochen wiederholen, Panel erweitern</string>
     <string name="sugg_fip_unlikely">✅ FIP unwahrscheinlich</string>
     <string name="sugg_search_other_causes">🔍 Suche nach anderen Ursachen der klinischen Symptome</string>
     <string name="sugg_monitor">📊 Überwachung: Gesamtprotein, A/G, Hämatokrit alle 2 Wochen</string>
@@ -344,4 +344,19 @@
     <string name="pdf_gammopathy_label">Gammopathie:</string>
     <string name="action_download_diagnosis">Diagnose herunterladen</string>
     <string name="action_print_diagnosis">Diagnose drucken</string>
+    <string name="diag_advanced_analysis_title">Erweiterte Diagrammanalyse</string>
+    <string name="diag_auc_analysis_title">Berechnete Fraktionen (AUC)</string>
+
+    <string name="pdf_advanced_chart_analysis_title">Erweiterte Diagrammformanalyse</string>
+    <string name="pdf_gamma_peak_variance">Varianz des Gamma-Peaks:</string>
+    <string name="pdf_gamma_peak_std_dev">Standardabw. des Gamma-Peaks:</string>
+    <string name="pdf_gamma_peak_mean_index">Schwerpunkt des Peaks (px):</string>
+    <string name="pdf_gamma_peak_height">Peakhöhe (px):</string>
+
+    <string name="pdf_calculated_fractions_title">Berechnete Fraktionen (AUC, Trapezmethode)</string>
+    <string name="pdf_fraction_albumin">Albumin</string>
+    <string name="pdf_fraction_alpha1">Alpha-1</string>
+    <string name="pdf_fraction_alpha2">Alpha-2</string>
+    <string name="pdf_fraction_beta">Beta</string>
+    <string name="pdf_fraction_gamma">Gamma</string>
 </resources>

@@ -52,6 +52,10 @@ class PdfReportGenerator(private val context: Context) {
         abnormalResults: List<String>,
         gammopathyResult: String?,
         shapeAnalysis: ElectrophoresisShapeAnalyzer.ShapeAnalysisResult? = null,
+        // NOWE POLA
+        gammaAnalysisDetails: ElectrophoresisShapeAnalyzer.GammaAnalysisResult? = null,
+        aucMetrics: Map<String, Double>? = null,
+        // KONIEC NOWYCH PÓL
         patternAnalysis: FipPatternAnalyzer.PatternAnalysisResult? = null,
         shapeAnalysisPoints: Int = 0,
         patternAnalysisPoints: Int = 0,
@@ -98,7 +102,26 @@ class PdfReportGenerator(private val context: Context) {
                 )
             }
 
+            // SEKCJA DLA AUC I WARIANCJI
+            if (gammaAnalysisDetails != null || aucMetrics != null) {
+                if (yPosition > pageHeight - bottomMargin - 150) { // Sprawdzenie miejsca
+                    drawFooter(canvas, pageNumber) // Dodajemy stopkę przed zamknięciem
+                    pdfDocument.finishPage(currentPage)
+                    pageNumber++
+                    currentPage = pdfDocument.startPage(
+                        PdfDocument.PageInfo.Builder(pageWidth, pageHeight, pageNumber).create()
+                    )
+                    canvas = currentPage.canvas
+                    yPosition = margin
+                }
+                yPosition = drawAdvancedAnalysisSection(
+                    canvas, yPosition,
+                    gammaAnalysisDetails, aucMetrics
+                )
+            }
+
             if (yPosition > pageHeight - bottomMargin - 200) {
+                drawFooter(canvas, pageNumber) // Dodajemy stopkę przed zamknięciem
                 pdfDocument.finishPage(currentPage)
                 pageNumber++
                 currentPage = pdfDocument.startPage(
@@ -106,12 +129,12 @@ class PdfReportGenerator(private val context: Context) {
                 )
                 canvas = currentPage.canvas
                 yPosition = margin
-                drawFooter(canvas, pageNumber)
             }
 
             yPosition = drawScoreBreakdown(canvas, yPosition, scoreBreakdown)
 
             if (yPosition > pageHeight - bottomMargin - 250) {
+                drawFooter(canvas, pageNumber) // Dodajemy stopkę przed zamknięciem
                 pdfDocument.finishPage(currentPage)
                 pageNumber++
                 currentPage = pdfDocument.startPage(
@@ -119,7 +142,6 @@ class PdfReportGenerator(private val context: Context) {
                 )
                 canvas = currentPage.canvas
                 yPosition = margin
-                drawFooter(canvas, pageNumber)
             }
 
             // Dodano diagnosticComment przed zaleceniami
@@ -129,6 +151,7 @@ class PdfReportGenerator(private val context: Context) {
             )
 
             if (yPosition > pageHeight - bottomMargin - 200) {
+                drawFooter(canvas, pageNumber) // Dodajemy stopkę przed zamknięciem
                 pdfDocument.finishPage(currentPage)
                 pageNumber++
                 currentPage = pdfDocument.startPage(
@@ -136,11 +159,11 @@ class PdfReportGenerator(private val context: Context) {
                 )
                 canvas = currentPage.canvas
                 yPosition = margin
-                drawFooter(canvas, pageNumber)
             }
 
             if (abnormalResults.isNotEmpty()) {
                 if (yPosition > pageHeight - bottomMargin - 200) {
+                    drawFooter(canvas, pageNumber) // Dodajemy stopkę przed zamknięciem
                     pdfDocument.finishPage(currentPage)
                     pageNumber++
                     currentPage = pdfDocument.startPage(
@@ -148,7 +171,6 @@ class PdfReportGenerator(private val context: Context) {
                     )
                     canvas = currentPage.canvas
                     yPosition = margin
-                    drawFooter(canvas, pageNumber)
                 }
 
                 val sectionPaint = TextPaint().apply {
@@ -182,6 +204,7 @@ class PdfReportGenerator(private val context: Context) {
 
                 for (result in abnormalResults) {
                     if (yPosition > pageHeight - bottomMargin - 30) {
+                        drawFooter(canvas, pageNumber) // Dodajemy stopkę przed zamknięciem
                         pdfDocument.finishPage(currentPage)
                         pageNumber++
                         currentPage = pdfDocument.startPage(
@@ -189,7 +212,6 @@ class PdfReportGenerator(private val context: Context) {
                         )
                         canvas = currentPage.canvas
                         yPosition = margin
-                        drawFooter(canvas, pageNumber)
 
                         canvas.drawText(context.getString(R.string.pdf_section_abnormal_results_cont), margin, yPosition, sectionPaint)
                         yPosition += 30f
@@ -216,7 +238,6 @@ class PdfReportGenerator(private val context: Context) {
 
         } catch (e: Exception) {
             Log.e("PdfReportGenerator", "Error generating PDF", e)
-            // currentPage might be initialized, safe call in finally block or here if needed, but try-catch wraps main logic.
             return Pair(null, null)
         } finally {
             pdfDocument.close()
@@ -390,38 +411,24 @@ class PdfReportGenerator(private val context: Context) {
         canvas: Canvas, startY: Float, breakdown: List<String>
     ): Float {
         var y = startY
-        var currentCanvas = canvas
-
         val sectionPaint = TextPaint().apply {
             color = primaryColor
             textSize = 16f
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
             isAntiAlias = true
         }
-        currentCanvas.drawText(context.getString(R.string.pdf_section_detailed_analysis), margin, y, sectionPaint)
+        canvas.drawText(context.getString(R.string.pdf_section_detailed_analysis), margin, y, sectionPaint)
         y += 30f
 
         val itemPaint = TextPaint().apply { color = Color.BLACK; textSize = 11f; isAntiAlias = true }
 
         for (item in breakdown) {
-            if (y > pageHeight - bottomMargin - 100) {
-                // Finish current page if we aren't on the very first page started outside this function
-                // Actually `canvas` passed in is from an active page.
-                // We need a way to close *that* page.
-                // The original code had a slight flaw here if it broke page inside this loop.
-                // Assuming `pdfDocument.finishPage` works on the *currently active* page if we track it.
-                // BETTER APPROACH: Return new canvas/y/pageNum if page broke.
-                // For simplicity, assuming simple flow, but `currentPage` needs to be passed or tracked.
-                // Since we don't have easy access to the *current* page object to finish it here easily without refactoring `generateReport` state management:
-                // We will assume enough space or standard flow.
-                // REFACTOR HINT: Ideally `generateReport` should manage page state and pass a context object.
-            }
             val cleanItem = item.replace(Regex("<[^>]*>"), "").replace("✅", "✓").replace("❌", "✗").replace("⚠️", "!").replace("?", "?")
             val layout = StaticLayout.Builder.obtain(cleanItem, 0, cleanItem.length, itemPaint, (contentWidth - 20f).toInt()).build()
-            currentCanvas.save()
-            currentCanvas.translate(margin + 20f, y)
-            layout.draw(currentCanvas)
-            currentCanvas.restore()
+            canvas.save()
+            canvas.translate(margin + 20f, y)
+            layout.draw(canvas)
+            canvas.restore()
             y += layout.height + 10f
         }
         return y + 20f
@@ -494,8 +501,76 @@ class PdfReportGenerator(private val context: Context) {
 
         return y + consultationLayout.height + 30f
     }
-    // ... (reszta metod prywatnych jak drawFooter, savePdfToDownloads, drawShapeAnalysisSection itp. pozostaje bez zmian istotnych dla warningów)
-    // Upewnij się, że zamykasz klamry klasy.
+
+    // --- FUNKCJA ZAKTUALIZOWANA O STRINGI ---
+    private fun drawAdvancedAnalysisSection(
+        canvas: Canvas, startY: Float,
+        gammaAnalysis: ElectrophoresisShapeAnalyzer.GammaAnalysisResult?,
+        aucMetrics: Map<String, Double>?
+    ): Float {
+        var y = startY
+        val sectionPaint = TextPaint().apply {
+            color = primaryColor
+            textSize = 16f
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            isAntiAlias = true
+        }
+        // 1. Użycie stringa tytułu
+        val title = context.getString(R.string.pdf_advanced_chart_analysis_title)
+        canvas.drawText(title, margin, y, sectionPaint)
+        y += 30f
+
+        val detailsPaint = TextPaint().apply {
+            color = Color.BLACK
+            textSize = 11f
+            isAntiAlias = true
+        }
+        val boldDetailsPaint = TextPaint(detailsPaint).apply {
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+
+        // 2. Rysowanie wszystkich danych analizy piku Gamma (Używa stringów)
+        if (gammaAnalysis != null && gammaAnalysis.totalMass > 0) {
+
+            val varianceLabel = context.getString(R.string.pdf_gamma_peak_variance)
+            val varianceValue = String.format(Locale.getDefault(), "%.2f", gammaAnalysis.variance)
+            canvas.drawText("$varianceLabel $varianceValue", margin + 10f, y, detailsPaint)
+            y += 15f
+
+            val stdDevLabel = context.getString(R.string.pdf_gamma_peak_std_dev)
+            val stdDevValue = String.format(Locale.getDefault(), "%.2f", gammaAnalysis.stdDev)
+            canvas.drawText("$stdDevLabel $stdDevValue", margin + 10f, y, detailsPaint)
+            y += 15f
+
+            val meanIndexLabel = context.getString(R.string.pdf_gamma_peak_mean_index)
+            val meanIndexValue = String.format(Locale.getDefault(), "%.1f", gammaAnalysis.meanIndex)
+            canvas.drawText("$meanIndexLabel $meanIndexValue", margin + 10f, y, detailsPaint)
+            y += 15f
+
+            val peakHeightLabel = context.getString(R.string.pdf_gamma_peak_height)
+            val peakHeightValue = "${gammaAnalysis.peakHeight}"
+            canvas.drawText("$peakHeightLabel $peakHeightValue", margin + 10f, y, detailsPaint)
+            y += 20f // Dodatkowy odstęp
+        }
+
+        // 3. Rysowanie danych AUC z tłumaczeniem (Używa stringów)
+        if (aucMetrics != null && aucMetrics.isNotEmpty()) {
+            canvas.drawText(context.getString(R.string.pdf_calculated_fractions_title), margin, y, boldDetailsPaint)
+            y += 18f
+
+            aucMetrics.forEach { (fractionKey, percentage) ->
+                if (fractionKey != "TotalAUC_Pixels") {
+                    val translatedName = getTranslatedFractionName(fractionKey)
+                    val formattedLine = "$translatedName: ${String.format(Locale.getDefault(), "%.1f", percentage)} %"
+                    canvas.drawText(formattedLine, margin + 20f, y, detailsPaint)
+                    y += 15f
+                }
+            }
+        }
+        return y + 20f
+    }
+
+
     private fun drawFooter(canvas: Canvas?, pageNumber: Int) {
         val footerPaint = TextPaint().apply { color = Color.GRAY; textSize = 10f; isAntiAlias = true }
         val year = Calendar.getInstance().get(Calendar.YEAR)
@@ -507,6 +582,21 @@ class PdfReportGenerator(private val context: Context) {
         val disclaimerWidth = disclaimerPaint.measureText(disclaimer)
         canvas?.drawText(disclaimer, (pageWidth - disclaimerWidth) / 2, pageHeight - 35f, disclaimerPaint)
     }
+
+    // --- ZAKTUALIZOWANA FUNKCJA POMOCNICZA ---
+    private fun getTranslatedFractionName(fractionKey: String): String {
+        // Ta funkcja mapuje klucze ("Albumin", "Alpha") na zasoby string
+        val resId = when (fractionKey) {
+            "Albumin" -> R.string.pdf_fraction_albumin
+            "Alpha"   -> R.string.pdf_fraction_alpha1 // Używamy stringa "Alpha-1" dla połączonej frakcji "Alpha"
+            "Beta"    -> R.string.pdf_fraction_beta
+            "Gamma"   -> R.string.pdf_fraction_gamma
+            else -> 0
+        }
+        return if (resId != 0) context.getString(resId) else fractionKey
+    }
+    // --- KONIEC ZAKTUALIZOWANEJ FUNKCJI ---
+
     private fun savePdfToDownloads(pdfDocument: PdfDocument, fileName: String): Pair<String?, String?> {
         return try {
             val localDir = context.getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS)
@@ -529,6 +619,8 @@ class PdfReportGenerator(private val context: Context) {
             Pair(null, null)
         }
     }
+
+    // --- ZAKTUALIZOWANA FUNKCJA ---
     private fun drawShapeAnalysisSection(canvas: Canvas, startY: Float, analysis: ElectrophoresisShapeAnalyzer.ShapeAnalysisResult, points: Int, maxPoints: Int): Float {
         var y = startY
         val sectionPaint = TextPaint().apply { color = primaryColor; textSize = 16f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD); isAntiAlias = true }
@@ -549,16 +641,21 @@ class PdfReportGenerator(private val context: Context) {
         y += barHeight + 20f
         val detailsPaint = TextPaint().apply { color = Color.BLACK; textSize = 12f; isAntiAlias = true }
         val bridgeStatus = if (analysis.betaGammaBridge.present) context.getString(R.string.pdf_bridge_present) else context.getString(R.string.pdf_bridge_absent)
+
+        // ZMIANA TUTAJ: Użycie .width50 zamiast .width
         val details = buildString {
             append(context.getString(R.string.pdf_shape_pattern, analysis.overallPattern)).append("\n")
             append(context.getString(R.string.pdf_shape_ag_ratio, String.format(Locale.getDefault(), "%.2f", analysis.albumin.height / analysis.gamma.height))).append("\n")
-            append(context.getString(R.string.pdf_shape_gamma_width, (analysis.gamma.width * 100).toInt())).append("\n")
+            append(context.getString(R.string.pdf_shape_gamma_width, (analysis.gamma.width50 * 100).toInt())).append("\n") // <-- ZMIANA
             append(context.getString(R.string.pdf_shape_bridge, bridgeStatus))
         }
+        // --- KONIEC ZMIANY ---
+
         val detailsLayout = StaticLayout.Builder.obtain(details, 0, details.length, detailsPaint, contentWidth.toInt()).build()
         canvas.save(); canvas.translate(margin, y); detailsLayout.draw(canvas); canvas.restore()
         return y + detailsLayout.height + 30f
     }
+    // --- KONIEC ZAKTUALIZOWANEJ FUNKCJI ---
 
     private fun drawPatternAnalysisSection(canvas: Canvas, startY: Float, analysis: FipPatternAnalyzer.PatternAnalysisResult, points: Int, maxPoints: Int): Float {
         var y = startY

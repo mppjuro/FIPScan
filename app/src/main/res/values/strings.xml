@@ -66,7 +66,7 @@
     <string name="no_date">no date</string>
     <string name="rivalta_not_performed">not performed, fluid present</string>
     <string name="patient_info_template">🐱 Patient: %1$s\n📅 Age: %2$s\n🐾 Species: %3$s\n🏷️ Breed: %4$s\n⚥ Sex: %5$s\n🎨 Coat: %6$s\n📆 Date: %7$s</string>
-    <string name="risk_breakdown_html"><b>Detailed FIP Risk Analysis:</b><br></br>%1$s</string>
+    <string name="risk_breakdown_html"><b>Detailed FIP Risk Analysis:</b><br />%1$s</string>
     <string name="further_tests_html"><b>🔬 Further Tests:</b> %1$s</string>
     <string name="supplements_fip_html"><b>💊 Supplements (FIP context):</b> %1$s</string>
     <string name="consult_fip_html"><b>🏥 Consultation (FIP context):</b> %1$s</string>
@@ -127,7 +127,7 @@
     <string name="breakdown_ag_very_low">✅ A/G Ratio &lt; 0.4: <b>+%1$d pts</b> (strongly suggestive)</string>
     <string name="breakdown_ag_low">⚠️ A/G Ratio &lt; 0.6: <b>+%1$d pts</b> (moderately suggestive)</string>
     <string name="breakdown_ag_high">❌ A/G Ratio &gt; 0.8: <b>+%1$d pts</b> (argues against FIP)</string>
-    <string name="breakdown_ag_grey">❔ A/G Ratio in \'grey zone\' (0.6-0.8): <b>+0 pts</b></string>
+    <string name="breakdown_ag_grey">❔ A/G Ratio in \'grey zone\' (0.6–0.8): <b>+0 pts</b></string>
     <string name="breakdown_ag_missing">❓ A/G Ratio missing: <b>+0 pts</b></string>
 
     <string name="breakdown_lym_low">✅ Lymphopenia: <b>+%1$d pts</b> (moderately suggestive)</string>
@@ -240,7 +240,7 @@
     <string name="sugg_complex_diagnostics">⚠️ Complex picture - requires detailed diagnostics</string>
     <string name="sugg_comprehensive_imaging">📋 Comprehensive diagnostics: imaging + laboratory</string>
     <string name="sugg_differential_diagnosis">❓ Atypical picture - differential diagnosis</string>
-    <string name="sugg_repeat_tests">📋 Repeat tests in 2-4 weeks, expand panel</string>
+    <string name="sugg_repeat_tests">📋 Repeat tests in 2–4 weeks, expand panel</string>
     <string name="sugg_fip_unlikely">✅ FIP unlikely</string>
     <string name="sugg_search_other_causes">🔍 Search for other causes of clinical symptoms</string>
     <string name="sugg_monitor">📊 Monitor: total protein, A/G, hematocrit every 2 weeks</string>
@@ -343,4 +343,19 @@
     <string name="pdf_gammopathy_label">Gammopathy:</string>
     <string name="action_download_diagnosis">Download Diagnosis</string>
     <string name="action_print_diagnosis">Print Diagnosis</string>
+    <string name="diag_advanced_analysis_title">Advanced Chart Analysis</string>
+    <string name="diag_auc_analysis_title">Calculated Fractions (AUC)</string>
+
+    <string name="pdf_advanced_chart_analysis_title">Advanced Chart Shape Analysis</string>
+    <string name="pdf_gamma_peak_variance">Gamma Peak Variance:</string>
+    <string name="pdf_gamma_peak_std_dev">Gamma Peak Std. Dev.:</string>
+    <string name="pdf_gamma_peak_mean_index">Peak Center of Mass (px):</string>
+    <string name="pdf_gamma_peak_height">Peak Height (px):</string>
+
+    <string name="pdf_calculated_fractions_title">Calculated Fractions (AUC, Trapezoidal)</string>
+    <string name="pdf_fraction_albumin">Albumin</string>
+    <string name="pdf_fraction_alpha1">Alpha-1</string>
+    <string name="pdf_fraction_alpha2">Alpha-2</string>
+    <string name="pdf_fraction_beta">Beta</string>
+    <string name="pdf_fraction_gamma">Gamma</string>
 </resources>
