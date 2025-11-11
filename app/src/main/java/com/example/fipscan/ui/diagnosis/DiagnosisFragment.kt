@@ -14,6 +14,7 @@ import android.print.PrintDocumentAdapter
 import android.print.PrintDocumentInfo
 import android.print.PrintManager
 import android.text.Html
+import android.text.TextPaint
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
@@ -129,7 +130,6 @@ class DiagnosisFragment : Fragment() {
 
     private fun setupUI() {
         val currentResult = result ?: return
-        // Pobieramy context raz, aby użyć go w wielu miejscach
         val context = requireContext()
 
         binding.textDiagnosis.text = getString(R.string.diagnosis_patient_title, currentResult.patientName)
@@ -191,6 +191,16 @@ class DiagnosisFragment : Fragment() {
             Log.w("DiagnosisFragment", "chartImageView not found in layout")
         }
 
+        // Usunięcie starych kart, aby uniknąć duplikatów przy ponownym ładowaniu
+        try {
+            val analysisContainerField = binding.javaClass.getDeclaredField("analysisContainer")
+            analysisContainerField.isAccessible = true
+            val analysisContainer = analysisContainerField.get(binding) as? ViewGroup
+            analysisContainer?.removeAllViews()
+        } catch (e: NoSuchFieldException) {
+            Log.w("DiagnosisFragment", "analysisContainer not found in layout")
+        }
+
         currentResult.imagePath?.let { imagePath ->
             val chartFile = File(imagePath)
             if (chartFile.exists()) {
@@ -198,15 +208,13 @@ class DiagnosisFragment : Fragment() {
 
                 // --- ZMODYFIKOWANA LOGIKA ANALIZY ---
                 // 1. Ustaw wewnętrzny stan analizatora (curveData i fractionRanges)
-                // To jest jedyne miejsce, gdzie przekazujemy bitmapę.
                 ElectrophoresisShapeAnalyzer.analyzeChartBitmap(bitmap)
 
                 // 2. Pobierz nowe wyniki (AUC i Wariancja)
                 currentGammaAnalysis = ElectrophoresisShapeAnalyzer.analyzeGammaPeak()
                 currentAucAnalysis = ElectrophoresisShapeAnalyzer.getFractionsAUC()
 
-                // 3. Pobierz stare wyniki (ShapeAnalysisResult) używając nowej sygnatury
-                // Ta funkcja teraz używa wewnętrznego stanu ustawionego w kroku 1.
+                // 3. Pobierz "stare" wyniki (ShapeAnalysisResult)
                 val shapeAnalysis = ElectrophoresisShapeAnalyzer.analyzeElectrophoresisShape(context)
                 // --- KONIEC ZMODYFIKOWANEJ LOGIKI ---
 
@@ -222,10 +230,23 @@ class DiagnosisFragment : Fragment() {
                     }
                     currentShapeAnalysis = analysis
                 }
+
+                // --- DODANIE NOWEJ KARTY DLA AUC I WARIANCJI ---
+                if (currentGammaAnalysis != null || currentAucAnalysis != null) {
+                    val advancedCard = createAdvancedAnalysisCard(currentGammaAnalysis, currentAucAnalysis)
+                    try {
+                        val analysisContainerField = binding.javaClass.getDeclaredField("analysisContainer")
+                        analysisContainerField.isAccessible = true
+                        val analysisContainer = analysisContainerField.get(binding) as? ViewGroup
+                        analysisContainer?.addView(advancedCard)
+                    } catch (e: NoSuchFieldException) {
+                        Log.w("DiagnosisFragment", "analysisContainer not found in layout")
+                    }
+                }
+                // --- KONIEC DODAWANIA NOWEJ KARTY ---
             }
         }
 
-        // POPRAWKA: Przekazanie context do analizy wzorców
         val patternAnalysis = FipPatternAnalyzer.analyzeParameterPatterns(extractedMap, context)
         val patternCard = createPatternAnalysisCard(patternAnalysis)
 
@@ -384,8 +405,8 @@ class DiagnosisFragment : Fragment() {
                 abnormalResults = currentAbnormalResults,
                 gammopathyResult = currentGammopathyResult,
                 shapeAnalysis = currentShapeAnalysis,
-                gammaAnalysisDetails = currentGammaAnalysis,
-                aucMetrics = currentAucAnalysis,
+                gammaAnalysisDetails = currentGammaAnalysis, // Przekazanie nowych danych
+                aucMetrics = currentAucAnalysis,             // Przekazanie nowych danych
                 patternAnalysis = currentPatternAnalysis,
                 shapeAnalysisPoints = shapePoints,
                 patternAnalysisPoints = patternPoints,
@@ -444,10 +465,8 @@ class DiagnosisFragment : Fragment() {
                 abnormalResults = currentAbnormalResults,
                 gammopathyResult = currentGammopathyResult,
                 shapeAnalysis = currentShapeAnalysis,
-                // NOWE POLA
-                gammaAnalysisDetails = currentGammaAnalysis,
-                aucMetrics = currentAucAnalysis,
-                // KONIEC NOWYCH PÓL
+                gammaAnalysisDetails = currentGammaAnalysis, // Przekazanie nowych danych
+                aucMetrics = currentAucAnalysis,             // Przekazanie nowych danych
                 patternAnalysis = currentPatternAnalysis,
                 shapeAnalysisPoints = shapePoints,
                 patternAnalysisPoints = patternPoints,
@@ -573,6 +592,7 @@ class DiagnosisFragment : Fragment() {
             text = getString(R.string.fraction_details_title)
             textSize = 14f
             setTypeface(null, Typeface.BOLD)
+            setPadding(0, 16, 0, 4)
             setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
         }
         content.addView(detailsTitle)
@@ -584,8 +604,8 @@ class DiagnosisFragment : Fragment() {
 
         // --- POPRAWKA BŁĘDU (użycie width50) ---
         val details = getString(R.string.shape_details_template,
-            (analysis.albumin.height * 100).toInt(), (analysis.albumin.symmetry * 100).toInt(),
-            (analysis.gamma.height * 100).toInt(), (analysis.gamma.width50 * 100).toInt(), // Zmieniono .width na .width50
+            (analysis.albumin.height).toInt(), (analysis.albumin.symmetry * 100).toInt(),
+            (analysis.gamma.height).toInt(), (analysis.gamma.width50 * 100).toInt(), // Zmieniono .width na .width50
             bridgeStatus
         )
         // --- KONIEC POPRAWKI ---
@@ -686,6 +706,7 @@ class DiagnosisFragment : Fragment() {
             text = getString(R.string.profile_description_title)
             textSize = 14f
             setTypeface(null, Typeface.BOLD)
+            setPadding(0, 16, 0, 4)
             setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
         }
         content.addView(descTitle)
@@ -702,6 +723,7 @@ class DiagnosisFragment : Fragment() {
             text = getString(R.string.management_suggestions_title)
             textSize = 14f
             setTypeface(null, Typeface.BOLD)
+            setPadding(0, 16, 0, 4)
             setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
         }
         content.addView(suggestionsTitle)
@@ -716,6 +738,106 @@ class DiagnosisFragment : Fragment() {
         card.addView(content)
         return card
     }
+
+    // --- NOWA FUNKCJA DO WYŚWIETLANIA KARTY ANALIZY NUMERYCZNEJ ---
+    private fun createAdvancedAnalysisCard(
+        gammaAnalysis: ElectrophoresisShapeAnalyzer.GammaAnalysisResult?,
+        aucMetrics: Map<String, Double>?
+    ): CardView {
+        val card = CardView(requireContext()).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 16, 0, 16) }
+            cardElevation = 4f
+            radius = 8f
+            setCardBackgroundColor(getThemedColor(requireContext(), android.R.attr.colorBackgroundFloating))
+        }
+        val content = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16, 16, 16, 16)
+        }
+
+        val title = TextView(requireContext()).apply {
+            text = getString(R.string.diag_advanced_analysis_title) // Używamy stringa z strings.xml
+            textSize = 18f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+        }
+        content.addView(title)
+
+        val detailsPaint = TextPaint().apply {
+            color = getThemedColor(requireContext(), android.R.attr.textColorPrimary)
+            textSize = 14f
+            isAntiAlias = true
+        }
+        TextPaint(detailsPaint).apply {
+            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        }
+
+        // 1. Wyświetl analizę piku Gamma
+        if (gammaAnalysis != null && gammaAnalysis.totalMass > 0) {
+            val varianceLabel = getString(R.string.pdf_gamma_peak_variance) // Możemy reużyć stringów z PDF
+            val varianceValue = String.format(Locale.getDefault(), "%.2f", gammaAnalysis.variance)
+            val varianceTv = TextView(requireContext()).apply {
+                text = "$varianceLabel $varianceValue"
+                textSize = 14f
+                setPadding(0, 8, 0, 4)
+                setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+            }
+            content.addView(varianceTv)
+
+            val stdDevLabel = getString(R.string.pdf_gamma_peak_std_dev)
+            val stdDevValue = String.format(Locale.getDefault(), "%.2f", gammaAnalysis.stdDev)
+            val stdDevTv = TextView(requireContext()).apply {
+                text = "$stdDevLabel $stdDevValue"
+                textSize = 14f
+                setPadding(0, 4, 0, 4)
+                setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+            }
+            content.addView(stdDevTv)
+        }
+
+        // 2. Wyświetl analizę AUC
+        if (aucMetrics != null && aucMetrics.isNotEmpty()) {
+            val aucTitle = TextView(requireContext()).apply {
+                text = getString(R.string.diag_auc_analysis_title) // Używamy stringa z strings.xml
+                textSize = 16f
+                setTypeface(null, Typeface.BOLD)
+                setPadding(0, 16, 0, 8)
+                setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+            }
+            content.addView(aucTitle)
+
+            aucMetrics.forEach { (fractionKey, percentage) ->
+                if (fractionKey != "TotalAUC_Pixels") {
+                    val translatedName = getTranslatedFractionNameForUI(fractionKey)
+                    val formattedLine = "$translatedName: ${String.format(Locale.getDefault(), "%.1f", percentage)} %"
+                    val aucTv = TextView(requireContext()).apply {
+                        text = formattedLine
+                        textSize = 14f
+                        setPadding(8, 4, 0, 4)
+                        setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+                    }
+                    content.addView(aucTv)
+                }
+            }
+        }
+
+        card.addView(content)
+        return card
+    }
+
+    // --- NOWA FUNKCJA POMOCNICZA DO TŁUMACZENIA NAZW FRAKCJI W UI ---
+    private fun getTranslatedFractionNameForUI(fractionKey: String): String {
+        val context = requireContext()
+        val resId = when (fractionKey) {
+            "Albumin" -> R.string.pdf_fraction_albumin
+            "Alpha" -> R.string.pdf_fraction_alpha1 // Używamy "Alpha-1" dla połączonej "Alpha"
+            "Beta" -> R.string.pdf_fraction_beta
+            "Gamma" -> R.string.pdf_fraction_gamma
+            else -> 0
+        }
+        return if (resId != 0) context.getString(resId) else fractionKey
+    }
+
 
     private fun getThemedColor(context: Context, attr: Int): Int {
         val typedValue = TypedValue()
