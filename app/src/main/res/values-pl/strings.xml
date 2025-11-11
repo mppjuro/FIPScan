@@ -306,7 +306,7 @@
     <string name="pdf_gamma_peak_height">Wysokość piku (px):</string>
     <string name="pdf_calculated_fractions_title">Obliczone frakcje (AUC, metoda trapezów)</string>
     <string name="pdf_fraction_albumin">Albumina</string>
-    <string name="pdf_fraction_alpha1">Alfa-1</string>
+    <string name="pdf_fraction_alpha1">Alfa</string>
     <string name="pdf_fraction_alpha2">Alfa-2</string>
     <string name="pdf_fraction_beta">Beta</string>
     <string name="pdf_fraction_gamma">Gamma</string>
