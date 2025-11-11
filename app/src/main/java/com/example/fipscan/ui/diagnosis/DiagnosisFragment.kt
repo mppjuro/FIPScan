@@ -1,5 +1,6 @@
 package com.example.fipscan.ui.diagnosis
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.BitmapFactory
@@ -14,7 +15,6 @@ import android.print.PrintDocumentAdapter
 import android.print.PrintDocumentInfo
 import android.print.PrintManager
 import android.text.Html
-import android.text.TextPaint
 import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
@@ -30,7 +30,6 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
-import com.example.fipscan.BarChartLevelAnalyzer
 import com.example.fipscan.ElectrophoresisAnalyzer
 import com.example.fipscan.ElectrophoresisShapeAnalyzer
 import com.example.fipscan.FipPatternAnalyzer
@@ -53,6 +52,7 @@ import java.io.IOException
 import java.util.Properties
 import com.google.gson.reflect.TypeToken
 import java.util.Locale
+import androidx.core.graphics.toColorInt
 
 class DiagnosisFragment : Fragment() {
     private var _binding: FragmentDiagnosisBinding? = null
@@ -187,7 +187,7 @@ class DiagnosisFragment : Fragment() {
             chartImageViewField.isAccessible = true
             val chartImageView = chartImageViewField.get(binding) as? View
             chartImageView?.visibility = View.VISIBLE
-        } catch (e: NoSuchFieldException) {
+        } catch (_: NoSuchFieldException) {
             Log.w("DiagnosisFragment", "chartImageView not found in layout")
         }
 
@@ -197,7 +197,7 @@ class DiagnosisFragment : Fragment() {
             analysisContainerField.isAccessible = true
             val analysisContainer = analysisContainerField.get(binding) as? ViewGroup
             analysisContainer?.removeAllViews()
-        } catch (e: NoSuchFieldException) {
+        } catch (_: NoSuchFieldException) {
             Log.w("DiagnosisFragment", "analysisContainer not found in layout")
         }
 
@@ -206,21 +206,11 @@ class DiagnosisFragment : Fragment() {
             if (chartFile.exists()) {
                 val bitmap = BitmapFactory.decodeFile(imagePath)
 
-                // --- ZMODYFIKOWANA LOGIKA ANALIZY ---
-                // 1. Ustaw wewnętrzny stan analizatora (curveData i fractionRanges)
                 ElectrophoresisShapeAnalyzer.analyzeChartBitmap(bitmap)
-
-                // 2. Pobierz wyniki (AUC i Wariancja)
                 currentGammaAnalysis = ElectrophoresisShapeAnalyzer.analyzeGammaPeak()
                 currentAucAnalysis = ElectrophoresisShapeAnalyzer.getFractionsAUC()
-
-                // 3. Pobierz "stare" wyniki (ShapeAnalysisResult)
-                val shapeAnalysis =
-                    ElectrophoresisShapeAnalyzer.analyzeElectrophoresisShape(context)
-
-                // 4. POBIERZ NOWE WYNIKI PROPORCJI SZEROKOŚCI
+                val shapeAnalysis = ElectrophoresisShapeAnalyzer.analyzeElectrophoresisShape(context)
                 currentWidthRatios = ElectrophoresisShapeAnalyzer.calculateWidthRatios()
-                // --- KONIEC ZMODYFIKOWANEJ LOGIKI ---
 
                 shapeAnalysis?.let { analysis ->
                     val shapeCard = createShapeAnalysisCard(analysis)
@@ -230,7 +220,7 @@ class DiagnosisFragment : Fragment() {
                         analysisContainerField.isAccessible = true
                         val analysisContainer = analysisContainerField.get(binding) as? ViewGroup
                         analysisContainer?.addView(shapeCard)
-                    } catch (e: NoSuchFieldException) {
+                    } catch (_: NoSuchFieldException) {
                         Log.w("DiagnosisFragment", "analysisContainer not found in layout")
                     }
                     currentShapeAnalysis = analysis
@@ -249,7 +239,7 @@ class DiagnosisFragment : Fragment() {
                         analysisContainerField.isAccessible = true
                         val analysisContainer = analysisContainerField.get(binding) as? ViewGroup
                         analysisContainer?.addView(advancedCard)
-                    } catch (e: NoSuchFieldException) {
+                    } catch (_: NoSuchFieldException) {
                         Log.w("DiagnosisFragment", "analysisContainer not found in layout")
                     }
                 }
@@ -264,7 +254,7 @@ class DiagnosisFragment : Fragment() {
             analysisContainerField.isAccessible = true
             val analysisContainer = analysisContainerField.get(binding) as? ViewGroup
             analysisContainer?.addView(patternCard)
-        } catch (e: NoSuchFieldException) {
+        } catch (_: NoSuchFieldException) {
             Log.w("DiagnosisFragment", "analysisContainer not found in layout")
         }
 
@@ -273,7 +263,9 @@ class DiagnosisFragment : Fragment() {
         binding.textDiagnosticComment.text = Html.fromHtml(electroResult.fipRiskComment, Html.FROM_HTML_MODE_COMPACT)
 
         val breakdownHtml = electroResult.scoreBreakdown.joinToString("<br>")
-        binding.textRiskBreakdown.text = Html.fromHtml(getString(R.string.risk_breakdown_html, breakdownHtml), Html.FROM_HTML_MODE_COMPACT)
+        binding.textRiskBreakdown.text = Html.fromHtml(getString(R.string.risk_breakdown_html,
+            "<br/>$breakdownHtml"
+        ), Html.FROM_HTML_MODE_COMPACT)
 
         binding.textFurtherTests.text = Html.fromHtml(getString(R.string.further_tests_html, electroResult.furtherTestsAdvice), Html.FROM_HTML_MODE_COMPACT)
         binding.textRiskSupplements.text = Html.fromHtml(getString(R.string.supplements_fip_html, electroResult.supplementAdvice), Html.FROM_HTML_MODE_COMPACT)
@@ -303,12 +295,11 @@ class DiagnosisFragment : Fragment() {
                 continue
             }
 
-            val testName = key
-            val value = extractedMap[testName] as? String ?: continue
-            val unit = extractedMap["${testName}Unit"] as? String ?: ""
+            val value = extractedMap[key] as? String ?: continue
+            val unit = extractedMap["${key}Unit"] as? String ?: ""
 
-            val minRangeStr = extractedMap["${testName}RangeMin"] as? String
-            val maxRangeStr = extractedMap["${testName}RangeMax"] as? String
+            val minRangeStr = extractedMap["${key}RangeMin"] as? String
+            val maxRangeStr = extractedMap["${key}RangeMax"] as? String
 
             if (minRangeStr == null && maxRangeStr == null) {
                 continue
@@ -318,7 +309,8 @@ class DiagnosisFragment : Fragment() {
             val maxRange = maxRangeStr ?: minRange
 
             if (isOutOfRange(value, minRange, maxRange)) {
-                abnormalResults.add(getString(R.string.abnormal_result_format, testName, value, unit, minRange, maxRange))
+                abnormalResults.add(getString(R.string.abnormal_result_format,
+                    key, value, unit, minRange, maxRange))
             }
         }
 
@@ -336,7 +328,7 @@ class DiagnosisFragment : Fragment() {
             if (minVal != null && v < minVal) return true
             if (maxVal != null && v > maxVal) return true
             return false
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             return false
         }
     }
@@ -492,7 +484,7 @@ class DiagnosisFragment : Fragment() {
 
                     printManager.print(
                         jobName,
-                        FipReportPrintAdapter(requireContext(), localPath, fileName),
+                        FipReportPrintAdapter(localPath, fileName),
                         PrintAttributes.Builder().setMediaSize(PrintAttributes.MediaSize.ISO_A4).build()
                     )
 
@@ -509,8 +501,7 @@ class DiagnosisFragment : Fragment() {
         }
     }
 
-    inner class FipReportPrintAdapter(
-        private val context: Context,
+    class FipReportPrintAdapter(
         private val pdfFilePath: String,
         private val fileName: String
     ) : PrintDocumentAdapter() {
@@ -573,10 +564,10 @@ class DiagnosisFragment : Fragment() {
             max = 100
             progress = analysis.fipShapeScore.toInt()
             val tintColor = when {
-                analysis.fipShapeScore >= 70 -> Color.parseColor("#F44336")
-                analysis.fipShapeScore >= 50 -> Color.parseColor("#FF9800")
-                analysis.fipShapeScore >= 30 -> Color.parseColor("#FFC107")
-                else -> Color.parseColor("#4CAF50")
+                analysis.fipShapeScore >= 70 -> "#F44336".toColorInt()
+                analysis.fipShapeScore >= 50 -> "#FF9800".toColorInt()
+                analysis.fipShapeScore >= 30 -> "#FFC107".toColorInt()
+                else -> "#4CAF50".toColorInt()
             }
             progressTintList = ColorStateList.valueOf(tintColor)
         }
@@ -686,9 +677,9 @@ class DiagnosisFragment : Fragment() {
             max = 100
             progress = analysis.patternStrength.toInt()
             val tintColor = when {
-                analysis.patternStrength >= 70 -> Color.parseColor("#F44336")
-                analysis.patternStrength >= 50 -> Color.parseColor("#FF9800")
-                else -> Color.parseColor("#4CAF50")
+                analysis.patternStrength >= 70 -> "#F44336".toColorInt()
+                analysis.patternStrength >= 50 -> "#FF9800".toColorInt()
+                else -> "#4CAF50".toColorInt()
             }
             progressTintList = ColorStateList.valueOf(tintColor)
         }
@@ -759,6 +750,7 @@ class DiagnosisFragment : Fragment() {
         return card
     }
 
+    @SuppressLint("SetTextI18n")
     private fun createAdvancedAnalysisCard(
         gammaAnalysis: ElectrophoresisShapeAnalyzer.GammaAnalysisResult?,
         aucMetrics: Map<String, Double>?,
@@ -782,12 +774,6 @@ class DiagnosisFragment : Fragment() {
             setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
         }
         content.addView(title)
-
-        val detailsPaint = TextPaint().apply {
-            color = getThemedColor(requireContext(), android.R.attr.textColorPrimary)
-            textSize = 14f
-            isAntiAlias = true
-        }
 
         // 1. Wyświetl analizę piku Gamma
         if (gammaAnalysis != null && gammaAnalysis.totalMass > 0) {
@@ -852,12 +838,12 @@ class DiagnosisFragment : Fragment() {
             // Funkcja pomocnicza do tworzenia wierszy
             fun createRatioTextView(labelResId: Int, value: Float): TextView {
                 return TextView(requireContext()).apply {
-                    // 1. Pobieramy samą etykietę (np. "Gamma (70% H): ")
+                    // 1. Pobieramy etykietę
                     val label = getString(labelResId)
-                    // 2. Formatujemy liczbę do jednego miejsca po przecinku (np. "43.6")
+                    // 2. Formatujemy liczbę do jednego miejsca po przecinku
                     val formattedValue = String.format(Locale.getDefault(), "%.1f", value)
-                    // 3. Łączymy wszystko w jeden tekst (np. "Gamma (70% H): 43.6 %")
-                    text = "$label$formattedValue %"
+                    // 3. Łączymy wszystko w jeden tekst
+                    text = "$label $formattedValue %"
                     textSize = 14f
                     setPadding(8, 4, 0, 4)
                     setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
@@ -877,7 +863,7 @@ class DiagnosisFragment : Fragment() {
         val context = requireContext()
         val resId = when (fractionKey) {
             "Albumin" -> R.string.pdf_fraction_albumin
-            "Alpha" -> R.string.pdf_fraction_alpha1 // Używamy "Alpha-1" dla połączonej "Alpha"
+            "Alpha" -> R.string.pdf_fraction_alpha1
             "Beta" -> R.string.pdf_fraction_beta
             "Gamma" -> R.string.pdf_fraction_gamma
             else -> 0
@@ -898,18 +884,9 @@ class DiagnosisFragment : Fragment() {
             when (attr) {
                 android.R.attr.textColorPrimary -> ContextCompat.getColor(context, android.R.color.black)
                 android.R.attr.textColorSecondary -> ContextCompat.getColor(context, android.R.color.darker_gray)
-                android.R.attr.colorBackgroundFloating -> Color.parseColor("#F8F8F8")
+                android.R.attr.colorBackgroundFloating -> "#F8F8F8".toColorInt()
                 else -> Color.BLACK
             }
-        }
-    }
-
-    fun getLocalizedGammopathyResult(context: Context, internalResult: String?): String {
-        return when (internalResult) {
-            BarChartLevelAnalyzer.RESULT_MONOCLONAL -> context.getString(R.string.gammopathy_monoclonal)
-            BarChartLevelAnalyzer.RESULT_POLYCLONAL -> context.getString(R.string.gammopathy_polyclonal)
-            BarChartLevelAnalyzer.RESULT_NONE -> context.getString(R.string.gammopathy_none)
-            else -> context.getString(R.string.gammopathy_none)
         }
     }
 

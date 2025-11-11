@@ -11,6 +11,9 @@ import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.max
 import kotlin.math.min
+import androidx.core.graphics.get
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.set
 
 data class BarChartSectionHeights(
     val section1: List<Float>,
@@ -184,7 +187,7 @@ class PdfChartExtractor(private val context: Context) {
 
                 for (x in colXStart until colXEnd) {
                     for (y in 0 until height) {
-                        if (!isWhite(barChartBitmap.getPixel(x, y))) {
+                        if (!isWhite(barChartBitmap[x, y])) {
                             pixelsInColumn++
                         }
                     }
@@ -213,7 +216,7 @@ class PdfChartExtractor(private val context: Context) {
 
         for (x in 0 until bitmap.width) {
             for (y in 0 until bitmap.height) {
-                if (isInBlueRange(bitmap.getPixel(x, y))) {
+                if (isInBlueRange(bitmap[x, y])) {
                     minX = min(minX, x)
                     minY = min(minY, y)
                     maxX = max(maxX, x)
@@ -242,7 +245,7 @@ class PdfChartExtractor(private val context: Context) {
 
     fun renderPage(pdfRenderer: PdfRenderer, pageIndex: Int): Bitmap {
         val page = pdfRenderer.openPage(pageIndex)
-        val bitmap = Bitmap.createBitmap(page.width * 3, page.height * 3, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(page.width * 3, page.height * 3)
         val canvas = Canvas(bitmap)
         canvas.drawColor(Color.WHITE)
         page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
@@ -259,7 +262,7 @@ class PdfChartExtractor(private val context: Context) {
         var count = 0
         for (x in 0 until bitmap.width step 5) {
             for (y in 0 until bitmap.height step 5) {
-                if (isInBlueRange(bitmap.getPixel(x, y))) count++
+                if (isInBlueRange(bitmap[x, y])) count++
             }
         }
         return count
@@ -283,7 +286,7 @@ class PdfChartExtractor(private val context: Context) {
             var lineLength = 0
             var currentLength = 0
             for (x in 0 until width) {
-                val color = bitmap.getPixel(x, y)
+                val color = bitmap[x, y]
                 if (!isWhite(color)) {
                     currentLength++
                     if (currentLength > lineLength) {
@@ -316,7 +319,7 @@ class PdfChartExtractor(private val context: Context) {
 
         for (x in 0 until bitmap.width step 5) {
             for (y in 0 until bitmap.height step 5) {
-                val color = bitmap.getPixel(x, y)
+                val color = bitmap[x, y]
                 if (!isWhite(color)) {
                     colorCount[color] = colorCount.getOrDefault(color, 0) + 1
                 }
@@ -331,9 +334,9 @@ class PdfChartExtractor(private val context: Context) {
 
         for (x in 0 until result.width) {
             for (y in 0 until result.height) {
-                val color = result.getPixel(x, y)
+                val color = result[x, y]
                 if (!isAlmostPureWhite(color)) {
-                    result.setPixel(x, y, targetColor)
+                    result[x, y] = targetColor
                 }
             }
         }
@@ -350,7 +353,7 @@ class PdfChartExtractor(private val context: Context) {
     fun convertToBarChartLike(bitmap: Bitmap): Bitmap {
         val width = bitmap.width
         val height = bitmap.height
-        val result = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val result = createBitmap(width, height)
         val canvas = Canvas(result)
         canvas.drawColor(Color.WHITE)
 
@@ -362,7 +365,7 @@ class PdfChartExtractor(private val context: Context) {
 
             for (x in xStart until min(xStart + n, width)) {
                 for (y in 0 until height) {
-                    val color = bitmap.getPixel(x, y)
+                    val color = bitmap[x, y]
                     if (!isAlmostPureWhite(color)) {
                         pixelCount++
                     }
@@ -374,7 +377,7 @@ class PdfChartExtractor(private val context: Context) {
             val xEnd = min(xStart + n, width)
             for (x in xStart until xEnd) {
                 for (y in height - averagePixelsPerColumn until height) {
-                    result.setPixel(x, y, paint.color)
+                    result[x, y] = paint.color
                 }
             }
         }

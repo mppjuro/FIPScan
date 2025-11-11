@@ -4,7 +4,6 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.Color
-import android.net.Uri
 import android.os.Bundle
 import android.text.SpannableString
 import android.text.Spanned
@@ -17,12 +16,16 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.content.edit
+import androidx.core.net.toUri
 import androidx.core.os.LocaleListCompat
 import androidx.fragment.app.Fragment
 import com.example.fipscan.R
 import com.example.fipscan.databinding.FragmentSettingsBinding
 import com.google.zxing.BarcodeFormat
 import com.google.zxing.qrcode.QRCodeWriter
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.set
 
 class SettingsFragment : Fragment() {
     companion object {
@@ -59,7 +62,7 @@ class SettingsFragment : Fragment() {
     private fun setupDarkModeSwitch() {
         binding.switchDarkMode.isChecked = sharedPreferences.getBoolean(PREF_DARK_MODE, false)
         binding.switchDarkMode.setOnCheckedChangeListener { _, isChecked ->
-            sharedPreferences.edit().putBoolean(PREF_DARK_MODE, isChecked).apply()
+            sharedPreferences.edit { putBoolean(PREF_DARK_MODE, isChecked) }
             if (isChecked) {
                 AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_YES)
             } else {
@@ -95,7 +98,7 @@ class SettingsFragment : Fragment() {
     }
 
     private fun setAppLocale(languageCode: String) {
-        sharedPreferences.edit().putString(PREF_APP_LANGUAGE, languageCode).apply()
+        sharedPreferences.edit { putString(PREF_APP_LANGUAGE, languageCode) }
         val localeList = LocaleListCompat.forLanguageTags(languageCode)
         AppCompatDelegate.setApplicationLocales(localeList)
     }
@@ -165,7 +168,7 @@ class SettingsFragment : Fragment() {
 
     private fun openUrl(url: String) {
         try {
-            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+            val intent = Intent(Intent.ACTION_VIEW, url.toUri())
             startActivity(intent)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -175,7 +178,7 @@ class SettingsFragment : Fragment() {
     private fun openEmail(email: String) {
         try {
             val intent = Intent(Intent.ACTION_SENDTO).apply {
-                data = Uri.parse("mailto:$email")
+                data = "mailto:$email".toUri()
             }
             startActivity(intent)
         } catch (e: Exception) {
@@ -185,7 +188,7 @@ class SettingsFragment : Fragment() {
 
     private fun openPhone(phone: String) {
         try {
-            val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${phone.replace("-", "")}"))
+            val intent = Intent(Intent.ACTION_DIAL, "tel:${phone.replace("-", "")}".toUri())
             startActivity(intent)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -195,11 +198,11 @@ class SettingsFragment : Fragment() {
     private fun generateQRCode(text: String, size: Int = 512): Bitmap {
         val writer = QRCodeWriter()
         val bitMatrix = writer.encode(text, BarcodeFormat.QR_CODE, size, size)
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.RGB_565)
+        val bitmap = createBitmap(size, size, Bitmap.Config.RGB_565)
 
         for (x in 0 until size) {
             for (y in 0 until size) {
-                bitmap.setPixel(x, y, if (bitMatrix[x, y]) Color.BLACK else Color.WHITE)
+                bitmap[x, y] = if (bitMatrix[x, y]) Color.BLACK else Color.WHITE
             }
         }
 

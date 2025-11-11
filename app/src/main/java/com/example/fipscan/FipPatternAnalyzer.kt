@@ -432,7 +432,7 @@ object FipPatternAnalyzer {
         if (str == null) return null
         return try {
             str.replace(Regex("[<>]"), "").replace(",", ".").trim().toDoubleOrNull()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
     }

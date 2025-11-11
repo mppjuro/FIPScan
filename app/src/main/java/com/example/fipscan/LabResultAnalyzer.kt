@@ -16,7 +16,7 @@ object LabResultAnalyzer {
             if (str == null) return null
             return try {
                 str.replace(Regex("[<>]"), "").replace(",", ".").trim().toDoubleOrNull()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 null
             }
         }
@@ -56,6 +56,7 @@ object LabResultAnalyzer {
             }
         }
 
+        // Ta sekcja była już poprawna - formatowała liczbę do stringa
         if (agRatio != null) {
             val formattedRatio = String.format(Locale.getDefault(), "%.2f", agRatio)
             if (agRatio < 0.6) {
@@ -82,11 +83,16 @@ object LabResultAnalyzer {
             val unit = labData["${altKey}Unit"] as? String ?: ""
             if (altVal != null && altMax != null && altVal > altMax) {
                 val fold = if (altMax > 0) altVal / altMax else Double.POSITIVE_INFINITY
+
+                // --- POPRAWKA TUTAJ ---
+                // Konwertujemy liczbę (Double) na String przed przekazaniem do getString()
+                val altStr = String.format(Locale.getDefault(), "%.1f", altVal)
+
                 if (fold <= 2) {
-                    diagnosticComments.add(context.getString(R.string.lab_alt_mild, altVal, unit))
+                    diagnosticComments.add(context.getString(R.string.lab_alt_mild, altStr, unit))
                     supplementRecommendations.add(context.getString(R.string.supp_hepatiale_forte))
                 } else {
-                    diagnosticComments.add(context.getString(R.string.lab_alt_severe, altVal, unit))
+                    diagnosticComments.add(context.getString(R.string.lab_alt_severe, altStr, unit))
                     supplementRecommendations.add(context.getString(R.string.supp_hepatiale_forte_advanced))
                     vetConsultationNeeded = true
                     specialistTypeResId = R.string.specialist_hepatologist
@@ -101,7 +107,11 @@ object LabResultAnalyzer {
             val biliMax = toDoubleValue(labData["${biliKey}RangeMax"] as? String)
             val unit = labData["${biliKey}Unit"] as? String ?: ""
             if (biliVal != null && biliMax != null && biliVal > biliMax) {
-                diagnosticComments.add(context.getString(R.string.lab_bilirubin_high, biliVal, unit))
+
+                // --- POPRAWKA TUTAJ ---
+                val biliStr = String.format(Locale.getDefault(), "%.1f", biliVal)
+                diagnosticComments.add(context.getString(R.string.lab_bilirubin_high, biliStr, unit))
+
                 if (biliVal / biliMax > 2) {
                     vetConsultationNeeded = true
                     if (specialistTypeResId == null) specialistTypeResId = R.string.specialist_internist
@@ -115,14 +125,21 @@ object LabResultAnalyzer {
             val wbcVal = toDoubleValue(labData[wbcKey] as? String)
             val wbcMax = toDoubleValue(labData["${wbcKey}RangeMax"] as? String)
             val wbcMin = toDoubleValue(labData["${wbcKey}RangeMin"] as? String)
-            if (wbcVal != null && wbcMax != null && wbcVal > wbcMax) {
-                diagnosticComments.add(context.getString(R.string.lab_leukocytosis, wbcVal))
-            } else if (wbcVal != null && wbcMin != null && wbcVal < wbcMin) {
-                diagnosticComments.add(context.getString(R.string.lab_leukopenia, wbcVal))
+
+            // --- POPRAWKA TUTAJ ---
+            // Konwertujemy liczbę (Double) na String
+            // Zasoby stringów dla WBC oczekują JEDNEGO argumentu typu String
+            if (wbcVal != null) {
+                val wbcStr = String.format(Locale.getDefault(), "%.1f", wbcVal)
+                if (wbcMax != null && wbcVal > wbcMax) {
+                    diagnosticComments.add(context.getString(R.string.lab_leukocytosis, wbcStr))
+                } else if (wbcMin != null && wbcVal < wbcMin) {
+                    diagnosticComments.add(context.getString(R.string.lab_leukopenia, wbcStr))
+                }
             }
         }
 
-        // Neutrofile i limfocyty
+        // Neutrofile i limfocyty (bez zmian, ten string nie przyjmuje argumentów)
         val neutKey = findKeyContains("Neutro")
         val lymphKey = findKeyContains("Limfocy")
         if (neutKey != null && lymphKey != null) {
@@ -143,11 +160,15 @@ object LabResultAnalyzer {
             val hctVal = toDoubleValue(labData[hctKey] as? String)
             val hctMin = toDoubleValue(labData["${hctKey}RangeMin"] as? String)
             if (hctVal != null && hctMin != null && hctVal < hctMin) {
-                diagnosticComments.add(context.getString(R.string.lab_anemia, hctVal))
+
+                // --- POPRAWKA TUTAJ ---
+                // Konwertujemy liczbę (Double) na String
+                val hctStr = String.format(Locale.getDefault(), "%.1f", hctVal)
+                diagnosticComments.add(context.getString(R.string.lab_anemia, hctStr))
             }
         }
 
-        // 4. FCoV ELISA
+        // 4. FCoV ELISA (bez zmian, ta sekcja była już poprawna - przekazywała Stringa 'fcovValue')
         val fcovKey = labData.keys.find { it.contains("FCoV", ignoreCase = true) && it.contains("ELISA", ignoreCase = true) }
         if (fcovKey != null) {
             val fcovValue = labData[fcovKey] as? String
@@ -156,10 +177,6 @@ object LabResultAnalyzer {
 
             if (!fcovValue.isNullOrBlank()) {
                 val resultLower = fcovResultText.lowercase(Locale.getDefault())
-
-                // Pobieramy lokalne odpowiedniki "pozytywny/negatywny" do sprawdzenia
-                // (Dla uproszczenia zakładamy, że w PDF mogą być różne wersje językowe,
-                // ale sprawdzamy główne słowa kluczowe)
                 val isPositive = resultLower.contains("dodatni") || resultLower.contains("pozytywny") || resultLower.contains("positive")
                 val isNegative = resultLower.contains("ujemny") || resultLower.contains("negatywny") || resultLower.contains("negative")
 
@@ -173,7 +190,7 @@ object LabResultAnalyzer {
                     fcovValue.contains(":") -> {
                         val titerValue = try {
                             fcovValue.split(":").last().replace(",", ".").trim().toDoubleOrNull()
-                        } catch (e: Exception) { null }
+                        } catch (_: Exception) { null }
 
                         if (titerValue != null) {
                             if (titerValue >= 400) {
@@ -186,6 +203,9 @@ object LabResultAnalyzer {
                         } else {
                             diagnosticComments.add(context.getString(R.string.lab_fcov_result, fcovValue))
                         }
+                    }
+                    else -> {
+                        diagnosticComments.add(context.getString(R.string.lab_fcov_result, fcovValue))
                     }
                 }
             }
