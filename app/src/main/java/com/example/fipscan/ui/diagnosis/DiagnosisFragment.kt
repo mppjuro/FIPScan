@@ -613,16 +613,22 @@ class DiagnosisFragment : Fragment() {
         else
             getString(R.string.absent)
 
+        // --- POCZĄTEK POPRAWKI (Błąd 1: shape_details_template) ---
+        // Obliczamy procentową szerokość gamma (FWHM) względem jej zakresu
         val gammaWidthPx50 = analysis.gamma.widthPxMap[50]?.toFloat() ?: 0f
+        // Zabezpieczenie przed dzieleniem przez zero, jeśli zakres ma 0px
         val gammaRangeSize = analysis.gamma.rangeSize.toFloat().coerceAtLeast(1f)
         val gammaWidth50Percent = (gammaWidthPx50 / gammaRangeSize) * 100f
 
+        // POPRAWKA: Usunięto szósty, nadmiarowy argument (A/G ratio).
+        // Zasób string `shape_details_template` oczekuje 5 argumentów.
         val details = getString(R.string.shape_details_template,
             (analysis.albumin.height).toInt(), (analysis.albumin.symmetry * 100).toInt(),
             (analysis.gamma.height).toInt(),
-            gammaWidth50Percent.toInt(),
-            bridgeStatus
+            gammaWidth50Percent.toInt(), // Poprawne odwołanie do FWHM 50%
+            bridgeStatus // 5-ty i ostatni argument
         )
+        // --- KONIEC POPRAWKI ---
 
         val detailsText = TextView(requireContext()).apply {
             text = details
@@ -756,7 +762,7 @@ class DiagnosisFragment : Fragment() {
     private fun createAdvancedAnalysisCard(
         gammaAnalysis: ElectrophoresisShapeAnalyzer.GammaAnalysisResult?,
         aucMetrics: Map<String, Double>?,
-        widthRatios: ElectrophoresisShapeAnalyzer.WidthRatioAnalysis? // <-- DODANY PARAMETR
+        widthRatios: ElectrophoresisShapeAnalyzer.WidthRatioAnalysis?
     ): CardView {
         val card = CardView(requireContext()).apply {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 16, 0, 16) }
@@ -777,8 +783,60 @@ class DiagnosisFragment : Fragment() {
         }
         content.addView(title)
 
-        // ... (istniejący kod dla 1. Wyświetl analizę piku Gamma) ...
-        // ... (istniejący kod dla 2. Wyświetl analizę AUC) ...
+        val detailsPaint = TextPaint().apply {
+            color = getThemedColor(requireContext(), android.R.attr.textColorPrimary)
+            textSize = 14f
+            isAntiAlias = true
+        }
+
+        // 1. Wyświetl analizę piku Gamma
+        if (gammaAnalysis != null && gammaAnalysis.totalMass > 0) {
+            val varianceLabel = getString(R.string.pdf_gamma_peak_variance) // Możemy reużyć stringów z PDF
+            val varianceValue = String.format(Locale.getDefault(), "%.2f", gammaAnalysis.variance)
+            val varianceTv = TextView(requireContext()).apply {
+                text = "$varianceLabel $varianceValue"
+                textSize = 14f
+                setPadding(0, 8, 0, 4)
+                setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+            }
+            content.addView(varianceTv)
+
+            val stdDevLabel = getString(R.string.pdf_gamma_peak_std_dev)
+            val stdDevValue = String.format(Locale.getDefault(), "%.2f", gammaAnalysis.stdDev)
+            val stdDevTv = TextView(requireContext()).apply {
+                text = "$stdDevLabel $stdDevValue"
+                textSize = 14f
+                setPadding(0, 4, 0, 4)
+                setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+            }
+            content.addView(stdDevTv)
+        }
+
+        // 2. Wyświetl analizę AUC
+        if (aucMetrics != null && aucMetrics.isNotEmpty()) {
+            val aucTitle = TextView(requireContext()).apply {
+                text = getString(R.string.diag_auc_analysis_title)
+                textSize = 16f
+                setTypeface(null, Typeface.BOLD)
+                setPadding(0, 16, 0, 8)
+                setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+            }
+            content.addView(aucTitle)
+
+            aucMetrics.forEach { (fractionKey, percentage) ->
+                if (fractionKey != "TotalAUC_Pixels") {
+                    val translatedName = getTranslatedFractionNameForUI(fractionKey)
+                    val formattedLine = "$translatedName: ${String.format(Locale.getDefault(), "%.1f", percentage)} %"
+                    val aucTv = TextView(requireContext()).apply {
+                        text = formattedLine
+                        textSize = 14f
+                        setPadding(8, 4, 0, 4)
+                        setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+                    }
+                    content.addView(aucTv)
+                }
+            }
+        }
 
         // 3. Wyświetl analizę proporcji szerokości
         if (widthRatios != null) {
@@ -794,14 +852,17 @@ class DiagnosisFragment : Fragment() {
             // Funkcja pomocnicza do tworzenia wierszy
             fun createRatioTextView(labelResId: Int, value: Float): TextView {
                 return TextView(requireContext()).apply {
-                    text = getString(labelResId, String.format(Locale.getDefault(), "%.1f", value))
+                    // 1. Pobieramy samą etykietę (np. "Gamma (70% H): ")
+                    val label = getString(labelResId)
+                    // 2. Formatujemy liczbę do jednego miejsca po przecinku (np. "43.6")
+                    val formattedValue = String.format(Locale.getDefault(), "%.1f", value)
+                    // 3. Łączymy wszystko w jeden tekst (np. "Gamma (70% H): 43.6 %")
+                    text = "$label$formattedValue %"
                     textSize = 14f
                     setPadding(8, 4, 0, 4)
                     setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
                 }
             }
-
-            // Używamy nowych, założonych stringów
             content.addView(createRatioTextView(R.string.diag_ratio_g70_beta, widthRatios.gamma70ToBeta))
             content.addView(createRatioTextView(R.string.diag_ratio_g50_beta, widthRatios.gamma50ToBeta))
             content.addView(createRatioTextView(R.string.diag_ratio_g30_beta, widthRatios.gamma30ToBeta))
