@@ -307,7 +307,7 @@
     <string name="pdf_gamma_peak_height">Hauteur du pic (px):</string>
     <string name="pdf_calculated_fractions_title">Fractions calculées (AUC, méthode des trapèzes)</string>
     <string name="pdf_fraction_albumin">Albumine</string>
-    <string name="pdf_fraction_alpha1">Alpha-1</string>
+    <string name="pdf_fraction_alpha1">Alpha</string>
     <string name="pdf_fraction_alpha2">Alpha-2</string>
     <string name="pdf_fraction_beta">Bêta</string>
     <string name="pdf_fraction_gamma">Gamma</string>

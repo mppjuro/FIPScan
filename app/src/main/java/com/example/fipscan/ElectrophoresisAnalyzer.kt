@@ -27,7 +27,7 @@ object ElectrophoresisAnalyzer {
         try {
             val cleaned = str.replace(Regex("[<>]"), "").replace(",", ".").trim()
             return cleaned.toDoubleOrNull()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             return null
         }
     }

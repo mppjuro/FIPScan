@@ -768,9 +768,6 @@ class DiagnosisFragment : Fragment() {
             textSize = 14f
             isAntiAlias = true
         }
-        TextPaint(detailsPaint).apply {
-            typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        }
 
         // 1. Wyświetl analizę piku Gamma
         if (gammaAnalysis != null && gammaAnalysis.totalMass > 0) {

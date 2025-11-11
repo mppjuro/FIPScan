@@ -354,7 +354,7 @@
 
     <string name="pdf_calculated_fractions_title">Calculated Fractions (AUC, Trapezoidal)</string>
     <string name="pdf_fraction_albumin">Albumin</string>
-    <string name="pdf_fraction_alpha1">Alpha-1</string>
+    <string name="pdf_fraction_alpha1">Alpha</string>
     <string name="pdf_fraction_alpha2">Alpha-2</string>
     <string name="pdf_fraction_beta">Beta</string>
     <string name="pdf_fraction_gamma">Gamma</string>
