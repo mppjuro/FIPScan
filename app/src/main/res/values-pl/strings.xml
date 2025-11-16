@@ -97,11 +97,11 @@
     <string name="ok_button">OK</string>
     <string name="easter_egg_title">Gratulacje!</string>
     <string name="easter_egg_message">Odkryłeś sekretny tryb! Twórcy FIPScan życzą dużo zdrówka dla Twojego kiciusia! 🐱</string>
-    <string name="breakdown_age_young">✅ Wiek poniżej 2 lat: <b>+%1$d pkt</b> (bardzo sugestywny)</string>
+    <string name="breakdown_age_young">✅ Wiek poniżej 2 lat: <b>+%1$d pkt</b> (sugestywny)</string>
     <string name="breakdown_age_old">❌ Wiek ≥ 2 lata: <b>+0 pkt</b></string>
-    <string name="breakdown_rivalta_pos">✅ Próba Rivalta pozytywna: <b>+%1$d pkt</b> (umiarkowanie sugestywna)</string>
+    <string name="breakdown_rivalta_pos">✅ Próba Rivalta pozytywna: <b>+%1$d pkt</b> (bardzo sugestywna)</string>
     <string name="breakdown_rivalta_neg">❌ Próba Rivalta negatywna: <b>+0 pkt</b></string>
-    <string name="breakdown_rivalta_unknown">❓ Próba Rivalta nie wykonano: <b>+%1$d pkt</b> (brak danych osłabia diagnozę różnicową)</string>
+    <string name="breakdown_rivalta_unknown">❓ Próba Rivalta nie wykonano: <b>+%1$d pkt</b> (brak danych)</string>
     <string name="breakdown_globulin_high">✅ Hiperglobulinemia: <b>+%1$d pkt</b> (silnie sugestywna)</string>
     <string name="breakdown_globulin_normal">❌ Globuliny w normie: <b>+0 pkt</b></string>
     <string name="breakdown_globulin_missing">❓ Brak danych globulin: <b>+0 pkt</b></string>

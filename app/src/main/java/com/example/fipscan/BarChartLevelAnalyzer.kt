@@ -12,6 +12,18 @@ object BarChartLevelAnalyzer {
     const val RESULT_NONE = "none"
     const val RESULT_MONOCLONAL = "monoclonal"
     const val RESULT_POLYCLONAL = "polyclonal"
+
+    /**
+     * Stałe określające czułość wykrywania gammapatii monoklonalnej.
+     * Wartość oznacza, ile razy dany punkt (lub para punktów) musi być wyższy od sąsiadów/otoczenia,
+     * aby został uznany za "ostry pik".
+     *
+     * Zwiększ te wartości (np. na 3.0f), aby zmniejszyć czułość (trudniej wykryć monoklonalną).
+     * Zmniejsz (np. na 1.8f), aby zwiększyć czułość.
+     */
+    private const val MONOCLONAL_PEAK_THRESHOLD = 2.5f
+    private const val MONOCLONAL_PAIR_THRESHOLD = 2.5f
+
     data class AnalysisResult(
         val barHeights: List<Double>,
         val imageWidth: Int,
@@ -105,8 +117,9 @@ object BarChartLevelAnalyzer {
             val leftDiff = if (left > 0f) current / left else Float.MAX_VALUE
             val rightDiff = if (right > 0f) current / right else Float.MAX_VALUE
 
-            if (leftDiff > 2f && rightDiff > 2f) {
-                Log.d("GAMMOPATHY_ANALYSIS", "Wykryto ostry pik - gammapatia monoklonalna")
+            // Zmieniono z 2f na stałą MONOCLONAL_PEAK_THRESHOLD
+            if (leftDiff > MONOCLONAL_PEAK_THRESHOLD && rightDiff > MONOCLONAL_PEAK_THRESHOLD) {
+                Log.d("GAMMOPATHY_ANALYSIS", "Wykryto ostry pik - gammapatia monoklonalna (diffL=$leftDiff, diffR=$rightDiff)")
                 return RESULT_MONOCLONAL
             }
 
@@ -119,8 +132,9 @@ object BarChartLevelAnalyzer {
                 ).average().toFloat()
                 val peakAvg = (current + next) / 2f
 
-                if (avgSurrounding > 0f && peakAvg > avgSurrounding * 2f) {
-                    Log.d("GAMMOPATHY_ANALYSIS", "Wykryto lokalny pik - gammapatia monoklonalna")
+                // Zmieniono mnożnik z 2f na stałą MONOCLONAL_PAIR_THRESHOLD
+                if (avgSurrounding > 0f && peakAvg > avgSurrounding * MONOCLONAL_PAIR_THRESHOLD) {
+                    Log.d("GAMMOPATHY_ANALYSIS", "Wykryto lokalny pik (para) - gammapatia monoklonalna (ratio=${peakAvg/avgSurrounding})")
                     return RESULT_MONOCLONAL
                 }
             }

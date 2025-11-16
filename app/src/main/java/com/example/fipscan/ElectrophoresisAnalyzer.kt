@@ -291,7 +291,7 @@ object ElectrophoresisAnalyzer {
             breakdown.add(context.getString(R.string.breakdown_pattern_analysis, patternLevel, patternPoints, PATTERN_ANALYSIS_MAX_POINTS))
         }
 
-        var riskPercentage = if (maxScore > 0) ((totalScore.coerceIn(0, maxScore) * 150) / maxScore) else 0
+        var riskPercentage = if (maxScore > 0) ((totalScore.coerceIn(0, maxScore) * 130) / maxScore) else 0
         if (riskPercentage > 100) riskPercentage = 100
 
         val fipRiskComment = when {
