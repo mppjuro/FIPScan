@@ -181,7 +181,7 @@ class HomeFragment : Fragment() {
     private fun loadRecentHistory() {
         binding.recentHistoryRecyclerView.layoutManager = LinearLayoutManager(requireContext())
         lifecycleScope.launch(Dispatchers.IO) {
-            val recentResults = AppDatabase.getDatabase(requireContext()).resultDao().getLatestResults(3)
+            val recentResults = AppDatabase.getDatabase(requireContext()).resultDao().getLatestResults(5)
             withContext(Dispatchers.Main) {
                 recentHistoryAdapter = RecentHistoryAdapter(recentResults) { result ->
                     result.rawDataJson?.let { json ->
