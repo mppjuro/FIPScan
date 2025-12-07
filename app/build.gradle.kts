@@ -48,6 +48,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
 
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
     kotlinOptions {
         jvmTarget = "21"
     }
@@ -119,6 +123,8 @@ dependencies {
     implementation("org.apache.commons:commons-csv:1.14.1")
 
     implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.junit.ktx)
+    testImplementation(libs.androidx.runner)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.ktx)
     implementation("androidx.navigation:navigation-fragment-ktx:2.9.4")
@@ -136,4 +142,8 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    testImplementation("io.mockk:mockk:1.13.8")
+    testImplementation("junit:junit:4.13.2")
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
 }
