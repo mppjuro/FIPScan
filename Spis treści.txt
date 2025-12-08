@@ -1,0 +1,51 @@
+Spis treści
+
+Wstęp
+
+Rozdział 1 – Zakaźne zapalenie otrzewnej kotów (FIP)
+1.1 Wprowadzenie – Czym jest FIP?
+1.2 Epidemiologia i znaczenie kliniczne
+1.3 Diagnostyka FIP
+1.4 Elektroforeza białek surowicy
+1.5 Potrzeba aplikacji wspomagającej diagnostykę
+
+Rozdział 2 – Technologie i narzędzia
+2.1 Android Studio
+2.2 Kotlin
+2.3 XML
+2.4 JSON i Gson
+2.5 Room Database
+2.6 PDFBox Android
+2.7 OpenCV
+2.8 Autorska przeróbka Tabula
+
+Rozdział 3 – Architektura aplikacji
+3.1 Wzorzec architektoniczny MVVM (Model-View-ViewModel)
+3.2 Komunikacja między komponentami
+3.3 Struktura bazy danych, testy automatyczne
+3.4 Parsowanie PDF, ekstrakcja wyników liczbowych i wykresu
+3.5 Interpretacja danych z obrazu i analiza wyników
+
+Rozdział 4 – Działanie aplikacji
+4.1 Instalacja i wymagania systemowe
+4.2 Obsługa aplikacji
+4.3 Algorytmy analizy
+4.4 Generowanie raportów
+
+Rozdział 5 – Podsumowanie i wnioski
+
+Literatura
+
+================================================================================================================================
+
+WSTĘP
+
+Głównym celem niniejszej pracy inżynierskiej było stworzenie aplikacji mobilnej na urządzenia z systemem Android, która wspomaga diagnostykę zakaźnego zapalenia otrzewnej kotów (FIP – Feline Infectious Peritonitis). FIP jest jedną z najpoważniejszych i najtrudniejszych do zdiagnozowania chorób wirusowych u kotów, charakteryzującą się wysoką śmiertelnością.
+Aplikacja FIPScan umożliwia:
+
+	Automatyczne wczytywanie i analizę wyników badań laboratoryjnych z plików PDF
+	Rozpoznawanie i analizę wykresów elektroforezy białek
+	Obliczanie ryzyka FIP na podstawie wieloczynnikowej analizy parametrów laboratoryjnych
+	Generowanie szczegółowych raportów diagnostycznych w języku polskim, angielskim, niemieckim i francuskim
+	Przechowywanie historii badań pacjentów
+
