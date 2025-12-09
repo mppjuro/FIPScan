@@ -114,7 +114,7 @@ dependencies {
     }
 
     // Commons IO dla operacji na plikach
-    implementation("commons-io:commons-io:2.20.0")
+    implementation("commons-io:commons-io:2.21.0")
 
     // Commons Net do obsługi FTP
     implementation("commons-net:commons-net:3.12.0")
@@ -127,23 +127,22 @@ dependencies {
     testImplementation(libs.androidx.runner)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.ktx)
-    implementation("androidx.navigation:navigation-fragment-ktx:2.9.4")
-    implementation("androidx.navigation:navigation-ui-ktx:2.9.4")
-    implementation("com.google.zxing:core:3.5.3")
+    implementation(libs.androidx.navigation.fragment.ktx)
+    implementation(libs.androidx.navigation.ui.ktx)
+    implementation("com.google.zxing:core:3.5.4")
 
     implementation(libs.annotations)
 
     implementation(libs.androidx.exifinterface)
 
-    implementation (libs.androidx.core.ktx.v1150)
-
-    implementation(project(":opencv"))
+    implementation (libs.androidx.core.ktx)
+    implementation(files("libs/opencv-4120.jar"))
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    testImplementation("io.mockk:mockk:1.13.8")
-    testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    testImplementation("io.mockk:mockk:1.14.7")
+    testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
 }
