@@ -1,0 +1,5 @@
+ftp.host=example.com
+ftp.port=21
+ftp.user=admin@example.com
+ftp.pass=your_password
+ftp.remoteDir=/public_html/pl/
