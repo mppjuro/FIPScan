@@ -12,15 +12,6 @@ object BarChartLevelAnalyzer {
     const val RESULT_NONE = "none"
     const val RESULT_MONOCLONAL = "monoclonal"
     const val RESULT_POLYCLONAL = "polyclonal"
-
-    /**
-     * Stałe określające czułość wykrywania gammapatii monoklonalnej.
-     * Wartość oznacza, ile razy dany punkt (lub para punktów) musi być wyższy od sąsiadów/otoczenia,
-     * aby został uznany za "ostry pik".
-     *
-     * Zwiększ te wartości (np. na 3.0f), aby zmniejszyć czułość (trudniej wykryć monoklonalną).
-     * Zmniejsz (np. na 1.8f), aby zwiększyć czułość.
-     */
     private const val MONOCLONAL_PEAK_THRESHOLD = 2.5f
     private const val MONOCLONAL_PAIR_THRESHOLD = 2.5f
 
@@ -108,7 +99,6 @@ object BarChartLevelAnalyzer {
             return RESULT_NONE
         }
 
-        // Sprawdź, czy jest ostry pik (monoklonalna)
         for (i in section4.indices) {
             val current = section4[i]
             val left = if (i > 0) section4[i - 1] else 0f
@@ -117,13 +107,11 @@ object BarChartLevelAnalyzer {
             val leftDiff = if (left > 0f) current / left else Float.MAX_VALUE
             val rightDiff = if (right > 0f) current / right else Float.MAX_VALUE
 
-            // Zmieniono z 2f na stałą MONOCLONAL_PEAK_THRESHOLD
             if (leftDiff > MONOCLONAL_PEAK_THRESHOLD && rightDiff > MONOCLONAL_PEAK_THRESHOLD) {
                 Log.d("GAMMOPATHY_ANALYSIS", "Wykryto ostry pik - gammapatia monoklonalna (diffL=$leftDiff, diffR=$rightDiff)")
                 return RESULT_MONOCLONAL
             }
 
-            // Sprawdź sąsiednie pary
             if (i < section4.size - 1) {
                 val next = section4[i + 1]
                 val avgSurrounding = listOfNotNull(
@@ -132,15 +120,12 @@ object BarChartLevelAnalyzer {
                 ).average().toFloat()
                 val peakAvg = (current + next) / 2f
 
-                // Zmieniono mnożnik z 2f na stałą MONOCLONAL_PAIR_THRESHOLD
                 if (avgSurrounding > 0f && peakAvg > avgSurrounding * MONOCLONAL_PAIR_THRESHOLD) {
                     Log.d("GAMMOPATHY_ANALYSIS", "Wykryto lokalny pik (para) - gammapatia monoklonalna (ratio=${peakAvg/avgSurrounding})")
                     return RESULT_MONOCLONAL
                 }
             }
         }
-
-        // Jeśli nie ma ostrych pików, ale jest szerokie podniesienie – poliklonalna
         Log.d("GAMMOPATHY_ANALYSIS", "Szerokie podniesienie bez ostrych pików - gammapatia poliklonalna")
         return RESULT_POLYCLONAL
     }
