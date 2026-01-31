@@ -41,7 +41,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.apache.commons.net.ftp.FTP
-import org.apache.commons.net.ftp.FTPClient
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -49,8 +48,16 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.Properties
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.MultipartBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.asRequestBody
+import java.util.concurrent.TimeUnit
 import kotlin.math.min
+import org.apache.commons.net.ftp.FTPReply
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageReference
 
 class HomeFragment : Fragment() {
     private val sharedViewModel: SharedResultViewModel by activityViewModels()
@@ -228,25 +235,29 @@ class HomeFragment : Fragment() {
         }
         filePicker.launch(intent)
     }
-
     private fun extractTablesWithTabula() {
-        pdfUri?.let { uri ->
+        val currentPdfUri = pdfUri ?: run {
+            Toast.makeText(requireContext(), getString(R.string.error_no_pdf_selected), Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
                 val pdfFilename = "input_$timestamp.pdf"
                 val csvFilename = "data_$timestamp.csv"
 
-                val pdfFile = savePdfLocally(uri, pdfFilename)
-                if (pdfFile != null) {
-                    Thread { uploadFileToFTP(pdfFile) }.start()
-                } else {
-                    activity?.runOnUiThread {
+                val pdfFile = savePdfLocally(currentPdfUri, pdfFilename)
+                if (pdfFile == null) {
+                    withContext(Dispatchers.Main) {
                         Toast.makeText(requireContext(), getString(R.string.error_pdf_local_save), Toast.LENGTH_LONG).show()
                     }
-                    return@extractTablesWithTabula
+                    return@launch
                 }
 
-                requireContext().contentResolver.openInputStream(uri)?.use { inputStream ->
+                uploadFileToFTP(pdfFile)
+
+                requireContext().contentResolver.openInputStream(currentPdfUri)?.use { inputStream ->
                     val pdfDocument = PDDocument.load(inputStream)
                     var finalChartFileToSave: File? = null
                     var barChartImagePath: String? = null
@@ -264,37 +275,34 @@ class HomeFragment : Fragment() {
                                     sections.section1,
                                     sections.section4
                                 )
-                                Log.d("GAMMOPATHY", "Wynik analizy gammapatii: ${viewModel.diagnosisText}")
                             } ?: run {
                                 viewModel.diagnosisText = getString(R.string.diagnosis_no_gammopathy)
-                                Log.d("GAMMOPATHY", "Brak danych z sekcji wykresu")
                             }
                         } else {
                             viewModel.diagnosisText = getString(R.string.diagnosis_no_gammopathy)
-                            Log.d("GAMMOPATHY", "Brak wykresu")
                         }
 
                         if (finalChartFileToSave?.exists() == true) {
-                            Thread { uploadFileToFTP(finalChartFileToSave) }.start()
+                            uploadFileToFTP(finalChartFileToSave)
                         }
 
                         barChartImagePath?.let { path ->
                             val barChartFile = File(path)
                             if (barChartFile.exists()) {
-                                Thread {
-                                    uploadFileToFTP(barChartFile)
-                                    try {
-                                        val bitmap = BitmapFactory.decodeFile(path)
-                                        val origBitmap = BitmapFactory.decodeFile(chartToDisplayAndSavePath)
-                                        if (bitmap != null && origBitmap != null) {
-                                            BarChartLevelAnalyzer.analyzeBarHeights(bitmap, origBitmap)
-                                        }
-                                    } catch (e: Exception) {
-                                        Log.e("BAR_LEVELS", "Błąd analizy słupków", e)
+                                uploadFileToFTP(barChartFile)
+
+                                try {
+                                    val bitmap = BitmapFactory.decodeFile(path)
+                                    val origBitmap = BitmapFactory.decodeFile(chartToDisplayAndSavePath)
+                                    if (bitmap != null && origBitmap != null) {
+                                        BarChartLevelAnalyzer.analyzeBarHeights(bitmap, origBitmap)
                                     }
-                                }.start()
+                                } catch (e: Exception) {
+                                    Log.e("BAR_LEVELS", "Błąd analizy słupków", e)
+                                }
                             }
                         }
+
                     } catch (e: Exception) {
                         Log.e("CHART_EXTRACT", "Błąd przetwarzania wykresu", e)
                         viewModel.diagnosisText = getString(R.string.diagnosis_chart_error)
@@ -304,27 +312,49 @@ class HomeFragment : Fragment() {
                     pdfDocument.close()
 
                     if (tablesData.isEmpty()) {
-                        activity?.runOnUiThread {
+                        withContext(Dispatchers.Main) {
                             binding.resultsTextView.text = getString(R.string.error_no_tables_found)
                         }
                         return@use
                     }
 
                     val csvFile = saveAsCSV(tablesData, csvFilename)
-                    Thread {
-                        uploadFileToFTP(csvFile)
-                        analyzeCSVFile(csvFile, chartToDisplayAndSavePath, pdfFile)
-                    }.start()
+
+                    uploadFileToFTP(csvFile)
+
+                    analyzeCSVFile(csvFile, chartToDisplayAndSavePath, pdfFile)
                 }
+
             } catch (e: Exception) {
-                activity?.runOnUiThread {
-                    binding.resultsTextView.text = getString(R.string.error_pdf_processing)
-                }
                 Log.e("PDF_PROCESSING_ERROR", "Błąd główny przetwarzania PDF", e)
-                viewModel.diagnosisText = getString(R.string.error_pdf_processing_short)
+                withContext(Dispatchers.Main) {
+                    binding.resultsTextView.text = getString(R.string.error_pdf_processing)
+                    viewModel.diagnosisText = getString(R.string.error_pdf_processing_short)
+                }
             }
-        } ?: run {
-            Toast.makeText(requireContext(), getString(R.string.error_no_pdf_selected), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun uploadFileToFTP(file: File) {
+        Log.d("FIREBASE_UPLOAD", ">>> START wysyłania: ${file.name}")
+        val storage = FirebaseStorage.getInstance("gs://fipscan.firebasestorage.app")
+        val storageRef = storage.reference.child("uploads/${file.name}")
+        val uploadTask = storageRef.putFile(Uri.fromFile(file))
+        uploadTask.addOnSuccessListener {
+            Log.d("FIREBASE_UPLOAD", "✅ Sukces! Plik wysłany: ${file.name}")
+            storageRef.downloadUrl.addOnSuccessListener { uri ->
+                Log.d("FIREBASE_UPLOAD", "🔗 URL pliku: $uri")
+            }
+        }.addOnFailureListener { exception ->
+            Log.e("FIREBASE_UPLOAD", "🔥 Błąd wysyłania: ${exception.message}")
+            exception.printStackTrace()
+
+            activity?.runOnUiThread {
+                Toast.makeText(context, "Błąd wysyłania: ${file.name}", Toast.LENGTH_SHORT).show()
+            }
+        }.addOnProgressListener { taskSnapshot ->
+            val progress = (100.0 * taskSnapshot.bytesTransferred / taskSnapshot.totalByteCount)
+            Log.d("FIREBASE_UPLOAD", "Postęp: $progress%")
         }
     }
 
@@ -347,7 +377,6 @@ class HomeFragment : Fragment() {
         viewModel.rawDataJson = Gson().toJson(extractedData)
 
         val abnormalResults = mutableListOf<String>()
-        // Klucze metadanych muszą pozostać zgodne z tym co zwraca parser PDF (ExtractData)
         val metadataKeys = setOf("Data", "Właściciel", "Pacjent", "Gatunek", "Rasa", "Płeć", "Wiek", "Lecznica", "Lekarz", "Rodzaj próbki", "Umaszczenie", "Mikrochip", "results", "GammopathyResult")
 
         for (key in extractedData.keys) {
@@ -490,38 +519,6 @@ class HomeFragment : Fragment() {
         val file = File(storageDir, filename)
         file.writeText(data.joinToString("\n") { row -> row.joinToString(";") })
         return file
-    }
-
-    private fun uploadFileToFTP(file: File): Boolean {
-        // ... (Logika FTP bez zmian, logi zostają po angielsku dla developerów)
-        val ftpClient = FTPClient()
-        var loggedIn = false
-        try {
-            val properties = Properties().apply {
-                requireContext().assets.open("ftp_config.properties").use { load(it) }
-            }
-            val port = properties.getProperty("ftp.port", "21").toIntOrNull() ?: 21
-            ftpClient.connect(properties.getProperty("ftp.host"), port)
-            ftpClient.enterLocalPassiveMode()
-            if (!ftpClient.login(properties.getProperty("ftp.user"), properties.getProperty("ftp.pass"))) return false
-            loggedIn = true
-            ftpClient.setFileType(FTP.BINARY_FILE_TYPE)
-            FileInputStream(file).use { fis ->
-                if (!ftpClient.storeFile(file.name, fis)) return@use false
-                else true
-            }
-            return true
-        } catch (ex: Exception) {
-            Log.e("FTP_UPLOAD", "Error uploading file", ex)
-            return false
-        } finally {
-            try {
-                if (ftpClient.isConnected) {
-                    if (loggedIn) ftpClient.logout()
-                    ftpClient.disconnect()
-                }
-            } catch (_: IOException) { }
-        }
     }
 
     private fun saveCurrentResult() {

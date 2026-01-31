@@ -1,9 +1,10 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    id("com.google.devtools.ksp") version "1.9.24-1.0.20"
+    id("com.google.devtools.ksp") version "2.3.4"
     id("androidx.navigation.safeargs.kotlin")
     id("kotlin-parcelize")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -30,8 +31,8 @@ android {
             )
         }
         debug {
-            //isMinifyEnabled = true
-            //isShrinkResources = true
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -50,10 +51,6 @@ android {
 
     testOptions {
         unitTests.isReturnDefaultValues = true
-    }
-
-    kotlinOptions {
-        jvmTarget = "21"
     }
 
     packaging {
@@ -90,7 +87,6 @@ configurations.all {
 }
 
 dependencies {
-    // AndroidX
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
@@ -99,50 +95,30 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
-
-    implementation(libs.gson)
-
-    // Tabula dla Androida (do ekstrakcji tabel)
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-storage")
     implementation("com.github.mppjuro:tabula-java-android:7db7d44809")
-
-    // Poprawiona wersja PDFBox-Android
     implementation("com.tom-roush:pdfbox-android:2.0.27.0") {
         exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
         exclude(group = "org.bouncycastle", module = "bcutil-jdk15to18")
         exclude(group = "org.bouncycastle", module = "bcpkix-jdk15to18")
         exclude(group = "com.intellij", module = "annotations")
     }
-
-    // Commons IO dla operacji na plikach
-    implementation("commons-io:commons-io:2.21.0")
-
-    // Commons Net do obsługi FTP
-    implementation("commons-net:commons-net:3.12.0")
-
-    // Apache Commons CSV do operacji na plikach CSV
-    implementation("org.apache.commons:commons-csv:1.14.1")
-
+    implementation("commons-io:commons-io:2.15.1")
+    implementation("commons-net:commons-net:3.10.0")
+    implementation("org.apache.commons:commons-csv:1.10.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation(libs.gson)
     implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.junit.ktx)
-    testImplementation(libs.androidx.runner)
-    ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.ktx)
-    implementation(libs.androidx.navigation.fragment.ktx)
-    implementation(libs.androidx.navigation.ui.ktx)
-    implementation("com.google.zxing:core:3.5.4")
-
-    implementation(libs.annotations)
-
+    ksp(libs.androidx.room.compiler)
+    implementation("com.google.zxing:core:3.5.3")
     implementation(libs.androidx.exifinterface)
-
-    implementation (libs.androidx.core.ktx)
     implementation(files("libs/opencv-4120.jar"))
-
+    implementation(libs.annotations)
     testImplementation(libs.junit)
+    testImplementation("io.mockk:mockk:1.13.10")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
-    testImplementation("io.mockk:mockk:1.14.7")
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.androidx.runner)
 }

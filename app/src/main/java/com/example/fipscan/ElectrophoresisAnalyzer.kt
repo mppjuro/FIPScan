@@ -5,8 +5,8 @@ import android.util.Log
 import java.util.regex.Pattern
 
 object ElectrophoresisAnalyzer {
-    const val SHAPE_ANALYSIS_MAX_POINTS = 20
-    const val PATTERN_ANALYSIS_MAX_POINTS = 20
+    const val SHAPE_ANALYSIS_MAX_POINTS = 30
+    const val PATTERN_ANALYSIS_MAX_POINTS = 30
 
     data class FipRiskResult(
         val riskPercentage: Int,

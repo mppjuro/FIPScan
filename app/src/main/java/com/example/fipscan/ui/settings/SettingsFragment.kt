@@ -31,8 +31,8 @@ class SettingsFragment : Fragment() {
     companion object {
         // Dane kontaktowe pozostają hardcoded, ponieważ to dane, nie napisy interfejsu
         private const val AUTHOR_NAME = "Miłosz Piórkowski"
-        private const val AUTHOR_EMAIL = "mppjuro@gmail.com"
-        private const val AUTHOR_PHONE = "+48-724-928-250"
+        private const val AUTHOR_EMAIL = "mppjuro@mat.umk.pl"
+        private const val AUTHOR_PHONE = "+48 724-928-250"
         private const val GITHUB_PROJECT_URL = "https://github.com/mppjuro/FIPScan"
         private const val GITHUB_RELEASES_URL = "https://github.com/mppjuro/FIPScan/releases"
         private const val FACEBOOK_PROFILE_URL = "https://www.facebook.com/profile.php?id=100004175231300"
