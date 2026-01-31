@@ -564,13 +564,16 @@ class HomeFragment : Fragment() {
         val pdfFilePath = pdfFile?.absolutePath
         val currentContext = context ?: return
         val db = AppDatabase.getDatabase(currentContext)
+
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val r = db.resultDao().getResultByNameAge(patient, age)
+                val finalTestResults = if (results.isNullOrEmpty()) r?.testResults else results
+
                 val result = ResultEntity(
                     patientName = patient,
                     age = age,
-                    testResults = if (results.isNullOrEmpty()) r.testResults else results,
+                    testResults = finalTestResults,
                     pdfFilePath = pdfFilePath,
                     imagePath = imagePath,
                     collectionDate = collectionDate,
@@ -584,13 +587,14 @@ class HomeFragment : Fragment() {
                 )
                 db.resultDao().deleteDuplicates(patient, age)
                 db.resultDao().insertResult(result)
+
                 withContext(Dispatchers.Main) {
                     sharedViewModel.setSelectedResult(result)
                 }
             } catch (e: Exception) {
                 Log.e("SaveEntity", "DB Save Error", e)
                 activity?.runOnUiThread {
-                    Toast.makeText(currentContext, getString(R.string.error_db_save), Toast.LENGTH_LONG).show()
+                    Toast.makeText(currentContext, getString(R.string.error_db_save) + ": ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                 }
             }
         }
