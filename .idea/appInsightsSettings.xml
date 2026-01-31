@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.example.fipscan" />
+                  <option name="mobileSdkAppId" value="1:457830663822:android:1bf341894ef6c0ff772bdf" />
+                  <option name="projectId" value="fipscan" />
+                  <option name="projectNumber" value="457830663822" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
