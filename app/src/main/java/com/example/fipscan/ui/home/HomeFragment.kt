@@ -64,7 +64,6 @@ class HomeFragment : Fragment() {
     ): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
 
-        // Używamy resources.getStringArray do pobrania przetłumaczonych opcji
         val rivaltaOptions = resources.getStringArray(R.array.rivalta_options)
         val adapter = ArrayAdapter(
             requireContext(),

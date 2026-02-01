@@ -100,7 +100,6 @@ class PdfReportGenerator(private val context: Context) {
                 )
             }
 
-            // SEKCJA DLA AUC I WARIANCJI
             if (gammaAnalysisDetails != null || aucMetrics != null || widthRatios != null) {
                 if (yPosition > pageHeight - bottomMargin - 200) {
                     drawFooter(canvas, pageNumber)

@@ -19,7 +19,6 @@ class FipPatternAnalyzerTest {
 
     @Test
     fun `test detection of Classic Effusive FIP`() {
-        // Profil: Triada (Hiperglobulinemia + Hipoalbuminemia + Limfopenia) + Wątroba
         val labData = mapOf<String, Any>(
             "Globulin" to "6.0", "GlobulinRangeMax" to "4.0",
             "Albumin" to "1.5", "AlbuminRangeMin" to "2.5",
