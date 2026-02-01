@@ -21,7 +21,6 @@ object ElectrophoresisAnalyzer {
         val maxPatternPoints: Int = PATTERN_ANALYSIS_MAX_POINTS
     )
 
-    // --- Funkcje pomocnicze ---
     private fun toDoubleValue(str: String?): Double? {
         if (str == null) return null
         try {
@@ -46,7 +45,6 @@ object ElectrophoresisAnalyzer {
 
     private fun parseAgeInYears(ageString: String?): Int? {
         if (ageString == null) return null
-        // Zakładamy, że PDF jest po polsku, więc zostawiamy polskie regexy do parsowania wieku z tekstu
         val pattern = Pattern.compile("(\\d+)\\s*(lat|lata|rok)")
         val matcher = pattern.matcher(ageString)
         return if (matcher.find()) {
@@ -72,7 +70,6 @@ object ElectrophoresisAnalyzer {
             "-" to -10, "--" to -20
         )
 
-        // 1. Wiek
         val agePoints = pointsMap["++"]!!
         maxScore += agePoints
         val ageInYears = parseAgeInYears(labData["Wiek"] as? String)
@@ -83,14 +80,10 @@ object ElectrophoresisAnalyzer {
             breakdown.add(context.getString(R.string.breakdown_age_old))
         }
 
-        // 2. Próba Rivalta
         val rivaltaPoints = pointsMap["++++"]!!
         maxScore += rivaltaPoints
 
-        // Pobierz opcje z zasobów, aby porównać z aktualnym językiem
         val rivaltaOpts = context.resources.getStringArray(R.array.rivalta_options)
-        // Zakładamy kolejność w arrays.xml: 0 -> nie wykonano, 1 -> negatywna, 2 -> pozytywna
-
         val isPositive = rivaltaStatus.equals(rivaltaOpts.getOrNull(2), ignoreCase = true) || rivaltaStatus.contains("pozytywna", true) || rivaltaStatus.contains("positive", true)
         val isNegative = rivaltaStatus.equals(rivaltaOpts.getOrNull(1), ignoreCase = true) || rivaltaStatus.contains("negatywna", true) || rivaltaStatus.contains("negative", true)
 
@@ -108,7 +101,6 @@ object ElectrophoresisAnalyzer {
             }
         }
 
-        // 3. Hiperglobulinemia
         val hyperglobPoints = pointsMap["+++"]!!
         maxScore += hyperglobPoints
         val globulinKey = findKeyContains("Globulin", labData)
@@ -125,7 +117,6 @@ object ElectrophoresisAnalyzer {
             breakdown.add(context.getString(R.string.breakdown_globulin_missing))
         }
 
-        // 4. Stosunek A/G
         val agRatioPoints = pointsMap["++++"]!!
         maxScore += agRatioPoints
         var agRatio: Double? = null
@@ -166,7 +157,6 @@ object ElectrophoresisAnalyzer {
             breakdown.add(context.getString(R.string.breakdown_ag_missing))
         }
 
-        // 5. Limfopenia
         val lymphopeniaPoints = pointsMap["++"]!!
         maxScore += lymphopeniaPoints
         val lymphKey = findKeyContains("LYM", labData)
@@ -183,7 +173,6 @@ object ElectrophoresisAnalyzer {
             breakdown.add(context.getString(R.string.breakdown_lym_missing))
         }
 
-        // 6. Neutrofilia
         val neutrophiliaPoints = pointsMap["++"]!!
         maxScore += neutrophiliaPoints
         val neutKey = findKeyContains("NEU", labData)
@@ -200,7 +189,6 @@ object ElectrophoresisAnalyzer {
             breakdown.add(context.getString(R.string.breakdown_neu_missing))
         }
 
-        // 7. Niedokrwistość
         val anemiaPoints = pointsMap["++"]!!
         maxScore += anemiaPoints
         val hctKey = findKeyContains("HCT", labData)
@@ -217,7 +205,6 @@ object ElectrophoresisAnalyzer {
             breakdown.add(context.getString(R.string.breakdown_hct_missing))
         }
 
-        // 8. Hiperbilirubinemia
         val hyperbiliPoints = pointsMap["+++"]!!
         maxScore += hyperbiliPoints
         val biliKey = findKeyContains("Bilirubina", labData)
@@ -234,15 +221,12 @@ object ElectrophoresisAnalyzer {
             breakdown.add(context.getString(R.string.breakdown_bili_missing))
         }
 
-        // 9. Gammapatia
         val gammopathyPoints = pointsMap["++++"]!!
         maxScore += gammopathyPoints
         val gammopathyResult = labData["GammopathyResult"] as? String ?: ""
 
         Log.d("FIP_ANALYSIS", "Gammapathy internal result: $gammopathyResult")
 
-        // ZMIANA: Używamy 'when' bez argumentu i sprawdzamy 'contains',
-        // aby "monoclonal gammopathy" zostało poprawnie wykryte jako RESULT_MONOCLONAL ("monoclonal")
         when {
             gammopathyResult.contains(BarChartLevelAnalyzer.RESULT_POLYCLONAL, ignoreCase = true) -> {
                 totalScore += gammopathyPoints
@@ -257,7 +241,6 @@ object ElectrophoresisAnalyzer {
             }
         }
 
-        // Shape Analysis
         var shapePoints = 0
         if (shapeAnalysisScore != null) {
             shapePoints = ((shapeAnalysisScore / 100f) * SHAPE_ANALYSIS_MAX_POINTS).toInt()
@@ -274,7 +257,6 @@ object ElectrophoresisAnalyzer {
             breakdown.add(context.getString(R.string.breakdown_shape_analysis, shapeLevel, shapePoints, SHAPE_ANALYSIS_MAX_POINTS))
         }
 
-        // Pattern Analysis
         var patternPoints = 0
         if (patternAnalysisScore != null) {
             patternPoints = ((patternAnalysisScore / 100f) * PATTERN_ANALYSIS_MAX_POINTS).toInt()

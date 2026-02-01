@@ -29,7 +29,6 @@ import androidx.core.graphics.set
 
 class SettingsFragment : Fragment() {
     companion object {
-        // Dane kontaktowe pozostają hardcoded, ponieważ to dane, nie napisy interfejsu
         private const val AUTHOR_NAME = "Miłosz Piórkowski"
         private const val AUTHOR_EMAIL = "mppjuro@mat.umk.pl"
         private const val AUTHOR_PHONE = "+48 724-928-250"
@@ -131,8 +130,6 @@ class SettingsFragment : Fragment() {
         }
 
         val spannableString = SpannableString(fullText)
-
-        // Wyszukiwanie stałych fragmentów (danych) w zbudowanym tekście, aby nadać im klikalność
         val nameStart = fullText.indexOf(AUTHOR_NAME)
         if (nameStart != -1) {
             spannableString.setSpan(object : ClickableSpan() { override fun onClick(widget: View) { openUrl(FACEBOOK_PROFILE_URL) } }, nameStart, nameStart + AUTHOR_NAME.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)

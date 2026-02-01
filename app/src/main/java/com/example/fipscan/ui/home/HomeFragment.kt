@@ -40,7 +40,6 @@ import com.tom_roush.pdfbox.pdmodel.PDDocument
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.apache.commons.net.ftp.FTP
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -48,16 +47,8 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.asRequestBody
-import java.util.concurrent.TimeUnit
 import kotlin.math.min
-import org.apache.commons.net.ftp.FTPReply
 import com.google.firebase.storage.FirebaseStorage
-import com.google.firebase.storage.StorageReference
 
 class HomeFragment : Fragment() {
     private val sharedViewModel: SharedResultViewModel by activityViewModels()
@@ -106,7 +97,6 @@ class HomeFragment : Fragment() {
         }
 
         var dataRestored = false
-        // Domyślny status Rivalta z zasobów (pierwsza opcja)
         val defaultRivaltaStatus = resources.getStringArray(R.array.rivalta_options)[0]
 
         arguments?.let {
@@ -687,10 +677,6 @@ class HomeFragment : Fragment() {
                 append(result.testResults ?: getString(R.string.no_result_data))
                 append("\n\n")
             }
-
-            // Ustawienie spinnera na podstawie zapisanej wartości.
-            // UWAGA: Jeśli język aplikacji został zmieniony po zapisaniu wyniku,
-            // tekst może nie pasować do opcji w nowym języku.
             val rivaltaOptions = resources.getStringArray(R.array.rivalta_options).toList()
             val position = rivaltaOptions.indexOf(viewModel.currentRivaltaStatus)
             if (position >= 0) {

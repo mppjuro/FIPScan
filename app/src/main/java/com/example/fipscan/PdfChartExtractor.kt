@@ -22,11 +22,9 @@ data class BarChartSectionHeights(
     val section4: List<Float>
 )
 
-// 1. ZMODYFIKOWANA DATA CLASS
 data class ChartExtractionResult(
     val imagePaths: List<String>,
     val barSections: BarChartSectionHeights?,
-    // NOWE POLA
     val gammaAnalysis: ElectrophoresisShapeAnalyzer.GammaAnalysisResult?,
     val aucMetrics: Map<String, Double>?
 )
@@ -79,10 +77,7 @@ class PdfChartExtractor(private val context: Context) {
                     finalBitmap.compress(Bitmap.CompressFormat.PNG, 100, fos)
                 }
 
-                // --- 2. NOWA LOGIKA ANALIZY KSZTAŁTU ---
                 Log.d("SHAPE_ANALYSIS", "Rozpoczęcie zaawansowanej analizy kształtu...")
-                // Używamy 'finalBitmap' - to jest oryginalny, przycięty wykres
-                // Wywołujemy metody z obiektu ElectrophoresisShapeAnalyzer
                 val analyzer = ElectrophoresisShapeAnalyzer.analyzeChartBitmap(finalBitmap)
                 val gammaAnalysis = analyzer.analyzeGammaPeak()
                 val aucMetrics = analyzer.getFractionsAUC()
@@ -94,7 +89,6 @@ class PdfChartExtractor(private val context: Context) {
                 } else {
                     Log.w("SHAPE_ANALYSIS", "⚠️ Analiza numeryczna nie zwróciła wyników.")
                 }
-                // --- KONIEC NOWEJ LOGIKI ---
 
 
                 val croppedBitmap = cropAboveDominantLine(finalBitmap)
@@ -127,11 +121,9 @@ class PdfChartExtractor(private val context: Context) {
                 pdfRenderer.close()
                 fileDescriptor.close()
 
-                // 3. ZMODYFIKOWANY RETURN
                 return ChartExtractionResult(
                     imagePaths = listOf(outputFile.absolutePath, barChartFile.absolutePath),
                     barSections = sectionHeights,
-                    // Przekazanie nowych wyników
                     gammaAnalysis = gammaAnalysis,
                     aucMetrics = aucMetrics
                 )
@@ -302,8 +294,6 @@ class PdfChartExtractor(private val context: Context) {
                 yOfMaxLine = y
             }
         }
-
-        // Przytnij obraz powyżej tej linii
         return Bitmap.createBitmap(bitmap, 0, 0, width, max(1, yOfMaxLine))
     }
 

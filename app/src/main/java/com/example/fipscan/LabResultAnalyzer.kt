@@ -11,7 +11,6 @@ object LabResultAnalyzer {
     )
 
     fun analyzeLabData(labData: Map<String, Any>, context: Context): AnalysisResult {
-        // Funkcje pomocnicze
         fun toDoubleValue(str: String?): Double? {
             if (str == null) return null
             return try {
@@ -30,7 +29,6 @@ object LabResultAnalyzer {
         var vetConsultationNeeded = false
         var specialistTypeResId: Int? = null
 
-        // 1. Stosunek A/G
         var agRatio: Double? = null
         val agRatioKey = findKeyContains("Stosunek")
         if (agRatioKey != null && agRatioKey.contains("albumin", ignoreCase = true)) {
@@ -56,7 +54,6 @@ object LabResultAnalyzer {
             }
         }
 
-        // Ta sekcja była już poprawna - formatowała liczbę do stringa
         if (agRatio != null) {
             val formattedRatio = String.format(Locale.getDefault(), "%.2f", agRatio)
             if (agRatio < 0.6) {
@@ -66,7 +63,6 @@ object LabResultAnalyzer {
             }
         }
 
-        // 2. Hipergammaglobulinemia
         val gammaKey = findKeyContains("Gamma")
         val gammaVal = toDoubleValue(labData[gammaKey] as? String)
         val gammaMax = toDoubleValue(labData["${gammaKey}RangeMax"] as? String)
@@ -74,8 +70,6 @@ object LabResultAnalyzer {
             diagnosticComments.add(context.getString(R.string.lab_hypergammaglobulinemia))
         }
 
-        // 3. Pojedyncze odchylenia
-        // ALT
         val altKey = findKeyContains("ALT") ?: findKeyContains("AlAT")
         if (altKey != null) {
             val altVal = toDoubleValue(labData[altKey] as? String)
@@ -83,9 +77,6 @@ object LabResultAnalyzer {
             val unit = labData["${altKey}Unit"] as? String ?: ""
             if (altVal != null && altMax != null && altVal > altMax) {
                 val fold = if (altMax > 0) altVal / altMax else Double.POSITIVE_INFINITY
-
-                // --- POPRAWKA TUTAJ ---
-                // Konwertujemy liczbę (Double) na String przed przekazaniem do getString()
                 val altStr = String.format(Locale.getDefault(), "%.1f", altVal)
 
                 if (fold <= 2) {
@@ -100,7 +91,6 @@ object LabResultAnalyzer {
             }
         }
 
-        // Bilirubina
         val biliKey = findKeyContains("Bilirubina") ?: findKeyContains("Bilirubin")
         if (biliKey != null) {
             val biliVal = toDoubleValue(labData[biliKey] as? String)
@@ -119,16 +109,11 @@ object LabResultAnalyzer {
             }
         }
 
-        // WBC
         val wbcKey = findKeyContains("Leukocyty") ?: findKeyContains("WBC")
         if (wbcKey != null) {
             val wbcVal = toDoubleValue(labData[wbcKey] as? String)
             val wbcMax = toDoubleValue(labData["${wbcKey}RangeMax"] as? String)
             val wbcMin = toDoubleValue(labData["${wbcKey}RangeMin"] as? String)
-
-            // --- POPRAWKA TUTAJ ---
-            // Konwertujemy liczbę (Double) na String
-            // Zasoby stringów dla WBC oczekują JEDNEGO argumentu typu String
             if (wbcVal != null) {
                 val wbcStr = String.format(Locale.getDefault(), "%.1f", wbcVal)
                 if (wbcMax != null && wbcVal > wbcMax) {
@@ -139,7 +124,6 @@ object LabResultAnalyzer {
             }
         }
 
-        // Neutrofile i limfocyty (bez zmian, ten string nie przyjmuje argumentów)
         val neutKey = findKeyContains("Neutro")
         val lymphKey = findKeyContains("Limfocy")
         if (neutKey != null && lymphKey != null) {
@@ -154,25 +138,19 @@ object LabResultAnalyzer {
             }
         }
 
-        // HCT
         val hctKey = findKeyContains("Hematokryt") ?: findKeyContains("HCT")
         if (hctKey != null) {
             val hctVal = toDoubleValue(labData[hctKey] as? String)
             val hctMin = toDoubleValue(labData["${hctKey}RangeMin"] as? String)
             if (hctVal != null && hctMin != null && hctVal < hctMin) {
-
-                // --- POPRAWKA TUTAJ ---
-                // Konwertujemy liczbę (Double) na String
                 val hctStr = String.format(Locale.getDefault(), "%.1f", hctVal)
                 diagnosticComments.add(context.getString(R.string.lab_anemia, hctStr))
             }
         }
 
-        // 4. FCoV ELISA (bez zmian, ta sekcja była już poprawna - przekazywała Stringa 'fcovValue')
         val fcovKey = labData.keys.find { it.contains("FCoV", ignoreCase = true) && it.contains("ELISA", ignoreCase = true) }
         if (fcovKey != null) {
             val fcovValue = labData[fcovKey] as? String
-            // Sprawdzamy też wartość referencyjną, bo czasem tam jest opis wyniku
             val fcovResultText = (labData["${fcovKey}RangeMax"] as? String ?: "") + (fcovValue ?: "")
 
             if (!fcovValue.isNullOrBlank()) {
@@ -211,11 +189,9 @@ object LabResultAnalyzer {
             }
         }
 
-        // 5. Podsumowanie
         if (diagnosticComments.isEmpty()) {
             diagnosticComments.add(context.getString(R.string.lab_results_normal))
         } else {
-            // Sprawdzamy, czy któryś komentarz zawiera "FIP" (w dowolnej wielkości liter)
             val fipMentioned = diagnosticComments.any { it.contains("FIP", ignoreCase = true) }
             if (fipMentioned) {
                 diagnosticComments.add(context.getString(R.string.lab_disclaimer_other_diseases))

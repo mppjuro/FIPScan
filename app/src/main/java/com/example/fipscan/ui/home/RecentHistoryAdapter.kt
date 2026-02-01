@@ -39,14 +39,12 @@ class RecentHistoryAdapter(
             ""
         holder.binding.textDate.text = dateText
 
-        // Obliczanie ryzyka
         var riskPercentage = 0
         try {
             result.rawDataJson?.let {
                 val type = object : TypeToken<Map<String, Any>>() {}.type
                 val extractedData = Gson().fromJson<Map<String, Any>>(it, type)
                 if (extractedData != null) {
-                    // Pobierz domyślną wartość z zasobów (pierwsza opcja w tablicy), aby zachować spójność z HomeFragment
                     val defaultRivalta = context.resources.getStringArray(R.array.rivalta_options)[0]
                     val electroResult = ElectrophoresisAnalyzer.assessFipRisk(
                         extractedData,
@@ -72,7 +70,6 @@ class RecentHistoryAdapter(
     override fun getItemCount(): Int = results.size
 
     private fun calculateBackgroundColor(percentage: Int): Int {
-        // Zielony (0%) -> Czerwony (100%)
         val r = min(255, percentage * 255 / 100)
         val g = min(255, (100 - percentage) * 255 / 100)
         val b = 0

@@ -23,8 +23,6 @@ object ElectrophoresisShapeAnalyzer {
     private var fractionRanges: List<IntRange> = emptyList()
     const val SHAPE_ANALYSIS_MAX_POINTS = 30
     const val PATTERN_ANALYSIS_MAX_POINTS = 30
-
-    // Minimalny odstęp między czerwonymi liniami (w pikselach)
     private const val MIN_SEPARATOR_GAP = 20
 
     data class GammaAnalysisResult(
@@ -37,23 +35,18 @@ object ElectrophoresisShapeAnalyzer {
     )
 
     data class WidthRatioAnalysis(
-        val gamma70ToBeta: Float,    // Proporcja Gamma (70%) do Beta (region)
-        val gamma50ToBeta: Float,    // Proporcja Gamma (50%) do Beta (region)
-        val gamma30ToBeta: Float,    // Proporcja Gamma (30%) do Beta (region)
-        val gamma70ToGamma30: Float  // Proporcja Gamma (70%) do Gamma (30%)
+        val gamma70ToBeta: Float,
+        val gamma50ToBeta: Float,
+        val gamma30ToBeta: Float,
+        val gamma70ToGamma30: Float
     )
-
-    /**
-     * Zaktualizowana klasa przechowująca mapę szerokości piku.
-     */
     data class PeakCharacteristics(
-        val height: Float,            // Wysokość piku w pikselach
-        // Mapa <Poziom_%, Szerokość_w_Px>, np. (10, 25), (20, 31), ..., (90, 15)
+        val height: Float,
         val widthPxMap: Map<Int, Int>,
-        val symmetry: Float,          // Symetria piku (0.0 - 1.0)
-        val sharpness: Float,         // Ostrość (Wysokość / (szerokość % na 50%))
-        val position: Int,            // Pozycja (indeks X) piku
-        val rangeSize: Int            // Całkowita szerokość zakresu w pikselach
+        val symmetry: Float,
+        val sharpness: Float,
+        val position: Int,
+        val rangeSize: Int
     )
 
     data class BridgeCharacteristics(
@@ -84,7 +77,6 @@ object ElectrophoresisShapeAnalyzer {
         val width = bitmap.width
         val height = bitmap.height
 
-        // Skanuj od dołu (height - 1) do góry (0)
         for (y in height - 1 downTo 0) {
             var blueCount = 0
             for (x in 0 until width) {
@@ -93,14 +85,12 @@ object ElectrophoresisShapeAnalyzer {
                 }
             }
 
-            // Jeśli ponad 50% pikseli w rzędzie jest niebieskich, to jest nasza linia bazowa
             if (blueCount.toFloat() / width.toFloat() > 0.5f) {
                 Log.d("ShapeAnalyzer", "Automatycznie wykryto linię bazową na y=$y")
                 return y
             }
         }
 
-        // Fallback, jeśli nie znaleziono (np. obraz jest pusty)
         Log.w("ShapeAnalyzer", "Nie znaleziono linii bazowej >50% pikseli. Używanie domyślnej (95% wysokości).")
         val fallbackY = (height * 0.95f).toInt().coerceAtMost(height - 2)
         Log.d("ShapeAnalyzer", "Użyto zastępczej linii bazowej na y=$fallbackY")
@@ -111,7 +101,6 @@ object ElectrophoresisShapeAnalyzer {
         val red = Color.red(pixelColor)
         val green = Color.green(pixelColor)
         val blue = Color.blue(pixelColor)
-        // Logika: kolor jest "głównie niebieski" i nie jest ani czarny, ani biały.
         return blue > (red + 20) && blue > (green + 20) && blue > 50 && red < 200 && green < 200
     }
 
@@ -119,43 +108,32 @@ object ElectrophoresisShapeAnalyzer {
         val red = Color.red(pixelColor)
         val green = Color.green(pixelColor)
         val blue = Color.blue(pixelColor)
-        // Logika: kolor jest "głównie czerwony"
         return red > 180 && green < 100 && blue < 100
     }
 
-    /**
-     * Wyodrębnia profil krzywej (niebieskie i czerwone piksele) jako tablicę wysokości.
-     */
     private fun extractCurveData(bitmap: Bitmap, baselineY: Int): IntArray {
         val width = bitmap.width
         val data = IntArray(width)
 
         for (x in 0 until width) {
-            data[x] = 0 // Domyślnie brak piku
-            // Skanuj kolumnę od góry (y=0) w dół do linii bazowej
+            data[x] = 0
             for (y in 0..baselineY) {
                 val pixelColor = bitmap[x, y]
-                // Zliczamy *zarówno* niebieski wykres, jak i czerwone linie
                 if (isChartColor(pixelColor) || isRedLineColor(pixelColor)) {
                     val height = baselineY - y
                     data[x] = height
-                    break // Znaleźliśmy górną krawędź wykresu w tej kolumnie
+                    break
                 }
             }
         }
         return data
     }
 
-    /**
-     * Skanuje obraz poziomo, aby znaleźć linię Y, która zawiera 3 czerwone
-     * klastry pikseli, oddzielone o co najmniej MIN_SEPARATOR_GAP.
-     */
     private fun findFractionRanges(bitmap: Bitmap): List<IntRange> {
         val width = bitmap.width
-        val height = baselineY // Skanuj tylko do linii bazowej
+        val height = baselineY
         if (width == 0 || height == 0) return emptyList()
 
-        // Skanuj każdą linię poziomą (od góry do dołu)
         for (y in 0 until height) {
             val redClustersOnThisLine = mutableListOf<IntRange>()
             var inCluster = false
@@ -204,12 +182,6 @@ object ElectrophoresisShapeAnalyzer {
         return emptyList()
     }
 
-    // --- FUNKCJE ANALIZY NUMERYCZNEJ (Public API) ---
-
-    /**
-     * Analizuje kształt piku w rejonie gamma.
-     * Musi być wywołana PO `analyzeChartBitmap`.
-     */
     fun analyzeGammaPeak(): GammaAnalysisResult? {
         if (fractionRanges.size < 4) return null
 
@@ -252,10 +224,6 @@ object ElectrophoresisShapeAnalyzer {
         return GammaAnalysisResult(peakHeight, peakIndex, meanIndex, variance, stdDev, totalMass)
     }
 
-    /**
-     * Zwraca obliczone AUC dla wszystkich frakcji.
-     * Musi być wywołana PO `analyzeChartBitmap`.
-     */
     fun getFractionsAUC(): Map<String, Double> {
         if (fractionRanges.size < 4) return emptyMap()
 
@@ -276,10 +244,6 @@ object ElectrophoresisShapeAnalyzer {
         )
     }
 
-    /**
-     * Główna funkcja do analizy kształtu na potrzeby oceny ryzyka FIP.
-     * Musi być wywołana PO `analyzeChartBitmap`.
-     */
     fun analyzeElectrophoresisShape(context: Context): ShapeAnalysisResult? {
 
         if (fractionRanges.size < 4) {
@@ -381,15 +345,12 @@ object ElectrophoresisShapeAnalyzer {
         )
     }
 
-    // --- LOGIKA OCENY (ZAKTUALIZOWANA) ---
-
     private fun classifyPattern(
         albumin: PeakCharacteristics,
         alpha: PeakCharacteristics,
         gamma: PeakCharacteristics,
         betaGammaBridge: BridgeCharacteristics
     ): String {
-        // Oblicz procentową szerokość gamma (względem jej własnego zakresu)
         val gammaWidth50Percent = if (gamma.rangeSize > 0) (gamma.widthPxMap[50]?.toFloat() ?: 1f) / gamma.rangeSize.toFloat() else 0f
 
         if (gamma.sharpness > 200f && gamma.height > albumin.height * 1.5f) {
@@ -430,7 +391,6 @@ object ElectrophoresisShapeAnalyzer {
             agRatio < 1.0f -> score += 10f
         }
 
-        // Użyj procentowej szerokości gamma (względem jej własnego zakresu)
         val gammaWidth50Percent = if (gamma.rangeSize > 0) (gamma.widthPxMap[50]?.toFloat() ?: 1f) / gamma.rangeSize.toFloat() else 0f
         if (gammaWidth50Percent > 0.35f) score += 15f
         else if (gammaWidth50Percent > 0.25f) score += 10f
@@ -491,8 +451,6 @@ object ElectrophoresisShapeAnalyzer {
         return descriptions.joinToString(". ")
     }
 
-    // --- FUNKCJE POMOCNICZE ---
-
     internal fun calculateAUC(data: IntArray, range: IntRange): Double {
         var area = 0.0
         if (range.first >= data.size || range.last >= data.size || range.first < 0) {
@@ -523,29 +481,24 @@ object ElectrophoresisShapeAnalyzer {
             return null
         }
 
-        // Analizujemy pik gamma, aby uzyskać jego bezwzględne szerokości w pikselach
-        // Ta funkcja (analyzePeak) teraz także loguje 9 wartości
         val gammaPeak = analyzePeak(gammaRange)
         if (gammaPeak.height == 0f) {
             Log.w("ShapeAnalyzer", "Pik Gamma ma wysokość 0, proporcje będą wynosić 0.")
             return WidthRatioAnalysis(0f, 0f, 0f, 0f)
         }
 
-        // Pobierz wymagane szerokości w pikselach
         val gammaWidthPx70 = gammaPeak.widthPxMap[70]?.toFloat() ?: 1f
         val gammaWidthPx50 = gammaPeak.widthPxMap[50]?.toFloat() ?: 1f
         val gammaWidthPx30 = gammaPeak.widthPxMap[30]?.toFloat() ?: 1f
 
-        // Oblicz proporcje
         val ratio70ToBeta = (gammaWidthPx70 / betaRegionWidth) * 100f
         val ratio50ToBeta = (gammaWidthPx50 / betaRegionWidth) * 100f
         val ratio30ToBeta = (gammaWidthPx30 / betaRegionWidth) * 100f
 
-        // Zabezpieczenie przed dzieleniem przez zero, jeśli szerokość 30% wynosi 0
         val ratio70To30 = if (gammaWidthPx30 > 0.01f) {
             (gammaWidthPx70 / gammaWidthPx30) * 100f
         } else {
-            0f // Zwracamy 0, gdy mianownik jest zerowy
+            0f
         }
 
         Log.d("ShapeAnalyzer", "Obliczono proporcje: 70/Beta=${ratio70ToBeta}%, 50/Beta=${ratio50ToBeta}%, 30/Beta=${ratio30ToBeta}%, 70/30=${ratio70To30}%")
@@ -568,7 +521,6 @@ object ElectrophoresisShapeAnalyzer {
         var maxHeight = 0
         var maxIndex = range.first
 
-        // Znajdź wysokość i pozycję piku w danym zakresie
         for (i in range) {
             if (curveData[i] > maxHeight) {
                 maxHeight = curveData[i]
@@ -580,8 +532,7 @@ object ElectrophoresisShapeAnalyzer {
             return defaultPeak.copy(rangeSize = profileSize)
         }
 
-        // Oblicz szerokości na 9 poziomach
-        val levels = (10..90 step 10) // 10, 20, ..., 90
+        val levels = (10..90 step 10)
         val heightThresholds = levels.associateWith { maxHeight * (it / 100.0) }
 
         val leftIndices = mutableMapOf<Int, Int>()
@@ -591,7 +542,6 @@ object ElectrophoresisShapeAnalyzer {
             rightIndices[level] = maxIndex
         }
 
-        // Skanuj w lewo od piku
         for (i in maxIndex downTo range.first) {
             val h = curveData[i]
             for (level in levels) {
@@ -600,7 +550,6 @@ object ElectrophoresisShapeAnalyzer {
                 }
             }
         }
-        // Skanuj w prawo od piku
         for (i in maxIndex..range.last) {
             val h = curveData[i]
             for (level in levels) {
@@ -610,16 +559,12 @@ object ElectrophoresisShapeAnalyzer {
             }
         }
 
-        // Zbuduj mapę szerokości w pikselach
         val widthPxMap = mutableMapOf<Int, Int>()
         levels.forEach { level ->
             val widthPx = (rightIndices[level]!! - leftIndices[level]!!).coerceAtLeast(1)
             widthPxMap[level] = widthPx
         }
 
-        // --- POCZĄTEK MODYFIKACJI: Logowanie szerokości piku ---
-        // Logujemy tylko, gdy funkcja jest wywoływana dla zakresu gamma
-        // Sprawdzamy, czy `fractionRanges` jest zainicjalizowane i czy zakres pasuje
         if (fractionRanges.isNotEmpty() && range == fractionRanges.getOrNull(3)) {
             Log.d("ShapeAnalyzer", "--- Analiza szerokości piku Gamma (w Px) ---")
             widthPxMap.toSortedMap().forEach { (level, width) ->
@@ -627,9 +572,6 @@ object ElectrophoresisShapeAnalyzer {
             }
             Log.d("ShapeAnalyzer", "------------------------------------------")
         }
-        // --- KONIEC MODYFIKACJI ---
-
-        // Oblicz ostrość (sharpness) na podstawie szerokości na 50% (FWHM)
         val widthPx50 = widthPxMap[50] ?: 1
         val width50Percent = widthPx50.toFloat() / profileSize.toFloat()
         val sharpness = if (width50Percent > 0.001f) maxHeight.toFloat() / width50Percent else 0f

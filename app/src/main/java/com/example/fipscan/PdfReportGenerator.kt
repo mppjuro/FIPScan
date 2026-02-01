@@ -55,7 +55,7 @@ class PdfReportGenerator(private val context: Context) {
         shapeAnalysis: ElectrophoresisShapeAnalyzer.ShapeAnalysisResult? = null,
         gammaAnalysisDetails: ElectrophoresisShapeAnalyzer.GammaAnalysisResult? = null,
         aucMetrics: Map<String, Double>? = null,
-        widthRatios: ElectrophoresisShapeAnalyzer.WidthRatioAnalysis? = null, // <-- DODANY PARAMETR
+        widthRatios: ElectrophoresisShapeAnalyzer.WidthRatioAnalysis? = null,
         patternAnalysis: FipPatternAnalyzer.PatternAnalysisResult? = null,
         shapeAnalysisPoints: Int = 0,
         patternAnalysisPoints: Int = 0,
@@ -82,7 +82,6 @@ class PdfReportGenerator(private val context: Context) {
                 breed, gender, coat, collectionDate
             )
 
-            // Dodano gammopathyResult do oceny ryzyka
             yPosition = drawRiskAssessment(
                 canvas, yPosition, riskPercentage, riskComment, gammopathyResult
             )
@@ -102,9 +101,9 @@ class PdfReportGenerator(private val context: Context) {
             }
 
             // SEKCJA DLA AUC I WARIANCJI
-            if (gammaAnalysisDetails != null || aucMetrics != null || widthRatios != null) { // <-- ZMODYFIKOWANY WARUNEK
-                if (yPosition > pageHeight - bottomMargin - 200) { // Zwiększono margines sprawdzania miejsca
-                    drawFooter(canvas, pageNumber) // Dodajemy stopkę przed zamknięciem
+            if (gammaAnalysisDetails != null || aucMetrics != null || widthRatios != null) {
+                if (yPosition > pageHeight - bottomMargin - 200) {
+                    drawFooter(canvas, pageNumber)
                     pdfDocument.finishPage(currentPage)
                     pageNumber++
                     currentPage = pdfDocument.startPage(
@@ -122,7 +121,7 @@ class PdfReportGenerator(private val context: Context) {
             }
 
             if (yPosition > pageHeight - bottomMargin - 200) {
-                drawFooter(canvas, pageNumber) // Dodajemy stopkę przed zamknięciem
+                drawFooter(canvas, pageNumber)
                 pdfDocument.finishPage(currentPage)
                 pageNumber++
                 currentPage = pdfDocument.startPage(
@@ -135,7 +134,7 @@ class PdfReportGenerator(private val context: Context) {
             yPosition = drawScoreBreakdown(canvas, yPosition, scoreBreakdown)
 
             if (yPosition > pageHeight - bottomMargin - 250) {
-                drawFooter(canvas, pageNumber) // Dodajemy stopkę przed zamknięciem
+                drawFooter(canvas, pageNumber)
                 pdfDocument.finishPage(currentPage)
                 pageNumber++
                 currentPage = pdfDocument.startPage(
@@ -145,14 +144,13 @@ class PdfReportGenerator(private val context: Context) {
                 yPosition = margin
             }
 
-            // Dodano diagnosticComment przed zaleceniami
             yPosition = drawRecommendations(
                 canvas, yPosition, diagnosticComment, furtherTestsAdvice,
                 supplementAdvice, vetConsultationAdvice
             )
 
             if (yPosition > pageHeight - bottomMargin - 200) {
-                drawFooter(canvas, pageNumber) // Dodajemy stopkę przed zamknięciem
+                drawFooter(canvas, pageNumber)
                 pdfDocument.finishPage(currentPage)
                 pageNumber++
                 currentPage = pdfDocument.startPage(
@@ -164,7 +162,7 @@ class PdfReportGenerator(private val context: Context) {
 
             if (abnormalResults.isNotEmpty()) {
                 if (yPosition > pageHeight - bottomMargin - 200) {
-                    drawFooter(canvas, pageNumber) // Dodajemy stopkę przed zamknięciem
+                    drawFooter(canvas, pageNumber)
                     pdfDocument.finishPage(currentPage)
                     pageNumber++
                     currentPage = pdfDocument.startPage(
@@ -205,7 +203,7 @@ class PdfReportGenerator(private val context: Context) {
 
                 for (result in abnormalResults) {
                     if (yPosition > pageHeight - bottomMargin - 30) {
-                        drawFooter(canvas, pageNumber) // Dodajemy stopkę przed zamknięciem
+                        drawFooter(canvas, pageNumber)
                         pdfDocument.finishPage(currentPage)
                         pageNumber++
                         currentPage = pdfDocument.startPage(
@@ -448,7 +446,6 @@ class PdfReportGenerator(private val context: Context) {
 
         val textPaint = TextPaint().apply { color = Color.BLACK; textSize = 11f; isAntiAlias = true }
 
-        // Dodano diagnosticComment
         if (diagnosticComment.isNotEmpty()) {
             val cleanDiagnostic = diagnosticComment.replace(Regex("<[^>]*>"), "")
             val diagnosticLayout = StaticLayout.Builder.obtain(
@@ -522,7 +519,6 @@ class PdfReportGenerator(private val context: Context) {
             typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
 
-        // 1. Rysowanie wszystkich danych analizy piku Gamma (Używa stringów)
         if (gammaAnalysis != null && gammaAnalysis.totalMass > 0) {
 
             val varianceLabel = context.getString(R.string.pdf_gamma_peak_variance)
@@ -544,10 +540,9 @@ class PdfReportGenerator(private val context: Context) {
             val peakHeightValue = "${gammaAnalysis.peakHeight}"
             canvas.drawText("$peakHeightLabel $peakHeightValue", margin + 10f, y, detailsPaint)
 
-            y += 20f // Dodatkowy odstęp
+            y += 20f
         }
 
-        // 2. Rysowanie danych AUC z tłumaczeniem (Używa stringów)
         if (aucMetrics != null && aucMetrics.isNotEmpty()) {
             canvas.drawText(context.getString(R.string.pdf_calculated_fractions_title), margin, y, boldDetailsPaint)
             y += 18f
@@ -562,7 +557,6 @@ class PdfReportGenerator(private val context: Context) {
             }
         }
 
-        // 3. Rysowanie proporcji szerokości
         if (widthRatios != null) {
             canvas.drawText(context.getString(R.string.pdf_width_ratios_title), margin, y, boldDetailsPaint)
             y += 18f
@@ -605,19 +599,16 @@ class PdfReportGenerator(private val context: Context) {
         canvas?.drawText(disclaimer, (pageWidth - disclaimerWidth) / 2, pageHeight - 35f, disclaimerPaint)
     }
 
-    // --- ZAKTUALIZOWANA FUNKCJA POMOCNICZA ---
     private fun getTranslatedFractionName(fractionKey: String): String {
-        // Ta funkcja mapuje klucze ("Albumin", "Alpha") na zasoby string
         val resId = when (fractionKey) {
             "Albumin" -> R.string.pdf_fraction_albumin
-            "Alpha"   -> R.string.pdf_fraction_alpha1 // Używamy stringa "Alpha-1" dla połączonej frakcji "Alpha"
+            "Alpha"   -> R.string.pdf_fraction_alpha1
             "Beta"    -> R.string.pdf_fraction_beta
             "Gamma"   -> R.string.pdf_fraction_gamma
             else -> 0
         }
         return if (resId != 0) context.getString(resId) else fractionKey
     }
-    // --- KONIEC ZAKTUALIZOWANEJ FUNKCJI ---
 
     private fun savePdfToDownloads(pdfDocument: PdfDocument, fileName: String): Pair<String?, String?> {
         return try {
@@ -661,19 +652,14 @@ class PdfReportGenerator(private val context: Context) {
         val detailsPaint = TextPaint().apply { color = Color.BLACK; textSize = 12f; isAntiAlias = true }
         val bridgeStatus = if (analysis.betaGammaBridge.present) context.getString(R.string.pdf_bridge_present) else context.getString(R.string.pdf_bridge_absent)
 
-
-        // --- POCZĄTEK POPRAWKI BŁĘDU (naprawa width50) ---
-        // Obliczamy procentową szerokość gamma (FWHM) względem jej zakresu
         val gammaWidthPx50 = analysis.gamma.widthPxMap[50]?.toFloat() ?: 0f
-        // Zabezpieczenie przed dzieleniem przez zero, jeśli zakres ma 0px
         val gammaRangeSize = analysis.gamma.rangeSize.toFloat().coerceAtLeast(1f)
         val gammaWidth50Percent = (gammaWidthPx50 / gammaRangeSize) * 100f
 
-        // Zabezpieczenie przed dzieleniem przez zero dla A/G Ratio
         val agRatioValue = if (analysis.gamma.height > 0.01f) {
             analysis.albumin.height / analysis.gamma.height
         } else {
-            0.0f // Zwracamy 0.0 lub inną domyślną wartość, gdy gamma = 0
+            0.0f
         }
 
         val details = buildString {

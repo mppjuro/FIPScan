@@ -86,7 +86,6 @@ object ExtractData {
                                 val value = matcher.group(2)?.trim()?.replace(',', '.') ?: "-"
                                 val rangeStr = matcher.group(3)?.trim() ?: "-"
                                 val rangeParts = rangeStr.split("-").map { it.trim().replace(",", ".") }
-                                // FIX: split zawsze zwraca co najmniej jeden element, więc getOrNull(0) nie zwróci null, jeśli rangeParts nie jest puste (a nie jest).
                                 val minRange = rangeParts[0]
                                 val maxRange = rangeParts.getOrNull(1) ?: "-"
                                 val unit = ""
@@ -182,7 +181,6 @@ object ExtractData {
                             val value = valuePart.replace(',', '.')
                             unit = unit.replace(Regex("""\([^)]*\)"""), "").trim()
                             val rangeParts = rangeStr.split("-").map { it.trim().replace(",", ".") }
-                            // FIX: split zawsze zwraca listę, element 0 jest bezpieczny.
                             val minRange = rangeParts[0].replace(Regex("[<>]"), "")
                             val maxRange = rangeParts.getOrNull(1)?.replace(Regex("[<>]"), "") ?: "-"
 

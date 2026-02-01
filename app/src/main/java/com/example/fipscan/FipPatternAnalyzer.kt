@@ -27,30 +27,17 @@ object FipPatternAnalyzer {
     data class ParameterPattern(
         val name: String,
         val present: Boolean,
-        val severity: String // "severe", "moderate", "mild" (internal use)
+        val severity: String
     )
 
     fun analyzeParameterPatterns(labData: Map<String, Any>, context: Context): PatternAnalysisResult {
 
-        // Wykryj podstawowe nieprawidłowości
         val patterns = detectBasicPatterns(labData)
-
-        // Zidentyfikuj kombinacje wzorców
         val combinations = identifyCombinations(patterns)
-
-        // Określ profil FIP
         val (primaryProfile, secondaryProfile) = determineProfiles(combinations)
-
-        // Oblicz siłę wzorca
         val strength = calculatePatternStrength(combinations, primaryProfile)
-
-        // Generuj kluczowe obserwacje
         val findings = generateKeyFindings(patterns, combinations, context)
-
-        // Generuj opis profilu
         val description = generateProfileDescription(primaryProfile, secondaryProfile, patterns, combinations, context)
-
-        // Generuj sugestie postępowania
         val suggestions = generateManagementSuggestions(primaryProfile, strength, context)
 
         return PatternAnalysisResult(
@@ -65,30 +52,19 @@ object FipPatternAnalyzer {
 
     private fun detectBasicPatterns(labData: Map<String, Any>): Map<String, ParameterPattern> {
         val patterns = mutableMapOf<String, ParameterPattern>()
-
-        // Hiperglobulinemia
         analyzeGlobulinemia(labData)?.let { patterns["hyperglobulinemia"] = it }
-        // Hipoalbuminemia
         analyzeAlbuminemia(labData)?.let { patterns["hypoalbuminemia"] = it }
-        // Limfopenia
         analyzeLymphopenia(labData)?.let { patterns["lymphopenia"] = it }
-        // Neutrofilia
         analyzeNeutrophilia(labData)?.let { patterns["neutrophilia"] = it }
-        // Anemia
         analyzeAnemia(labData)?.let { patterns["anemia"] = it }
-        // Hiperbilirubinemia
         analyzeBilirubinemia(labData)?.let { patterns["hyperbilirubinemia"] = it }
-        // Podwyższone enzymy wątrobowe
         analyzeLiverEnzymes(labData)?.let { patterns["liver_enzymes"] = it }
-        // Azotemia
         analyzeAzotemia(labData)?.let { patterns["azotemia"] = it }
-        // Trombocytopenia
         analyzeThrombocytopenia(labData)?.let { patterns["thrombocytopenia"] = it }
 
         return patterns
     }
 
-    // --- Analityczne funkcje pomocnicze (bez zmian w logice, tylko refaktoryzacja null-safety) ---
     private fun analyzeGlobulinemia(labData: Map<String, Any>): ParameterPattern? {
         val globKey = labData.keys.find { it.contains("Globulin", ignoreCase = true) } ?: return null
         val value = toDoubleValue(labData[globKey] as? String) ?: return null
@@ -327,7 +303,6 @@ object FipPatternAnalyzer {
             if (resId != null) {
                 findings.add(context.getString(resId))
             }
-            // Dla innych rzadszych ciężkich przypadków można dodać fallback lub kolejne ID
         }
 
         if (combinations["hepatic"] == true) {

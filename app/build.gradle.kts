@@ -107,7 +107,6 @@ dependencies {
     implementation("commons-io:commons-io:2.15.1")
     implementation("commons-net:commons-net:3.10.0")
     implementation("org.apache.commons:commons-csv:1.10.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation(libs.gson)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

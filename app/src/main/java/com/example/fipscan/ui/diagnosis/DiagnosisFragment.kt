@@ -191,7 +191,6 @@ class DiagnosisFragment : Fragment() {
             Log.w("DiagnosisFragment", "chartImageView not found in layout")
         }
 
-        // Usunięcie starych kart, aby uniknąć duplikatów przy ponownym ładowaniu
         try {
             val analysisContainerField = binding.javaClass.getDeclaredField("analysisContainer")
             analysisContainerField.isAccessible = true
@@ -226,12 +225,11 @@ class DiagnosisFragment : Fragment() {
                     currentShapeAnalysis = analysis
                 }
 
-                // --- MODYFIKACJA: Przekaż 'currentWidthRatios' do karty ---
                 if (currentGammaAnalysis != null || currentAucAnalysis != null || currentWidthRatios != null) {
                     val advancedCard = createAdvancedAnalysisCard(
                         currentGammaAnalysis,
                         currentAucAnalysis,
-                        currentWidthRatios // Nowy parametr
+                        currentWidthRatios
                     )
                     try {
                         val analysisContainerField =
@@ -469,7 +467,7 @@ class DiagnosisFragment : Fragment() {
                 shapeAnalysis = currentShapeAnalysis,
                 gammaAnalysisDetails = currentGammaAnalysis,
                 aucMetrics = currentAucAnalysis,
-                widthRatios = currentWidthRatios, // <-- DODANY PARAMETR
+                widthRatios = currentWidthRatios,
                 patternAnalysis = currentPatternAnalysis,
                 shapeAnalysisPoints = shapePoints,
                 patternAnalysisPoints = patternPoints,
@@ -603,23 +601,15 @@ class DiagnosisFragment : Fragment() {
             getString(R.string.present_depth, (analysis.betaGammaBridge.depth * 100).toInt())
         else
             getString(R.string.absent)
-
-        // --- POCZĄTEK POPRAWKI (Błąd 1: shape_details_template) ---
-        // Obliczamy procentową szerokość gamma (FWHM) względem jej zakresu
         val gammaWidthPx50 = analysis.gamma.widthPxMap[50]?.toFloat() ?: 0f
-        // Zabezpieczenie przed dzieleniem przez zero, jeśli zakres ma 0px
         val gammaRangeSize = analysis.gamma.rangeSize.toFloat().coerceAtLeast(1f)
         val gammaWidth50Percent = (gammaWidthPx50 / gammaRangeSize) * 100f
-
-        // POPRAWKA: Usunięto szósty, nadmiarowy argument (A/G ratio).
-        // Zasób string `shape_details_template` oczekuje 5 argumentów.
         val details = getString(R.string.shape_details_template,
             (analysis.albumin.height).toInt(), (analysis.albumin.symmetry * 100).toInt(),
             (analysis.gamma.height).toInt(),
             gammaWidth50Percent.toInt(), // Poprawne odwołanie do FWHM 50%
             bridgeStatus // 5-ty i ostatni argument
         )
-        // --- KONIEC POPRAWKI ---
 
         val detailsText = TextView(requireContext()).apply {
             text = details
@@ -652,7 +642,6 @@ class DiagnosisFragment : Fragment() {
         }
         content.addView(title)
 
-        // Używamy opisów z FipPatternAnalyzer, które teraz są zlokalizowane
         val primaryDesc = when (analysis.primaryProfile) {
             FipPatternAnalyzer.FipProfile.INFLAMMATORY_ACUTE -> getString(R.string.profile_inflammatory_acute)
             FipPatternAnalyzer.FipProfile.INFLAMMATORY_CHRONIC -> getString(R.string.profile_inflammatory_chronic)
@@ -775,7 +764,6 @@ class DiagnosisFragment : Fragment() {
         }
         content.addView(title)
 
-        // 1. Wyświetl analizę piku Gamma
         if (gammaAnalysis != null && gammaAnalysis.totalMass > 0) {
             val varianceLabel = getString(R.string.pdf_gamma_peak_variance) // Możemy reużyć stringów z PDF
             val varianceValue = String.format(Locale.getDefault(), "%.2f", gammaAnalysis.variance)
@@ -798,7 +786,6 @@ class DiagnosisFragment : Fragment() {
             content.addView(stdDevTv)
         }
 
-        // 2. Wyświetl analizę AUC
         if (aucMetrics != null && aucMetrics.isNotEmpty()) {
             val aucTitle = TextView(requireContext()).apply {
                 text = getString(R.string.diag_auc_analysis_title)
@@ -824,7 +811,6 @@ class DiagnosisFragment : Fragment() {
             }
         }
 
-        // 3. Wyświetl analizę proporcji szerokości
         if (widthRatios != null) {
             val ratiosTitle = TextView(requireContext()).apply {
                 text = getString(R.string.diag_width_ratios_title)
@@ -835,14 +821,10 @@ class DiagnosisFragment : Fragment() {
             }
             content.addView(ratiosTitle)
 
-            // Funkcja pomocnicza do tworzenia wierszy
             fun createRatioTextView(labelResId: Int, value: Float): TextView {
                 return TextView(requireContext()).apply {
-                    // 1. Pobieramy etykietę
                     val label = getString(labelResId)
-                    // 2. Formatujemy liczbę do jednego miejsca po przecinku
                     val formattedValue = String.format(Locale.getDefault(), "%.1f", value)
-                    // 3. Łączymy wszystko w jeden tekst
                     text = "$label $formattedValue %"
                     textSize = 14f
                     setPadding(8, 4, 0, 4)
