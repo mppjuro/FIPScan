@@ -11,7 +11,8 @@ import com.example.fipscan.databinding.ActivityMainBinding
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-
+import org.opencv.android.OpenCVLoader
+import android.util.Log
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
@@ -26,9 +27,19 @@ class MainActivity : AppCompatActivity() {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
         }
 
-        val languageCode = sharedPreferences.getString("app_language", "pl") ?: "pl"
+        val languageCode = sharedPreferences.getString("app_language", "en") ?: "en"
         val localeList = LocaleListCompat.forLanguageTags(languageCode)
         AppCompatDelegate.setApplicationLocales(localeList)
+
+        try {
+            System.loadLibrary("opencv_java4")
+            Log.d("OpenCV", "✅ Natywna biblioteka OpenCV załadowana pomyślnie")
+        } catch (e: UnsatisfiedLinkError) {
+            Log.e("OpenCV", "❌ Błąd ładowania natywnej biblioteki OpenCV", e)
+            if (!OpenCVLoader.initDebug()) {
+                Log.e("OpenCV", "❌ OpenCVLoader.initDebug() również się nie powiódł")
+            }
+        }
 
         super.onCreate(savedInstanceState)
 

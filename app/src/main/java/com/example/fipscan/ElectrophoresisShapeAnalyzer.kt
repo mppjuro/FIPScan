@@ -10,6 +10,11 @@ import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sqrt
 import androidx.core.graphics.get
+import com.example.fipscan.math.GmmAnalyzer
+import com.example.fipscan.math.ElectrophoresisModel
+import com.example.fipscan.utils.SignalExtractor
+import android.graphics.*
+import com.example.fipscan.math.GaussianComponent
 
 object ElectrophoresisShapeAnalyzer {
 
@@ -32,6 +37,14 @@ object ElectrophoresisShapeAnalyzer {
         val variance: Double,
         val stdDev: Double,
         val totalMass: Double
+    )
+
+    data class AnalysisResult(
+        val isSuccess: Boolean,
+        val gammaSigma: Double = 0.0,
+        val maxSlope: Double = 0.0,
+        val debugBitmap: android.graphics.Bitmap? = null,
+        val message: String = ""
     )
 
     data class WidthRatioAnalysis(
@@ -585,5 +598,68 @@ object ElectrophoresisShapeAnalyzer {
             position = maxIndex,
             rangeSize = profileSize
         )
+    }
+
+    fun analyzeGraphGMM(originalBitmap: Bitmap, separators: List<Int>): AnalysisResult {
+        val signalExtractor = SignalExtractor()
+        val rawPoints = signalExtractor.extractRawSignal(originalBitmap)
+
+        val gmmAnalyzer = GmmAnalyzer()
+        val components = gmmAnalyzer.fitGaussianCurves(
+            rawPoints,
+            separators,
+            originalBitmap.width
+        )
+
+        if (components.isEmpty()) {
+            return AnalysisResult(false, message = "Nie udało się dopasować modelu matematycznego.")
+        }
+
+        val model = ElectrophoresisModel(components)
+
+        val gammaComponent = components.last()
+        val maxSlope = model.getMaxGammaSlope()
+        val gammaSigma = gammaComponent.sigma
+
+        val debugBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true)
+        val canvas = Canvas(debugBitmap)
+        val paint = Paint().apply {
+            color = Color.RED
+            strokeWidth = 3f
+            style = Paint.Style.STROKE
+            isAntiAlias = true
+        }
+
+        val path = Path()
+        val height = debugBitmap.height
+
+        path.moveTo(0f, height.toFloat())
+        for (x in 0 until debugBitmap.width) {
+            val mathY = model.getY(x.toDouble())
+            val screenY = (height - mathY).toFloat()
+            path.lineTo(x.toFloat(), screenY)
+        }
+        canvas.drawPath(path, paint)
+
+        return AnalysisResult(
+            isSuccess = true,
+            gammaSigma = gammaSigma,
+            maxSlope = maxSlope,
+            debugBitmap = debugBitmap,
+            message = "Sigma: ${"%.2f".format(gammaSigma)}, Nachylenie: ${"%.2f".format(maxSlope)}"
+        )
+    }
+
+    fun generateReconstructedPath(components: List<GaussianComponent>, width: Int): List<PointF> {
+        val pathPoints = mutableListOf<PointF>()
+
+        for (x in 0 until width) {
+            var ySum = 0.0
+            for (component in components) {
+                ySum += component.getValueAt(x.toDouble())
+            }
+            pathPoints.add(PointF(x.toFloat(), ySum.toFloat()))
+        }
+        return pathPoints
     }
 }

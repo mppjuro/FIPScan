@@ -3,6 +3,7 @@ package com.example.fipscan.ui.diagnosis
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.res.ColorStateList
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Typeface
@@ -70,10 +71,10 @@ class DiagnosisFragment : Fragment() {
     private var currentGammopathyResult: String? = null
     private var currentShapeAnalysis: ElectrophoresisShapeAnalyzer.ShapeAnalysisResult? = null
     private var currentPatternAnalysis: FipPatternAnalyzer.PatternAnalysisResult? = null
-
     private var currentGammaAnalysis: ElectrophoresisShapeAnalyzer.GammaAnalysisResult? = null
     private var currentAucAnalysis: Map<String, Double>? = null
     private var currentWidthRatios: ElectrophoresisShapeAnalyzer.WidthRatioAnalysis? = null
+    private var currentGmmResult: ElectrophoresisShapeAnalyzer.AnalysisResult? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -90,8 +91,12 @@ class DiagnosisFragment : Fragment() {
             printPdfReport()
         }
 
-        arguments?.let {
-            result = DiagnosisFragmentArgs.fromBundle(it).result
+        arguments?.let { bundle ->
+            try {
+                result = DiagnosisFragmentArgs.fromBundle(bundle).result
+            } catch (e: IllegalArgumentException) {
+                Log.d("DiagnosisFragment", "No result argument passed, will use SharedViewModel")
+            }
         }
 
         sharedViewModel.selectedResult.observe(viewLifecycleOwner) { selectedResult ->
@@ -99,7 +104,11 @@ class DiagnosisFragment : Fragment() {
                 result = selectedResult
                 setupUI()
             } else {
-                showNoDataMessage()
+                if (result == null) {
+                    showNoDataMessage()
+                } else {
+                    setupUI()
+                }
             }
         }
 
@@ -132,7 +141,8 @@ class DiagnosisFragment : Fragment() {
         val currentResult = result ?: return
         val context = requireContext()
 
-        binding.textDiagnosis.text = getString(R.string.diagnosis_patient_title, currentResult.patientName)
+        binding.textDiagnosis.text =
+            getString(R.string.diagnosis_patient_title, currentResult.patientName)
         binding.reportButtonsContainer.visibility = View.VISIBLE
 
         val notProvidedStr = getString(R.string.not_provided)
@@ -169,7 +179,8 @@ class DiagnosisFragment : Fragment() {
 
         val labResult = LabResultAnalyzer.analyzeLabData(extractedMap, context)
         val rivaltaStatus = currentResult.rivaltaStatus ?: getString(R.string.rivalta_not_performed)
-        val electroResult = ElectrophoresisAnalyzer.assessFipRisk(extractedMap, rivaltaStatus, context)
+        val electroResult =
+            ElectrophoresisAnalyzer.assessFipRisk(extractedMap, rivaltaStatus, context)
 
         currentRiskPercentage = electroResult.riskPercentage
         currentRiskComment = electroResult.fipRiskComment
@@ -182,23 +193,7 @@ class DiagnosisFragment : Fragment() {
 
         currentAbnormalResults = prepareAbnormalResults(extractedMap)
 
-        try {
-            val chartImageViewField = binding.javaClass.getDeclaredField("chartImageView")
-            chartImageViewField.isAccessible = true
-            val chartImageView = chartImageViewField.get(binding) as? View
-            chartImageView?.visibility = View.VISIBLE
-        } catch (_: NoSuchFieldException) {
-            Log.w("DiagnosisFragment", "chartImageView not found in layout")
-        }
-
-        try {
-            val analysisContainerField = binding.javaClass.getDeclaredField("analysisContainer")
-            analysisContainerField.isAccessible = true
-            val analysisContainer = analysisContainerField.get(binding) as? ViewGroup
-            analysisContainer?.removeAllViews()
-        } catch (_: NoSuchFieldException) {
-            Log.w("DiagnosisFragment", "analysisContainer not found in layout")
-        }
+        binding.analysisContainer.removeAllViews()
 
         currentResult.imagePath?.let { imagePath ->
             val chartFile = File(imagePath)
@@ -208,20 +203,31 @@ class DiagnosisFragment : Fragment() {
                 ElectrophoresisShapeAnalyzer.analyzeChartBitmap(bitmap)
                 currentGammaAnalysis = ElectrophoresisShapeAnalyzer.analyzeGammaPeak()
                 currentAucAnalysis = ElectrophoresisShapeAnalyzer.getFractionsAUC()
-                val shapeAnalysis = ElectrophoresisShapeAnalyzer.analyzeElectrophoresisShape(context)
+                val shapeAnalysis =
+                    ElectrophoresisShapeAnalyzer.analyzeElectrophoresisShape(context)
                 currentWidthRatios = ElectrophoresisShapeAnalyzer.calculateWidthRatios()
+
+                val separators = findSeparatorsInBitmap(bitmap)
+                val gmmResult = ElectrophoresisShapeAnalyzer.analyzeGraphGMM(bitmap, separators)
+                currentGmmResult = gmmResult
+
+                activity?.runOnUiThread {
+                    if (gmmResult.isSuccess && gmmResult.debugBitmap != null) {
+                        binding.chartImageView.setImageBitmap(gmmResult.debugBitmap)
+                    } else {
+                        binding.chartImageView.setImageBitmap(bitmap)
+                    }
+                    binding.chartImageView.visibility = View.VISIBLE
+                }
+
+                if (gmmResult.isSuccess) {
+                    val mathCard = createGmmAnalysisCard(gmmResult)
+                    binding.analysisContainer.addView(mathCard)
+                }
 
                 shapeAnalysis?.let { analysis ->
                     val shapeCard = createShapeAnalysisCard(analysis)
-                    try {
-                        val analysisContainerField =
-                            binding.javaClass.getDeclaredField("analysisContainer")
-                        analysisContainerField.isAccessible = true
-                        val analysisContainer = analysisContainerField.get(binding) as? ViewGroup
-                        analysisContainer?.addView(shapeCard)
-                    } catch (_: NoSuchFieldException) {
-                        Log.w("DiagnosisFragment", "analysisContainer not found in layout")
-                    }
+                    binding.analysisContainer.addView(shapeCard)
                     currentShapeAnalysis = analysis
                 }
 
@@ -231,46 +237,49 @@ class DiagnosisFragment : Fragment() {
                         currentAucAnalysis,
                         currentWidthRatios
                     )
-                    try {
-                        val analysisContainerField =
-                            binding.javaClass.getDeclaredField("analysisContainer")
-                        analysisContainerField.isAccessible = true
-                        val analysisContainer = analysisContainerField.get(binding) as? ViewGroup
-                        analysisContainer?.addView(advancedCard)
-                    } catch (_: NoSuchFieldException) {
-                        Log.w("DiagnosisFragment", "analysisContainer not found in layout")
-                    }
+                    binding.analysisContainer.addView(advancedCard)
                 }
             }
         }
 
         val patternAnalysis = FipPatternAnalyzer.analyzeParameterPatterns(extractedMap, context)
         val patternCard = createPatternAnalysisCard(patternAnalysis)
-
-        try {
-            val analysisContainerField = binding.javaClass.getDeclaredField("analysisContainer")
-            analysisContainerField.isAccessible = true
-            val analysisContainer = analysisContainerField.get(binding) as? ViewGroup
-            analysisContainer?.addView(patternCard)
-        } catch (_: NoSuchFieldException) {
-            Log.w("DiagnosisFragment", "analysisContainer not found in layout")
-        }
+        binding.analysisContainer.addView(patternCard)
 
         currentPatternAnalysis = patternAnalysis
 
-        binding.textDiagnosticComment.text = Html.fromHtml(electroResult.fipRiskComment, Html.FROM_HTML_MODE_COMPACT)
+        binding.textDiagnosticComment.text =
+            Html.fromHtml(electroResult.fipRiskComment, Html.FROM_HTML_MODE_COMPACT)
 
         val breakdownHtml = electroResult.scoreBreakdown.joinToString("<br>")
-        binding.textRiskBreakdown.text = Html.fromHtml(getString(R.string.risk_breakdown_html,
-            "<br/>$breakdownHtml"
-        ), Html.FROM_HTML_MODE_COMPACT)
+        binding.textRiskBreakdown.text = Html.fromHtml(
+            getString(
+                R.string.risk_breakdown_html,
+                "<br/>$breakdownHtml"
+            ), Html.FROM_HTML_MODE_COMPACT
+        )
 
-        binding.textFurtherTests.text = Html.fromHtml(getString(R.string.further_tests_html, electroResult.furtherTestsAdvice), Html.FROM_HTML_MODE_COMPACT)
-        binding.textRiskSupplements.text = Html.fromHtml(getString(R.string.supplements_fip_html, electroResult.supplementAdvice), Html.FROM_HTML_MODE_COMPACT)
-        binding.textRiskConsult.text = Html.fromHtml(getString(R.string.consult_fip_html, electroResult.vetConsultationAdvice), Html.FROM_HTML_MODE_COMPACT)
+        binding.textFurtherTests.text = Html.fromHtml(
+            getString(R.string.further_tests_html, electroResult.furtherTestsAdvice),
+            Html.FROM_HTML_MODE_COMPACT
+        )
+        binding.textRiskSupplements.text = Html.fromHtml(
+            getString(R.string.supplements_fip_html, electroResult.supplementAdvice),
+            Html.FROM_HTML_MODE_COMPACT
+        )
+        binding.textRiskConsult.text = Html.fromHtml(
+            getString(R.string.consult_fip_html, electroResult.vetConsultationAdvice),
+            Html.FROM_HTML_MODE_COMPACT
+        )
 
-        binding.textSupplements.text = Html.fromHtml(getString(R.string.supplements_general_html, labResult.supplementAdvice), Html.FROM_HTML_MODE_COMPACT)
-        binding.textVetConsult.text = Html.fromHtml(getString(R.string.consult_general_html, labResult.vetConsultationAdvice), Html.FROM_HTML_MODE_COMPACT)
+        binding.textSupplements.text = Html.fromHtml(
+            getString(R.string.supplements_general_html, labResult.supplementAdvice),
+            Html.FROM_HTML_MODE_COMPACT
+        )
+        binding.textVetConsult.text = Html.fromHtml(
+            getString(R.string.consult_general_html, labResult.vetConsultationAdvice),
+            Html.FROM_HTML_MODE_COMPACT
+        )
 
         val fieldsToShow = listOf(
             binding.textDiagnosticComment, binding.textSupplements, binding.textVetConsult,
@@ -280,16 +289,153 @@ class DiagnosisFragment : Fragment() {
         fieldsToShow.forEach { it.visibility = View.VISIBLE }
     }
 
+    private fun findSeparatorsInBitmap(bitmap: Bitmap): List<Int> {
+        val separators = mutableListOf<Int>()
+        val width = bitmap.width
+        val height = bitmap.height
+        val scanY = height / 2
+
+        var lastSeparatorX = -100
+
+        for (x in 0 until width) {
+            var isRed = false
+            for (dy in -20..20) {
+                val y = (scanY + dy).coerceIn(0, height - 1)
+                val pixel = bitmap.getPixel(x, y)
+                val r = Color.red(pixel)
+                val g = Color.green(pixel)
+                val b = Color.blue(pixel)
+
+                if (r > 150 && g < 100 && b < 100) {
+                    isRed = true
+                    break
+                }
+            }
+
+            if (isRed) {
+                if (x - lastSeparatorX > 20) {
+                    separators.add(x)
+                    lastSeparatorX = x
+                }
+            }
+        }
+        return separators
+    }
+
+    @SuppressLint("SetTextI18n")
+    private fun createGmmAnalysisCard(result: ElectrophoresisShapeAnalyzer.AnalysisResult): CardView {
+        val card = CardView(requireContext()).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(0, 16, 0, 16) }
+            cardElevation = 6f
+            radius = 12f
+            setCardBackgroundColor(
+                getThemedColor(
+                    requireContext(),
+                    android.R.attr.colorBackgroundFloating
+                )
+            )
+        }
+        val content = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(24, 24, 24, 24)
+        }
+
+        val title = TextView(requireContext()).apply {
+            text = "Analiza Matematyczna (GMM)" // Warto dodać do strings.xml
+            textSize = 20f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+        }
+        content.addView(title)
+
+        val sigmaLayout = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 16, 0, 0)
+        }
+        val sigmaLabel = TextView(requireContext()).apply {
+            text = "Szerokość piku gamma (σ): " // Warto dodać do strings.xml
+            textSize = 16f
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorSecondary))
+        }
+        val sigmaValue = TextView(requireContext()).apply {
+            text = String.format(Locale.getDefault(), "%.2f", result.gammaSigma)
+            textSize = 16f
+            setTypeface(null, Typeface.BOLD)
+            val color =
+                if (result.gammaSigma > 12.0) "#4CAF50".toColorInt() // Szeroki = FIP = Zielony (zgodność)
+                else if (result.gammaSigma < 5.0) "#F44336".toColorInt() // Wąski = Nowotwór = Czerwony
+                else "#FF9800".toColorInt()
+            setTextColor(color)
+        }
+        sigmaLayout.addView(sigmaLabel)
+        sigmaLayout.addView(sigmaValue)
+        content.addView(sigmaLayout)
+
+        // Sekcja Slope (Pochodna)
+        val slopeLayout = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(0, 8, 0, 0)
+        }
+        val slopeLabel = TextView(requireContext()).apply {
+            text = "Max. stromizna piku (f'(x)): " // Warto dodać do strings.xml
+            textSize = 16f
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorSecondary))
+        }
+        val slopeValue = TextView(requireContext()).apply {
+            text = String.format(Locale.getDefault(), "%.2f", result.maxSlope)
+            textSize = 16f
+            setTypeface(null, Typeface.BOLD)
+            val color = if (result.maxSlope < 2.5) "#4CAF50".toColorInt()
+            else if (result.maxSlope > 4.5) "#F44336".toColorInt()
+            else "#FF9800".toColorInt()
+            setTextColor(color)
+        }
+        slopeLayout.addView(slopeLabel)
+        slopeLayout.addView(slopeValue)
+        content.addView(slopeLayout)
+
+        val interpretation = TextView(requireContext()).apply {
+            textSize = 15f
+            setPadding(0, 24, 0, 0)
+            setTypeface(null, Typeface.ITALIC)
+
+            if (result.gammaSigma > 10.0 && result.maxSlope < 3.0) {
+                text =
+                    "Wnioski: Krzywa matematyczna wskazuje na gammapatię poliklonalną, typową dla FIP (szeroki, płaski wierzchołek)." // Warto dodać do strings.xml
+                setTextColor("#2E7D32".toColorInt()) // Ciemny zielony
+            } else if (result.gammaSigma < 6.0 || result.maxSlope > 4.0) {
+                text =
+                    "OSTRZEŻENIE: Krzywa matematyczna sugeruje gammapatię MONOKLONALNĄ (wąski, stromy pik). Należy rozważyć diagnostykę w kierunku szpiczaka lub chłoniaka." // Warto dodać do strings.xml
+                setTextColor("#C62828".toColorInt()) // Ciemny czerwony
+                setTypeface(null, Typeface.BOLD_ITALIC)
+            } else {
+                text =
+                    "Wnioski: Wynik niejednoznaczny matematycznie. Konieczna korelacja z obrazem klinicznym." // Warto dodać do strings.xml
+                setTextColor("#EF6C00".toColorInt()) // Ciemny pomarańczowy
+            }
+        }
+        content.addView(interpretation)
+
+        card.addView(content)
+        return card
+    }
+
     private fun prepareAbnormalResults(extractedMap: Map<String, Any>): List<String> {
         val abnormalResults = mutableListOf<String>()
-        val metadataKeys = setOf("Data", "Właściciel", "Pacjent", "Gatunek", "Rasa",
+        val metadataKeys = setOf(
+            "Data", "Właściciel", "Pacjent", "Gatunek", "Rasa",
             "Płeć", "Wiek", "Lecznica", "Lekarz", "Rodzaj próbki",
-            "Umaszczenie", "Mikrochip", "results", "GammopathyResult")
+            "Umaszczenie", "Mikrochip", "results", "GammopathyResult"
+        )
 
         for (key in extractedMap.keys) {
             if (key.endsWith("Unit") || key.endsWith("RangeMin") ||
                 key.endsWith("RangeMax") || key.endsWith("Flag") ||
-                key in metadataKeys) {
+                key in metadataKeys
+            ) {
                 continue
             }
 
@@ -307,8 +453,12 @@ class DiagnosisFragment : Fragment() {
             val maxRange = maxRangeStr ?: minRange
 
             if (isOutOfRange(value, minRange, maxRange)) {
-                abnormalResults.add(getString(R.string.abnormal_result_format,
-                    key, value, unit, minRange, maxRange))
+                abnormalResults.add(
+                    getString(
+                        R.string.abnormal_result_format,
+                        key, value, unit, minRange, maxRange
+                    )
+                )
             }
         }
 
@@ -342,7 +492,11 @@ class DiagnosisFragment : Fragment() {
             ftpClient.connect(properties.getProperty("ftp.host"), port)
             ftpClient.enterLocalPassiveMode()
 
-            if (!ftpClient.login(properties.getProperty("ftp.user"), properties.getProperty("ftp.pass"))) {
+            if (!ftpClient.login(
+                    properties.getProperty("ftp.user"),
+                    properties.getProperty("ftp.pass")
+                )
+            ) {
                 return false
             }
             loggedIn = true
@@ -371,68 +525,11 @@ class DiagnosisFragment : Fragment() {
 
     private fun downloadPdfReport() {
         val currentResult = result ?: run {
-            Toast.makeText(requireContext(), getString(R.string.error_no_data_report), Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val generator = PdfReportGenerator(requireContext())
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            val shapePoints = currentShapeAnalysis?.let {
-                ((it.fipShapeScore / 100f) * ElectrophoresisShapeAnalyzer.SHAPE_ANALYSIS_MAX_POINTS).toInt()
-            } ?: 0
-
-            val patternPoints = currentPatternAnalysis?.let {
-                ((it.patternStrength / 100f) * ElectrophoresisShapeAnalyzer.PATTERN_ANALYSIS_MAX_POINTS).toInt()
-            } ?: 0
-
-            val (fileName, localPath) = generator.generateReport(
-                patientName = currentResult.patientName,
-                age = currentResult.age,
-                species = currentResult.species,
-                breed = currentResult.breed,
-                gender = currentResult.gender,
-                coat = currentResult.coat,
-                collectionDate = currentResult.collectionDate,
-                riskPercentage = currentRiskPercentage,
-                riskComment = currentRiskComment,
-                scoreBreakdown = currentScoreBreakdown,
-                diagnosticComment = currentDiagnosticComment,
-                supplementAdvice = currentSupplementAdvice,
-                vetConsultationAdvice = currentVetConsultationAdvice,
-                furtherTestsAdvice = currentFurtherTestsAdvice,
-                abnormalResults = currentAbnormalResults,
-                gammopathyResult = currentGammopathyResult,
-                shapeAnalysis = currentShapeAnalysis,
-                gammaAnalysisDetails = currentGammaAnalysis,
-                aucMetrics = currentAucAnalysis,
-                widthRatios = currentWidthRatios, // <-- DODANY PARAMETR
-                patternAnalysis = currentPatternAnalysis,
-                shapeAnalysisPoints = shapePoints,
-                patternAnalysisPoints = patternPoints,
-                maxShapePoints = ElectrophoresisShapeAnalyzer.SHAPE_ANALYSIS_MAX_POINTS,
-                maxPatternPoints = ElectrophoresisShapeAnalyzer.PATTERN_ANALYSIS_MAX_POINTS
-            )
-
-            withContext(Dispatchers.Main) {
-                if (fileName != null && localPath != null) {
-                    Toast.makeText(requireContext(), getString(R.string.report_saved_success, fileName), Toast.LENGTH_LONG).show()
-                    lifecycleScope.launch(Dispatchers.IO) {
-                        val localFile = File(localPath)
-                        if (localFile.exists()) {
-                            uploadFileToFTP(localFile)
-                        }
-                    }
-                } else {
-                    Toast.makeText(requireContext(), getString(R.string.error_report_generation), Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
-
-    private fun printPdfReport() {
-        val currentResult = result ?: run {
-            Toast.makeText(requireContext(), getString(R.string.error_no_data_print), Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.error_no_data_report),
+                Toast.LENGTH_SHORT
+            ).show()
             return
         }
 
@@ -477,13 +574,88 @@ class DiagnosisFragment : Fragment() {
 
             withContext(Dispatchers.Main) {
                 if (fileName != null && localPath != null) {
-                    val printManager = requireContext().getSystemService(Context.PRINT_SERVICE) as PrintManager
+                    Toast.makeText(
+                        requireContext(),
+                        getString(R.string.report_saved_success, fileName),
+                        Toast.LENGTH_LONG
+                    ).show()
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        val localFile = File(localPath)
+                        if (localFile.exists()) {
+                            uploadFileToFTP(localFile)
+                        }
+                    }
+                } else {
+                    Toast.makeText(
+                        requireContext(),
+                        getString(R.string.error_report_generation),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+
+    private fun printPdfReport() {
+        val currentResult = result ?: run {
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.error_no_data_print),
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
+        val generator = PdfReportGenerator(requireContext())
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val shapePoints = currentShapeAnalysis?.let {
+                ((it.fipShapeScore / 100f) * ElectrophoresisShapeAnalyzer.SHAPE_ANALYSIS_MAX_POINTS).toInt()
+            } ?: 0
+
+            val patternPoints = currentPatternAnalysis?.let {
+                ((it.patternStrength / 100f) * ElectrophoresisShapeAnalyzer.PATTERN_ANALYSIS_MAX_POINTS).toInt()
+            } ?: 0
+
+            val (fileName, localPath) = generator.generateReport(
+                patientName = currentResult.patientName,
+                age = currentResult.age,
+                species = currentResult.species,
+                breed = currentResult.breed,
+                gender = currentResult.gender,
+                coat = currentResult.coat,
+                collectionDate = currentResult.collectionDate,
+                riskPercentage = currentRiskPercentage,
+                riskComment = currentRiskComment,
+                scoreBreakdown = currentScoreBreakdown,
+                diagnosticComment = currentDiagnosticComment,
+                supplementAdvice = currentSupplementAdvice,
+                vetConsultationAdvice = currentVetConsultationAdvice,
+                furtherTestsAdvice = currentFurtherTestsAdvice,
+                abnormalResults = currentAbnormalResults,
+                gammopathyResult = currentGammopathyResult,
+                shapeAnalysis = currentShapeAnalysis,
+                gammaAnalysisDetails = currentGammaAnalysis,
+                aucMetrics = currentAucAnalysis,
+                widthRatios = currentWidthRatios,
+                patternAnalysis = currentPatternAnalysis,
+                shapeAnalysisPoints = shapePoints,
+                patternAnalysisPoints = patternPoints,
+                maxShapePoints = ElectrophoresisShapeAnalyzer.SHAPE_ANALYSIS_MAX_POINTS,
+                maxPatternPoints = ElectrophoresisShapeAnalyzer.PATTERN_ANALYSIS_MAX_POINTS
+            )
+
+            withContext(Dispatchers.Main) {
+                if (fileName != null && localPath != null) {
+                    val printManager =
+                        requireContext().getSystemService(Context.PRINT_SERVICE) as PrintManager
                     val jobName = getString(R.string.print_job_name, currentResult.patientName)
 
                     printManager.print(
                         jobName,
                         FipReportPrintAdapter(localPath, fileName),
-                        PrintAttributes.Builder().setMediaSize(PrintAttributes.MediaSize.ISO_A4).build()
+                        PrintAttributes.Builder().setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                            .build()
                     )
 
                     lifecycleScope.launch(Dispatchers.IO) {
@@ -493,7 +665,11 @@ class DiagnosisFragment : Fragment() {
                         }
                     }
                 } else {
-                    Toast.makeText(requireContext(), getString(R.string.error_print_generation), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        requireContext(),
+                        getString(R.string.error_print_generation),
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
         }
@@ -503,7 +679,13 @@ class DiagnosisFragment : Fragment() {
         private val pdfFilePath: String,
         private val fileName: String
     ) : PrintDocumentAdapter() {
-        override fun onLayout(oldAttributes: PrintAttributes?, newAttributes: PrintAttributes, cancellationSignal: CancellationSignal?, callback: LayoutResultCallback, extras: Bundle?) {
+        override fun onLayout(
+            oldAttributes: PrintAttributes?,
+            newAttributes: PrintAttributes,
+            cancellationSignal: CancellationSignal?,
+            callback: LayoutResultCallback,
+            extras: Bundle?
+        ) {
             if (cancellationSignal?.isCanceled == true) {
                 callback.onLayoutCancelled()
                 return
@@ -515,7 +697,12 @@ class DiagnosisFragment : Fragment() {
             callback.onLayoutFinished(info, newAttributes != oldAttributes)
         }
 
-        override fun onWrite(pages: Array<out PageRange>?, destination: ParcelFileDescriptor, cancellationSignal: CancellationSignal?, callback: WriteResultCallback) {
+        override fun onWrite(
+            pages: Array<out PageRange>?,
+            destination: ParcelFileDescriptor,
+            cancellationSignal: CancellationSignal?,
+            callback: WriteResultCallback
+        ) {
             try {
                 FileInputStream(File(pdfFilePath)).use { input ->
                     FileOutputStream(destination.fileDescriptor).use { output ->
@@ -531,10 +718,18 @@ class DiagnosisFragment : Fragment() {
 
     private fun createShapeAnalysisCard(analysis: ElectrophoresisShapeAnalyzer.ShapeAnalysisResult): CardView {
         val card = CardView(requireContext()).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 16, 0, 16) }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(0, 16, 0, 16) }
             cardElevation = 4f
             radius = 8f
-            setCardBackgroundColor(getThemedColor(requireContext(), android.R.attr.colorBackgroundFloating))
+            setCardBackgroundColor(
+                getThemedColor(
+                    requireContext(),
+                    android.R.attr.colorBackgroundFloating
+                )
+            )
         }
         val content = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
@@ -557,18 +752,20 @@ class DiagnosisFragment : Fragment() {
         }
         content.addView(pattern)
 
-        val progressBar = ProgressBar(requireContext(), null, android.R.attr.progressBarStyleHorizontal).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 48).apply { setMargins(0, 8, 0, 8) }
-            max = 100
-            progress = analysis.fipShapeScore.toInt()
-            val tintColor = when {
-                analysis.fipShapeScore >= 70 -> "#F44336".toColorInt()
-                analysis.fipShapeScore >= 50 -> "#FF9800".toColorInt()
-                analysis.fipShapeScore >= 30 -> "#FFC107".toColorInt()
-                else -> "#4CAF50".toColorInt()
+        val progressBar =
+            ProgressBar(requireContext(), null, android.R.attr.progressBarStyleHorizontal).apply {
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 48)
+                    .apply { setMargins(0, 8, 0, 8) }
+                max = 100
+                progress = analysis.fipShapeScore.toInt()
+                val tintColor = when {
+                    analysis.fipShapeScore >= 70 -> "#F44336".toColorInt()
+                    analysis.fipShapeScore >= 50 -> "#FF9800".toColorInt()
+                    analysis.fipShapeScore >= 30 -> "#FFC107".toColorInt()
+                    else -> "#4CAF50".toColorInt()
+                }
+                progressTintList = ColorStateList.valueOf(tintColor)
             }
-            progressTintList = ColorStateList.valueOf(tintColor)
-        }
         content.addView(progressBar)
 
         val scoreView = TextView(requireContext()).apply {
@@ -604,11 +801,12 @@ class DiagnosisFragment : Fragment() {
         val gammaWidthPx50 = analysis.gamma.widthPxMap[50]?.toFloat() ?: 0f
         val gammaRangeSize = analysis.gamma.rangeSize.toFloat().coerceAtLeast(1f)
         val gammaWidth50Percent = (gammaWidthPx50 / gammaRangeSize) * 100f
-        val details = getString(R.string.shape_details_template,
+        val details = getString(
+            R.string.shape_details_template,
             (analysis.albumin.height).toInt(), (analysis.albumin.symmetry * 100).toInt(),
             (analysis.gamma.height).toInt(),
-            gammaWidth50Percent.toInt(), // Poprawne odwołanie do FWHM 50%
-            bridgeStatus // 5-ty i ostatni argument
+            gammaWidth50Percent.toInt(),
+            bridgeStatus
         )
 
         val detailsText = TextView(requireContext()).apply {
@@ -622,12 +820,204 @@ class DiagnosisFragment : Fragment() {
         return card
     }
 
-    private fun createPatternAnalysisCard(analysis: FipPatternAnalyzer.PatternAnalysisResult): CardView {
+    @SuppressLint("SetTextI18n")
+    private fun createAdvancedAnalysisCard(
+        gammaAnalysis: ElectrophoresisShapeAnalyzer.GammaAnalysisResult?,
+        aucMetrics: Map<String, Double>?,
+        widthRatios: ElectrophoresisShapeAnalyzer.WidthRatioAnalysis?
+    ): CardView {
         val card = CardView(requireContext()).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 16, 0, 16) }
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(0, 16, 0, 16) }
             cardElevation = 4f
             radius = 8f
-            setCardBackgroundColor(getThemedColor(requireContext(), android.R.attr.colorBackgroundFloating))
+            setCardBackgroundColor(
+                getThemedColor(
+                    requireContext(),
+                    android.R.attr.colorBackgroundFloating
+                )
+            )
+        }
+        val content = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(16, 16, 16, 16)
+        }
+
+        val title = TextView(requireContext()).apply {
+            text = getString(R.string.diag_advanced_analysis_title)
+            textSize = 18f
+            setTypeface(null, Typeface.BOLD)
+            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+        }
+        content.addView(title)
+
+        if (gammaAnalysis != null && gammaAnalysis.totalMass > 0) {
+            val varianceLabel = getString(R.string.pdf_gamma_peak_variance)
+            val varianceValue = String.format(Locale.getDefault(), "%.2f", gammaAnalysis.variance)
+            val varianceTv = TextView(requireContext()).apply {
+                text = "$varianceLabel $varianceValue"
+                textSize = 14f
+                setPadding(0, 8, 0, 4)
+                setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+            }
+            content.addView(varianceTv)
+
+            val stdDevLabel = getString(R.string.pdf_gamma_peak_std_dev)
+            val stdDevValue = String.format(Locale.getDefault(), "%.2f", gammaAnalysis.stdDev)
+            val stdDevTv = TextView(requireContext()).apply {
+                text = "$stdDevLabel $stdDevValue"
+                textSize = 14f
+                setPadding(0, 4, 0, 4)
+                setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+            }
+            content.addView(stdDevTv)
+        }
+
+        if (aucMetrics != null && aucMetrics.isNotEmpty()) {
+            val aucTitle = TextView(requireContext()).apply {
+                text = getString(R.string.diag_auc_analysis_title)
+                textSize = 16f
+                setTypeface(null, Typeface.BOLD)
+                setPadding(0, 16, 0, 8)
+                setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+            }
+            content.addView(aucTitle)
+
+            aucMetrics.forEach { (fractionKey, percentage) ->
+                if (fractionKey != "TotalAUC_Pixels") {
+                    val translatedName = getTranslatedFractionNameForUI(fractionKey)
+                    val formattedLine = "$translatedName: ${
+                        String.format(
+                            Locale.getDefault(),
+                            "%.1f",
+                            percentage
+                        )
+                    } %"
+                    val aucTv = TextView(requireContext()).apply {
+                        text = formattedLine
+                        textSize = 14f
+                        setPadding(8, 4, 0, 4)
+                        setTextColor(
+                            getThemedColor(
+                                requireContext(),
+                                android.R.attr.textColorPrimary
+                            )
+                        )
+                    }
+                    content.addView(aucTv)
+                }
+            }
+        }
+
+        if (widthRatios != null) {
+            val ratiosTitle = TextView(requireContext()).apply {
+                text = getString(R.string.diag_width_ratios_title)
+                textSize = 16f
+                setTypeface(null, Typeface.BOLD)
+                setPadding(0, 16, 0, 8)
+                setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+            }
+            content.addView(ratiosTitle)
+
+            fun createRatioTextView(labelResId: Int, value: Float): TextView {
+                return TextView(requireContext()).apply {
+                    val label = getString(labelResId)
+                    val formattedValue = String.format(Locale.getDefault(), "%.1f", value)
+                    text = "$label $formattedValue %"
+                    textSize = 14f
+                    setPadding(8, 4, 0, 4)
+                    setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
+                }
+            }
+            content.addView(
+                createRatioTextView(
+                    R.string.diag_ratio_g70_beta,
+                    widthRatios.gamma70ToBeta
+                )
+            )
+            content.addView(
+                createRatioTextView(
+                    R.string.diag_ratio_g50_beta,
+                    widthRatios.gamma50ToBeta
+                )
+            )
+            content.addView(
+                createRatioTextView(
+                    R.string.diag_ratio_g30_beta,
+                    widthRatios.gamma30ToBeta
+                )
+            )
+            content.addView(
+                createRatioTextView(
+                    R.string.diag_ratio_g70_g30,
+                    widthRatios.gamma70ToGamma30
+                )
+            )
+        }
+
+        card.addView(content)
+        return card
+    }
+
+    private fun getTranslatedFractionNameForUI(fractionKey: String): String {
+        val context = requireContext()
+        val resId = when (fractionKey) {
+            "Albumin" -> R.string.pdf_fraction_albumin
+            "Alpha" -> R.string.pdf_fraction_alpha1
+            "Beta" -> R.string.pdf_fraction_beta
+            "Gamma" -> R.string.pdf_fraction_gamma
+            else -> 0
+        }
+        return if (resId != 0) context.getString(resId) else fractionKey
+    }
+
+    private fun getThemedColor(context: Context, attr: Int): Int {
+        val typedValue = TypedValue()
+        return if (context.theme.resolveAttribute(attr, typedValue, true)) {
+            if (typedValue.resourceId != 0) {
+                ContextCompat.getColor(context, typedValue.resourceId)
+            } else {
+                typedValue.data
+            }
+        } else {
+            when (attr) {
+                android.R.attr.textColorPrimary -> ContextCompat.getColor(
+                    context,
+                    android.R.color.black
+                )
+
+                android.R.attr.textColorSecondary -> ContextCompat.getColor(
+                    context,
+                    android.R.color.darker_gray
+                )
+
+                android.R.attr.colorBackgroundFloating -> "#F8F8F8".toColorInt()
+                else -> Color.BLACK
+            }
+        }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        _binding = null
+    }
+
+    private fun createPatternAnalysisCard(analysis: FipPatternAnalyzer.PatternAnalysisResult): CardView {
+        val card = CardView(requireContext()).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { setMargins(0, 16, 0, 16) }
+            cardElevation = 4f
+            radius = 8f
+            setCardBackgroundColor(
+                getThemedColor(
+                    requireContext(),
+                    android.R.attr.colorBackgroundFloating
+                )
+            )
         }
         val content = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
@@ -661,17 +1051,21 @@ class DiagnosisFragment : Fragment() {
         }
         content.addView(profile)
 
-        val strengthBar = ProgressBar(requireContext(), null, android.R.attr.progressBarStyleHorizontal).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-            max = 100
-            progress = analysis.patternStrength.toInt()
-            val tintColor = when {
-                analysis.patternStrength >= 70 -> "#F44336".toColorInt()
-                analysis.patternStrength >= 50 -> "#FF9800".toColorInt()
-                else -> "#4CAF50".toColorInt()
+        val strengthBar =
+            ProgressBar(requireContext(), null, android.R.attr.progressBarStyleHorizontal).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                max = 100
+                progress = analysis.patternStrength.toInt()
+                val tintColor = when {
+                    analysis.patternStrength >= 70 -> "#F44336".toColorInt()
+                    analysis.patternStrength >= 50 -> "#FF9800".toColorInt()
+                    else -> "#4CAF50".toColorInt()
+                }
+                progressTintList = ColorStateList.valueOf(tintColor)
             }
-            progressTintList = ColorStateList.valueOf(tintColor)
-        }
         content.addView(strengthBar)
 
         val strengthText = TextView(requireContext()).apply {
@@ -737,143 +1131,5 @@ class DiagnosisFragment : Fragment() {
         content.addView(suggestions)
         card.addView(content)
         return card
-    }
-
-    @SuppressLint("SetTextI18n")
-    private fun createAdvancedAnalysisCard(
-        gammaAnalysis: ElectrophoresisShapeAnalyzer.GammaAnalysisResult?,
-        aucMetrics: Map<String, Double>?,
-        widthRatios: ElectrophoresisShapeAnalyzer.WidthRatioAnalysis?
-    ): CardView {
-        val card = CardView(requireContext()).apply {
-            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply { setMargins(0, 16, 0, 16) }
-            cardElevation = 4f
-            radius = 8f
-            setCardBackgroundColor(getThemedColor(requireContext(), android.R.attr.colorBackgroundFloating))
-        }
-        val content = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(16, 16, 16, 16)
-        }
-
-        val title = TextView(requireContext()).apply {
-            text = getString(R.string.diag_advanced_analysis_title)
-            textSize = 18f
-            setTypeface(null, Typeface.BOLD)
-            setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
-        }
-        content.addView(title)
-
-        if (gammaAnalysis != null && gammaAnalysis.totalMass > 0) {
-            val varianceLabel = getString(R.string.pdf_gamma_peak_variance) // Możemy reużyć stringów z PDF
-            val varianceValue = String.format(Locale.getDefault(), "%.2f", gammaAnalysis.variance)
-            val varianceTv = TextView(requireContext()).apply {
-                text = "$varianceLabel $varianceValue"
-                textSize = 14f
-                setPadding(0, 8, 0, 4)
-                setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
-            }
-            content.addView(varianceTv)
-
-            val stdDevLabel = getString(R.string.pdf_gamma_peak_std_dev)
-            val stdDevValue = String.format(Locale.getDefault(), "%.2f", gammaAnalysis.stdDev)
-            val stdDevTv = TextView(requireContext()).apply {
-                text = "$stdDevLabel $stdDevValue"
-                textSize = 14f
-                setPadding(0, 4, 0, 4)
-                setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
-            }
-            content.addView(stdDevTv)
-        }
-
-        if (aucMetrics != null && aucMetrics.isNotEmpty()) {
-            val aucTitle = TextView(requireContext()).apply {
-                text = getString(R.string.diag_auc_analysis_title)
-                textSize = 16f
-                setTypeface(null, Typeface.BOLD)
-                setPadding(0, 16, 0, 8)
-                setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
-            }
-            content.addView(aucTitle)
-
-            aucMetrics.forEach { (fractionKey, percentage) ->
-                if (fractionKey != "TotalAUC_Pixels") {
-                    val translatedName = getTranslatedFractionNameForUI(fractionKey)
-                    val formattedLine = "$translatedName: ${String.format(Locale.getDefault(), "%.1f", percentage)} %"
-                    val aucTv = TextView(requireContext()).apply {
-                        text = formattedLine
-                        textSize = 14f
-                        setPadding(8, 4, 0, 4)
-                        setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
-                    }
-                    content.addView(aucTv)
-                }
-            }
-        }
-
-        if (widthRatios != null) {
-            val ratiosTitle = TextView(requireContext()).apply {
-                text = getString(R.string.diag_width_ratios_title)
-                textSize = 16f
-                setTypeface(null, Typeface.BOLD)
-                setPadding(0, 16, 0, 8)
-                setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
-            }
-            content.addView(ratiosTitle)
-
-            fun createRatioTextView(labelResId: Int, value: Float): TextView {
-                return TextView(requireContext()).apply {
-                    val label = getString(labelResId)
-                    val formattedValue = String.format(Locale.getDefault(), "%.1f", value)
-                    text = "$label $formattedValue %"
-                    textSize = 14f
-                    setPadding(8, 4, 0, 4)
-                    setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
-                }
-            }
-            content.addView(createRatioTextView(R.string.diag_ratio_g70_beta, widthRatios.gamma70ToBeta))
-            content.addView(createRatioTextView(R.string.diag_ratio_g50_beta, widthRatios.gamma50ToBeta))
-            content.addView(createRatioTextView(R.string.diag_ratio_g30_beta, widthRatios.gamma30ToBeta))
-            content.addView(createRatioTextView(R.string.diag_ratio_g70_g30, widthRatios.gamma70ToGamma30))
-        }
-
-        card.addView(content)
-        return card
-    }
-
-    private fun getTranslatedFractionNameForUI(fractionKey: String): String {
-        val context = requireContext()
-        val resId = when (fractionKey) {
-            "Albumin" -> R.string.pdf_fraction_albumin
-            "Alpha" -> R.string.pdf_fraction_alpha1
-            "Beta" -> R.string.pdf_fraction_beta
-            "Gamma" -> R.string.pdf_fraction_gamma
-            else -> 0
-        }
-        return if (resId != 0) context.getString(resId) else fractionKey
-    }
-
-
-    private fun getThemedColor(context: Context, attr: Int): Int {
-        val typedValue = TypedValue()
-        return if (context.theme.resolveAttribute(attr, typedValue, true)) {
-            if (typedValue.resourceId != 0) {
-                ContextCompat.getColor(context, typedValue.resourceId)
-            } else {
-                typedValue.data
-            }
-        } else {
-            when (attr) {
-                android.R.attr.textColorPrimary -> ContextCompat.getColor(context, android.R.color.black)
-                android.R.attr.textColorSecondary -> ContextCompat.getColor(context, android.R.color.darker_gray)
-                android.R.attr.colorBackgroundFloating -> "#F8F8F8".toColorInt()
-                else -> Color.BLACK
-            }
-        }
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
     }
 }

@@ -1,10 +1,10 @@
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     id("com.google.devtools.ksp") version "2.3.4"
-    id("androidx.navigation.safeargs.kotlin")
     id("kotlin-parcelize")
     id("com.google.gms.google-services")
+    alias(libs.plugins.kotlin.android)
+    id ("androidx.navigation.safeargs.kotlin")
 }
 
 android {
@@ -17,7 +17,7 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
-
+        multiDexEnabled = true
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -95,7 +95,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
-    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation(platform("com.google.firebase:firebase-bom:34.9.0"))
     implementation("com.google.firebase:firebase-storage")
     implementation("com.github.mppjuro:tabula-java-android:7db7d44809")
     implementation("com.tom-roush:pdfbox-android:2.0.27.0") {
@@ -104,19 +104,22 @@ dependencies {
         exclude(group = "org.bouncycastle", module = "bcpkix-jdk15to18")
         exclude(group = "com.intellij", module = "annotations")
     }
-    implementation("commons-io:commons-io:2.15.1")
-    implementation("commons-net:commons-net:3.10.0")
-    implementation("org.apache.commons:commons-csv:1.10.0")
+    implementation("org.apache.commons:commons-math3:3.6.1")
+    implementation("commons-io:commons-io:2.21.0")
+    implementation("commons-net:commons-net:3.12.0")
+    implementation("org.apache.commons:commons-csv:1.14.1")
+    implementation("androidx.multidex:multidex:2.0.1")
     implementation(libs.gson)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.core.ktx)
     ksp(libs.androidx.room.compiler)
-    implementation("com.google.zxing:core:3.5.3")
+    implementation("com.google.zxing:core:3.5.4")
     implementation(libs.androidx.exifinterface)
-    implementation(files("libs/opencv-4120.jar"))
+    implementation(project(":opencv"))
     implementation(libs.annotations)
     testImplementation(libs.junit)
-    testImplementation("io.mockk:mockk:1.13.10")
+    testImplementation("io.mockk:mockk:1.14.9")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.runner)

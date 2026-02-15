@@ -1,5 +1,5 @@
 [versions]
-agp = "9.0.0"
+agp = "9.0.1"
 androidPdfViewer = "2.8.2"
 androidxJunit = "1.3.0"
 annotations = "23.0.0"
@@ -24,6 +24,9 @@ pdfbox = "2.0.27"
 roomCompiler = "2.8.4"
 junitKtx = "1.3.0"
 runner = "1.6.1"
+kotlinVersion = "2.3.10"
+androidxCoreKtx = "1.17.0"
+kotlin2 = "2.3.10"
 
 [libraries]
 android-pdf-viewer-v282 = { module = "com.github.barteksc:android-pdf-viewer", version.ref = "androidPdfViewer" }
@@ -51,8 +54,9 @@ androidx-navigation-ui-ktx = { group = "androidx.navigation", name = "navigation
 pdfbox = { module = "org.apache.pdfbox:pdfbox", version.ref = "pdfbox" }
 androidx-junit-ktx = { group = "androidx.test.ext", name = "junit-ktx", version.ref = "junitKtx" }
 androidx-runner = { group = "androidx.test", name = "runner", version.ref = "runner" }
+core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCoreKtx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin2" }
 

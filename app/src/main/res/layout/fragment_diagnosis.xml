@@ -167,6 +167,19 @@
                 android:textColor="?android:attr/textColorPrimary"
                 android:visibility="gone" />
 
+            <ImageView
+                android:id="@+id/chartImageView"
+                android:layout_width="match_parent"
+                android:layout_height="250dp"
+                android:layout_marginTop="16dp"
+                android:layout_marginBottom="16dp"
+                android:adjustViewBounds="true"
+                android:contentDescription="Wykres elektroforezy"
+                android:scaleType="fitCenter"
+                android:visibility="gone"
+                tools:visibility="visible"
+                tools:src="@tools:sample/backgrounds/scenic" />
+
             <LinearLayout
                 android:id="@+id/analysisContainer"
                 android:layout_width="match_parent"
