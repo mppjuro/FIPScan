@@ -4,4 +4,4 @@
 	branch = main
 [submodule "opencv"]
 	path = opencv
-	url = https://github.com/mppjuro/opencv.git
+	url = https://github.com/mppjuro/opencv
