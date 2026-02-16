@@ -13,14 +13,18 @@ import kotlin.math.min
 
 class SignalExtractor {
 
-    fun extractRawSignal(bitmap: Bitmap): List<PointF> {
+    data class SignalData(
+        val points: List<PointF>,
+        val baseline: Float
+    )
+
+    fun extractRawSignal(bitmap: Bitmap): SignalData {
         val srcMat = Mat()
         Utils.bitmapToMat(bitmap, srcMat)
 
         val hsvMat = Mat()
         Imgproc.cvtColor(srcMat, hsvMat, Imgproc.COLOR_RGB2HSV)
 
-        // Bardziej tolerancyjne zakresy kolorów
         val maskBlue = Mat()
         Core.inRange(hsvMat, Scalar(90.0, 40.0, 40.0), Scalar(140.0, 255.0, 255.0), maskBlue)
 
@@ -36,11 +40,10 @@ class SignalExtractor {
         val finalMask = Mat()
         Core.bitwise_or(maskBlue, maskRed, finalMask)
 
-        // Morfologia - zamknij małe dziury
         val kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, org.opencv.core.Size(3.0, 3.0))
         Imgproc.morphologyEx(finalMask, finalMask, Imgproc.MORPH_CLOSE, kernel)
 
-        val signalPoints = scanColumnsForTopEdge(finalMask)
+        val (points, baseline) = scanColumnsForTopEdge(finalMask)
 
         srcMat.release()
         hsvMat.release()
@@ -51,10 +54,10 @@ class SignalExtractor {
         finalMask.release()
         kernel.release()
 
-        return signalPoints
+        return SignalData(points, baseline)
     }
 
-    private fun scanColumnsForTopEdge(mask: Mat): List<PointF> {
+    private fun scanColumnsForTopEdge(mask: Mat): Pair<List<PointF>, Float> {
         val points = mutableListOf<PointF>()
         val height = mask.rows()
         val width = mask.cols()
@@ -62,7 +65,6 @@ class SignalExtractor {
         for (x in 0 until width) {
             var topY = -1
 
-            // Szukamy pierwszego kolorowego piksela od góry
             for (y in 0 until height) {
                 val pixelValue = mask.get(y, x)[0]
                 if (pixelValue > 0) {
@@ -72,24 +74,31 @@ class SignalExtractor {
             }
 
             if (topY >= 0) {
-                // Konwertuj do układu matematycznego (Y rośnie w górę)
                 val heightFromBottom = (height - topY).toFloat()
                 points.add(PointF(x.toFloat(), heightFromBottom))
             } else {
-                // Jeśli brak piksela, interpoluj z sąsiadów
                 if (points.isNotEmpty()) {
                     points.add(PointF(x.toFloat(), points.last().y))
                 }
             }
         }
 
+        // Wykryj linię bazową - weź 5% najniższych wartości
+        val sortedY = points.map { it.y }.sorted()
+        val bottomPercentile = sortedY.take((sortedY.size * 0.05).toInt().coerceAtLeast(1))
+        val baseline = if (bottomPercentile.isNotEmpty()) {
+            bottomPercentile.average().toFloat()
+        } else {
+            0f
+        }
+
         Log.d("SignalExtractor", "Extracted ${points.size} points")
         Log.d("SignalExtractor", "Y range: ${points.minOfOrNull { it.y }} to ${points.maxOfOrNull { it.y }}")
+        Log.d("SignalExtractor", "Detected baseline: $baseline")
 
-        return points
+        return Pair(points, baseline)
     }
 
-    // Medianowe wygładzanie - lepsze od średniej dla ostrych pików
     fun smoothSignal(points: List<PointF>, windowSize: Int = 5): List<PointF> {
         if (points.size < windowSize) return points
 
@@ -110,13 +119,11 @@ class SignalExtractor {
         return smoothed
     }
 
-    // Dodatkowe wygładzanie Savitzky-Golay (opcjonalne)
     fun savitzkyGolaySmooth(points: List<PointF>): List<PointF> {
         if (points.size < 5) return points
 
         val smoothed = mutableListOf<PointF>()
 
-        // Współczynniki dla okna 5-punktowego, wielomian 2 stopnia
         val coeffs = listOf(-3f, 12f, 17f, 12f, -3f)
         val norm = coeffs.sum()
 
@@ -128,7 +135,6 @@ class SignalExtractor {
             smoothed.add(PointF(points[i].x, weightedSum / norm))
         }
 
-        // Dodaj brzegi bez wygładzania
         if (points.size >= 5) {
             smoothed.add(0, points[0])
             smoothed.add(1, points[1])

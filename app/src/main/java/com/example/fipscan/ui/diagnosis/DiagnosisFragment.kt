@@ -310,7 +310,7 @@ class DiagnosisFragment : Fragment() {
         }
 
         val title = TextView(requireContext()).apply {
-            text = "Analiza Matematyczna (GMM)" // Warto dodać do strings.xml
+            text = "Analiza Matematyczna (Gaussian Mixture Model - GMM)" // Warto dodać do strings.xml
             textSize = 20f
             setTypeface(null, Typeface.BOLD)
             setTextColor(getThemedColor(requireContext(), android.R.attr.textColorPrimary))
@@ -331,8 +331,8 @@ class DiagnosisFragment : Fragment() {
             textSize = 16f
             setTypeface(null, Typeface.BOLD)
             val color =
-                if (result.gammaSigma > 12.0) "#4CAF50".toColorInt() // Szeroki = FIP = Zielony (zgodność)
-                else if (result.gammaSigma < 5.0) "#F44336".toColorInt() // Wąski = Nowotwór = Czerwony
+                if (result.gammaSigma > 20.0) "#4CAF50".toColorInt() // Szeroki = FIP = Zielony (zgodność)
+                else if (result.gammaSigma < 10.0) "#F44336".toColorInt() // Wąski = Nowotwór = Czerwony
                 else "#FF9800".toColorInt()
             setTextColor(color)
         }
@@ -354,8 +354,8 @@ class DiagnosisFragment : Fragment() {
             text = String.format(Locale.getDefault(), "%.2f", result.maxSlope)
             textSize = 16f
             setTypeface(null, Typeface.BOLD)
-            val color = if (result.maxSlope < 2.5) "#4CAF50".toColorInt()
-            else if (result.maxSlope > 4.5) "#F44336".toColorInt()
+            val color = if (result.maxSlope < 10.0) "#4CAF50".toColorInt()
+            else if (result.maxSlope > 10.0) "#F44336".toColorInt()
             else "#FF9800".toColorInt()
             setTextColor(color)
         }
@@ -368,11 +368,19 @@ class DiagnosisFragment : Fragment() {
             setPadding(0, 24, 0, 0)
             setTypeface(null, Typeface.ITALIC)
 
-            if (result.gammaSigma > 10.0 && result.maxSlope < 3.0) {
+            if (result.maxSlope < 3.0) {
                 text =
-                    "Wnioski: Krzywa matematyczna wskazuje na gammapatię poliklonalną, typową dla FIP (szeroki, płaski wierzchołek)." // Warto dodać do strings.xml
+                    "Wnioski: Wykres nie pokazuje gammapatii." // Warto dodać do strings.xml
                 setTextColor("#2E7D32".toColorInt()) // Ciemny zielony
-            } else if (result.gammaSigma < 6.0 || result.maxSlope > 4.0) {
+            } else if (result.gammaSigma > 20.0 && result.gammaSigma < 30.0 && result.maxSlope < 5.0) {
+                text =
+                    "Wnioski: Kształt wykresu sugeruje lekką gammapatię poliklonalną - kot w trakcie leczenia lub wczesna postać FIP." // Warto dodać do strings.xml
+                setTextColor("#2E7D32".toColorInt()) // Ciemny zielony
+            } else if (result.gammaSigma > 20.0 && result.maxSlope < 10.0) {
+                text =
+                    "Wnioski: Krzywa matematyczna wskazuje na gammapatię poliklonalną, typową dla FIP." // Warto dodać do strings.xml
+                setTextColor("#EF6C00".toColorInt()) // Ciemny zielony
+            } else if (result.gammaSigma < 15.0 || result.maxSlope > 8.0) {
                 text =
                     "OSTRZEŻENIE: Krzywa matematyczna sugeruje gammapatię MONOKLONALNĄ (wąski, stromy pik). Należy rozważyć diagnostykę w kierunku szpiczaka lub chłoniaka." // Warto dodać do strings.xml
                 setTextColor("#C62828".toColorInt()) // Ciemny czerwony
@@ -380,7 +388,7 @@ class DiagnosisFragment : Fragment() {
             } else {
                 text =
                     "Wnioski: Wynik niejednoznaczny matematycznie. Konieczna korelacja z obrazem klinicznym." // Warto dodać do strings.xml
-                setTextColor("#EF6C00".toColorInt()) // Ciemny pomarańczowy
+                setTextColor("#C62828".toColorInt()) // Ciemny pomarańczowy
             }
         }
         content.addView(interpretation)

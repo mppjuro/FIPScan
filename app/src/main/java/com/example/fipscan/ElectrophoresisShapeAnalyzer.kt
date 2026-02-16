@@ -621,13 +621,16 @@ object ElectrophoresisShapeAnalyzer {
         Log.d("ShapeAnalyzer", "Separators: $separators")
 
         val signalExtractor = SignalExtractor()
-        val rawPoints = signalExtractor.extractRawSignal(originalBitmap)
+        val signalData = signalExtractor.extractRawSignal(originalBitmap)
+        val rawPoints = signalData.points
+        val baseline = signalData.baseline
 
         if (rawPoints.isEmpty()) {
             return AnalysisResult(false, message = "Nie udało się wyekstrahować sygnału")
         }
 
-        // Łagodne wygładzanie - zachowaj kształt pików
+        Log.d("ShapeAnalyzer", "Baseline detected: $baseline")
+
         val smoothed1 = signalExtractor.smoothSignal(rawPoints, windowSize = 5)
         val smoothed2 = signalExtractor.savitzkyGolaySmooth(smoothed1)
 
@@ -635,7 +638,8 @@ object ElectrophoresisShapeAnalyzer {
         val components = gmmAnalyzer.fitGaussianCurves(
             smoothed2,
             separators,
-            originalBitmap.width
+            originalBitmap.width,
+            baseline  // Przekaż baseline
         )
 
         if (components.isEmpty()) {
@@ -644,13 +648,14 @@ object ElectrophoresisShapeAnalyzer {
 
         Log.d("ShapeAnalyzer", "Fitted ${components.size}/4 Gaussian components")
 
-        val model = ElectrophoresisModel(components)
+        val model = ElectrophoresisModel(components, baseline.toDouble())
 
         // Rysowanie
         val debugBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true)
         val canvas = Canvas(debugBitmap)
+        val height = debugBitmap.height
 
-        // Rysuj oryginalny sygnał (zielony) dla porównania
+        // Rysuj oryginalny sygnał (zielony, półprzezroczysty)
         val originalPaint = Paint().apply {
             color = Color.GREEN
             strokeWidth = 2f
@@ -660,7 +665,6 @@ object ElectrophoresisShapeAnalyzer {
         }
 
         val originalPath = Path()
-        val height = debugBitmap.height
         for ((idx, point) in smoothed2.withIndex()) {
             val screenY = (height - point.y).toFloat()
             if (idx == 0) {
@@ -670,6 +674,17 @@ object ElectrophoresisShapeAnalyzer {
             }
         }
         canvas.drawPath(originalPath, originalPaint)
+
+        // Rysuj linię bazową (żółty, przerywany)
+        val baselinePaint = Paint().apply {
+            color = Color.YELLOW
+            strokeWidth = 2f
+            style = Paint.Style.STROKE
+            isAntiAlias = true
+            pathEffect = android.graphics.DashPathEffect(floatArrayOf(10f, 10f), 0f)
+        }
+        val baselineScreenY = (height - baseline).toFloat()
+        canvas.drawLine(0f, baselineScreenY, debugBitmap.width.toFloat(), baselineScreenY, baselinePaint)
 
         // Rysuj dopasowaną krzywą (czerwony)
         val fittedPaint = Paint().apply {
@@ -703,9 +718,7 @@ object ElectrophoresisShapeAnalyzer {
             gammaSigma = gammaSigma,
             maxSlope = maxSlope,
             debugBitmap = debugBitmap,
-            message = "σ=${"%.1f".format(gammaSigma)}, slope=${"%.2f".format(maxSlope)}, R²≈${
-                if (components.size == 4) "0.85+" else "0.70+"
-            }"
+            message = "σ=${"%.1f".format(gammaSigma)}, slope=${"%.2f".format(maxSlope)}, baseline=${"%.1f".format(baseline)}"
         )
     }
 

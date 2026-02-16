@@ -4,20 +4,21 @@ import android.graphics.PointF
 import android.util.Log
 import org.apache.commons.math3.fitting.GaussianCurveFitter
 import org.apache.commons.math3.fitting.WeightedObservedPoint
-import kotlin.math.abs
-import kotlin.math.sqrt
 
 class GmmAnalyzer {
 
     fun fitGaussianCurves(
         rawPoints: List<PointF>,
         separators: List<Int>,
-        maxX: Int
+        maxX: Int,
+        baseline: Float
     ): List<GaussianComponent> {
         val components = mutableListOf<GaussianComponent>()
         val boundaries = mutableListOf(0)
         boundaries.addAll(separators.sorted())
         boundaries.add(maxX)
+
+        Log.d("GmmAnalyzer", "Baseline for fitting: $baseline")
 
         for (i in 0 until boundaries.size - 1) {
             val startX = boundaries[i]
@@ -30,7 +31,7 @@ class GmmAnalyzer {
             Log.d("GmmAnalyzer", "Region $i: ${regionPoints.size} points, X=[$startX, $endX]")
 
             if (regionPoints.size > 10) {
-                val component = fitSingleRegionRobust(regionPoints, i, startX, endX)
+                val component = fitSingleRegionRobust(regionPoints, i, startX, endX, baseline)
                 if (component != null) {
                     components.add(component)
                     Log.d("GmmAnalyzer", "✓ Region $i: A=${component.amplitude.toInt()}, μ=${component.mean.toInt()}, σ=${component.sigma.toInt()}")
@@ -46,7 +47,8 @@ class GmmAnalyzer {
         points: List<PointF>,
         regionIndex: Int,
         startX: Int,
-        endX: Int
+        endX: Int,
+        baseline: Float
     ): GaussianComponent? {
         try {
             if (points.size < 10) {
@@ -54,31 +56,35 @@ class GmmAnalyzer {
                 return null
             }
 
-            // Normalizacja Y dla lepszej zbieżności
-            val minY = points.minOf { it.y }.toDouble()
-            val maxY = points.maxOf { it.y }.toDouble()
+            // Odejmij baseline od wszystkich punktów
+            val adjustedPoints = points.map {
+                PointF(it.x, (it.y - baseline).coerceAtLeast(0f))
+            }
+
+            val minY = adjustedPoints.minOf { it.y }.toDouble()
+            val maxY = adjustedPoints.maxOf { it.y }.toDouble()
             val rangeY = maxY - minY
 
             if (rangeY < 5) {
-                Log.w("GmmAnalyzer", "Region $regionIndex: Y range too small ($rangeY)")
+                Log.w("GmmAnalyzer", "Region $regionIndex: Y range too small ($rangeY) after baseline removal")
                 return null
             }
 
-            val normalizedPoints = points.map {
+            // Normalizacja do [0, 1]
+            val normalizedPoints = adjustedPoints.map {
                 WeightedObservedPoint(
                     1.0,
                     it.x.toDouble(),
-                    (it.y - minY) / rangeY  // Normalizacja do [0, 1]
+                    (it.y - minY) / rangeY
                 )
             }
 
-            // Znajdź rzeczywisty pik
-            val maxPoint = points.maxByOrNull { it.y }!!
+            val maxPoint = adjustedPoints.maxByOrNull { it.y }!!
             val peakX = maxPoint.x.toDouble()
 
-            // Oblicz FWHM (Full Width at Half Maximum) dla sigma
+            // Oblicz FWHM
             val halfMax = (maxY + minY) / 2.0
-            val pointsAboveHalf = points.filter { it.y >= halfMax }
+            val pointsAboveHalf = adjustedPoints.filter { it.y >= halfMax }
 
             val fwhm = if (pointsAboveHalf.size >= 2) {
                 (pointsAboveHalf.last().x - pointsAboveHalf.first().x).toDouble()
@@ -86,46 +92,38 @@ class GmmAnalyzer {
                 (endX - startX) / 3.0
             }
 
-            // FWHM = 2.355 * sigma dla krzywej Gaussa
             val estimatedSigma = (fwhm / 2.355).coerceIn(5.0, (endX - startX) / 2.0)
 
             Log.d("GmmAnalyzer", "Region $regionIndex init: peak=$peakX, FWHM=$fwhm, sigma=$estimatedSigma")
 
-            // Dopasowanie z ograniczeniami
             val fitter = GaussianCurveFitter.create()
                 .withMaxIterations(500)
                 .withStartPoint(doubleArrayOf(
-                    1.0,  // Znormalizowana amplituda
+                    1.0,
                     peakX,
                     estimatedSigma
                 ))
 
             val params = fitter.fit(normalizedPoints)
 
-            // Denormalizacja amplitudy
+            // Denormalizacja
             val actualAmplitude = params[0] * rangeY + minY
             val actualMean = params[1]
             val actualSigma = params[2]
 
-            // Walidacja wyniku
+            // Walidacja
             if (actualAmplitude <= 0 || actualSigma <= 0) {
                 Log.w("GmmAnalyzer", "Region $regionIndex: invalid params")
                 return null
             }
 
-            // Sprawdź czy mean jest w przedziale
             if (actualMean < startX || actualMean > endX) {
-                Log.w("GmmAnalyzer", "Region $regionIndex: mean outside bounds ($actualMean not in [$startX, $endX])")
+                Log.w("GmmAnalyzer", "Region $regionIndex: mean outside bounds")
                 return null
             }
 
-            // Sprawdź jakość dopasowania
-            val quality = calculateFitQuality(points, actualAmplitude, actualMean, actualSigma)
-            Log.d("GmmAnalyzer", "Region $regionIndex fit quality: R²=$quality")
-
-            if (quality < 0.7) {
-                Log.w("GmmAnalyzer", "Region $regionIndex: poor fit quality ($quality)")
-            }
+            val quality = calculateFitQuality(adjustedPoints, actualAmplitude, actualMean, actualSigma)
+            Log.d("GmmAnalyzer", "Region $regionIndex fit quality: R²=${"%.3f".format(quality)}")
 
             return GaussianComponent(
                 amplitude = actualAmplitude,
@@ -157,7 +155,6 @@ class GmmAnalyzer {
             ssTotal += (point.y - yMean) * (point.y - yMean)
         }
 
-        // R² coefficient
         return if (ssTotal > 0) 1.0 - (ssResidual / ssTotal) else 0.0
     }
 }
