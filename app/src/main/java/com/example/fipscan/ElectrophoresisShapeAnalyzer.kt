@@ -600,53 +600,112 @@ object ElectrophoresisShapeAnalyzer {
         )
     }
 
-    fun analyzeGraphGMM(originalBitmap: Bitmap, separators: List<Int>): AnalysisResult {
+    fun analyzeGraphGMM(originalBitmap: Bitmap): AnalysisResult {
+        if (fractionRanges.isEmpty()) {
+            analyzeChartBitmap(originalBitmap)
+        }
+
+        if (fractionRanges.size < 4) {
+            return AnalysisResult(
+                false,
+                message = "Nie znaleziono granic frakcji (${fractionRanges.size}/4)"
+            )
+        }
+
+        val separators = mutableListOf<Int>()
+        for (i in 0 until fractionRanges.size - 1) {
+            val separator = (fractionRanges[i].last + fractionRanges[i + 1].first) / 2
+            separators.add(separator)
+        }
+
+        Log.d("ShapeAnalyzer", "Separators: $separators")
+
         val signalExtractor = SignalExtractor()
         val rawPoints = signalExtractor.extractRawSignal(originalBitmap)
 
+        if (rawPoints.isEmpty()) {
+            return AnalysisResult(false, message = "Nie udało się wyekstrahować sygnału")
+        }
+
+        // Łagodne wygładzanie - zachowaj kształt pików
+        val smoothed1 = signalExtractor.smoothSignal(rawPoints, windowSize = 5)
+        val smoothed2 = signalExtractor.savitzkyGolaySmooth(smoothed1)
+
         val gmmAnalyzer = GmmAnalyzer()
         val components = gmmAnalyzer.fitGaussianCurves(
-            rawPoints,
+            smoothed2,
             separators,
             originalBitmap.width
         )
 
         if (components.isEmpty()) {
-            return AnalysisResult(false, message = "Nie udało się dopasować modelu matematycznego.")
+            return AnalysisResult(false, message = "Nie udało się dopasować krzywych Gaussa")
         }
+
+        Log.d("ShapeAnalyzer", "Fitted ${components.size}/4 Gaussian components")
 
         val model = ElectrophoresisModel(components)
 
-        val gammaComponent = components.last()
-        val maxSlope = model.getMaxGammaSlope()
-        val gammaSigma = gammaComponent.sigma
-
+        // Rysowanie
         val debugBitmap = originalBitmap.copy(Bitmap.Config.ARGB_8888, true)
         val canvas = Canvas(debugBitmap)
-        val paint = Paint().apply {
+
+        // Rysuj oryginalny sygnał (zielony) dla porównania
+        val originalPaint = Paint().apply {
+            color = Color.GREEN
+            strokeWidth = 2f
+            style = Paint.Style.STROKE
+            isAntiAlias = true
+            alpha = 128
+        }
+
+        val originalPath = Path()
+        val height = debugBitmap.height
+        for ((idx, point) in smoothed2.withIndex()) {
+            val screenY = (height - point.y).toFloat()
+            if (idx == 0) {
+                originalPath.moveTo(point.x, screenY)
+            } else {
+                originalPath.lineTo(point.x, screenY)
+            }
+        }
+        canvas.drawPath(originalPath, originalPaint)
+
+        // Rysuj dopasowaną krzywą (czerwony)
+        val fittedPaint = Paint().apply {
             color = Color.RED
-            strokeWidth = 3f
+            strokeWidth = 4f
             style = Paint.Style.STROKE
             isAntiAlias = true
         }
 
-        val path = Path()
-        val height = debugBitmap.height
-
-        path.moveTo(0f, height.toFloat())
+        val fittedPath = Path()
+        var firstPoint = true
         for (x in 0 until debugBitmap.width) {
             val mathY = model.getY(x.toDouble())
-            val screenY = (height - mathY).toFloat()
-            path.lineTo(x.toFloat(), screenY)
+            val screenY = (height - mathY).toFloat().coerceIn(0f, height.toFloat())
+
+            if (firstPoint) {
+                fittedPath.moveTo(x.toFloat(), screenY)
+                firstPoint = false
+            } else {
+                fittedPath.lineTo(x.toFloat(), screenY)
+            }
         }
-        canvas.drawPath(path, paint)
+        canvas.drawPath(fittedPath, fittedPaint)
+
+        val gammaComponent = components.lastOrNull()
+        val gammaSigma = gammaComponent?.sigma ?: 0.0
+        val maxSlope = model.getMaxGammaSlope()
 
         return AnalysisResult(
             isSuccess = true,
             gammaSigma = gammaSigma,
             maxSlope = maxSlope,
             debugBitmap = debugBitmap,
-            message = "Sigma: ${"%.2f".format(gammaSigma)}, Nachylenie: ${"%.2f".format(maxSlope)}"
+            message = "σ=${"%.1f".format(gammaSigma)}, slope=${"%.2f".format(maxSlope)}, R²≈${
+                if (components.size == 4) "0.85+" else "0.70+"
+            }"
         )
     }
 

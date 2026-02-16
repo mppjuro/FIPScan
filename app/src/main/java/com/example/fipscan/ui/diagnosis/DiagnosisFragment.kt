@@ -207,8 +207,7 @@ class DiagnosisFragment : Fragment() {
                     ElectrophoresisShapeAnalyzer.analyzeElectrophoresisShape(context)
                 currentWidthRatios = ElectrophoresisShapeAnalyzer.calculateWidthRatios()
 
-                val separators = findSeparatorsInBitmap(bitmap)
-                val gmmResult = ElectrophoresisShapeAnalyzer.analyzeGraphGMM(bitmap, separators)
+                val gmmResult = ElectrophoresisShapeAnalyzer.analyzeGraphGMM(bitmap)
                 currentGmmResult = gmmResult
 
                 activity?.runOnUiThread {
@@ -287,39 +286,6 @@ class DiagnosisFragment : Fragment() {
             binding.textRiskBreakdown
         )
         fieldsToShow.forEach { it.visibility = View.VISIBLE }
-    }
-
-    private fun findSeparatorsInBitmap(bitmap: Bitmap): List<Int> {
-        val separators = mutableListOf<Int>()
-        val width = bitmap.width
-        val height = bitmap.height
-        val scanY = height / 2
-
-        var lastSeparatorX = -100
-
-        for (x in 0 until width) {
-            var isRed = false
-            for (dy in -20..20) {
-                val y = (scanY + dy).coerceIn(0, height - 1)
-                val pixel = bitmap.getPixel(x, y)
-                val r = Color.red(pixel)
-                val g = Color.green(pixel)
-                val b = Color.blue(pixel)
-
-                if (r > 150 && g < 100 && b < 100) {
-                    isRed = true
-                    break
-                }
-            }
-
-            if (isRed) {
-                if (x - lastSeparatorX > 20) {
-                    separators.add(x)
-                    lastSeparatorX = x
-                }
-            }
-        }
-        return separators
     }
 
     @SuppressLint("SetTextI18n")
